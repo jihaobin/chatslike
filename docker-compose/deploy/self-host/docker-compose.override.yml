@@ -1,0 +1,3 @@
+services:
+  lobe:
+    image: ${LOBE_IMAGE}

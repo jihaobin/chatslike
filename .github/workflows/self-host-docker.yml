@@ -1,0 +1,104 @@
+name: Self-host Docker Image
+
+on:
+  push:
+    branches:
+      - self-host/prod
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Target Docker platform for the self-hosted server
+        required: true
+        default: linux/amd64
+        type: choice
+        options:
+          - linux/amd64
+          - linux/arm64
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: self-host-docker-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Run deployment-relevant tests
+        run: bunx vitest run --silent='passed-only' packages/model-runtime/src/core/openaiCompatibleFactory/createImage.test.ts
+
+  build:
+    name: Build and push image
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve build platform
+        id: platform
+        env:
+          DISPATCH_PLATFORM: ${{ inputs.platform }}
+        run: |
+          if [ -n "$DISPATCH_PLATFORM" ]; then
+            echo "value=$DISPATCH_PLATFORM" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=linux/amd64" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=prod-candidate
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ steps.platform.outputs.value }}
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Print published image
+        run: |
+          echo "Published image tags:"
+          echo "${{ steps.meta.outputs.tags }}"
