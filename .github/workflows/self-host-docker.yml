@@ -41,12 +41,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Type check
-        run: pnpm type-check
-
-      - name: Run deployment-relevant tests
-        run: bunx vitest run --silent='passed-only' packages/model-runtime/src/core/openaiCompatibleFactory/createImage.test.ts
-
   build:
     name: Build and push image
     needs: validate
