@@ -241,6 +241,22 @@ export default {
   // Heterogeneous agent — Desktop tab
   'heterogeneousStatus.desktop.tabLabel': 'Desktop',
 
+  // Remote platform agent profile config panel (openclaw / hermes)
+  'platformAgentConfig.title': 'Platform Configuration',
+  'platformAgentConfig.platform.label': 'Platform',
+  'platformAgentConfig.device.label': 'Bound Device',
+  'platformAgentConfig.device.none': 'None',
+  'platformAgentConfig.device.online': 'Online',
+  'platformAgentConfig.device.offline': 'Offline',
+  'platformAgentConfig.availability.label': 'Availability',
+  'platformAgentConfig.availability.checking': 'Checking...',
+  'platformAgentConfig.availability.available': 'Available',
+  'platformAgentConfig.availability.notInstalled': 'Not installed',
+  'platformAgentConfig.availability.noDevice': 'No device bound',
+  'platformAgentConfig.changeDevice': 'Change Device',
+  'platformAgentConfig.redetect': 'Re-detect',
+  'platformAgentConfig.selectDevice': 'Select a device',
+
   'checking': 'Checking...',
 
   // Credentials Management
@@ -602,6 +618,11 @@ export default {
   'settingChat.enableAutoScrollOnStreaming.desc': 'Override global setting for this assistant',
   'settingChat.enableAutoScrollOnStreaming.title': 'Auto-scroll During AI Response',
   'settingChat.enableCompressHistory.title': 'Enable Automatic Summary of Chat History',
+  'settingChat.enableFollowUpChips.desc':
+    'After each reply, show one-click follow-up reply chips below the message. Requires the global Follow-up model to be configured.',
+  'settingChat.enableFollowUpChips.notConfiguredHint':
+    'Configure the global Follow-up model first to enable this.',
+  'settingChat.enableFollowUpChips.title': 'Follow-up Suggestions',
   'settingChat.enableHistoryCount.alias': 'Unlimited',
   'settingChat.enableHistoryCount.limited': 'Include only {{number}} conversation messages',
   'settingChat.enableHistoryCount.setlimited': 'Set limited history messages',
@@ -953,6 +974,10 @@ When I am ___, I need ___
     'Once filled out, the system agent will use the custom prompt when generating content',
   'systemAgent.customPrompt.placeholder': 'Please enter custom prompt',
   'systemAgent.customPrompt.title': 'Custom Prompt',
+  'systemAgent.followUpAction.label': 'Follow-up Suggestions Model',
+  'systemAgent.followUpAction.modelDesc':
+    'Model used to suggest one-click follow-up replies under each assistant message',
+  'systemAgent.followUpAction.title': 'Follow-up Suggestions',
   'systemAgent.generationTopic.label': 'Model',
   'systemAgent.generationTopic.modelDesc': 'Model used to name AI image topics',
   'systemAgent.generationTopic.title': 'AI Image Topic Naming',

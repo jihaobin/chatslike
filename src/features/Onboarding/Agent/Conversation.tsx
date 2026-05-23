@@ -16,7 +16,7 @@ import {
   MessageItem,
   useConversationStore,
 } from '@/features/Conversation';
-import { dataSelectors, messageStateSelectors } from '@/features/Conversation/store';
+import { dataSelectors } from '@/features/Conversation/store';
 import WideScreenContainer from '@/features/WideScreenContainer';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import type { OnboardingPhase } from '@/types/user';
@@ -26,16 +26,24 @@ import CompletionPanel from './CompletionPanel';
 import NameSuggestions from './NameSuggestions';
 import Welcome from './Welcome';
 import WelcomeMobile from './Welcome.mobile';
+import WelcomeMessage from './WelcomeMessage';
 import WrapUpHint from './WrapUpHint';
-
-const assistantLikeRoles = new Set(['assistant', 'assistantGroup', 'supervisor']);
 
 interface AgentOnboardingConversationProps {
   discoveryUserMessageCount?: number;
   feedbackSubmitted?: boolean;
   finishTargetUrl?: string;
+  // When true, server reports the active topic already has at least one message.
+  // The welcome shell is suppressed and ChatList renders its built-in skeleton
+  // while messages fetch, avoiding the misleading "fresh Welcome flash" on
+  // returning users.
+  hasMessages?: boolean;
+  // While false, the underlying backend (bootstrap state or builtin agent
+  // config) is still hydrating: ChatInput shows its skeleton-style placeholder
+  // for the action/send area so the user cannot submit until the orchestration
+  // is ready to handle the first send.
+  isInputReady?: boolean;
   onAfterWrapUp?: () => Promise<unknown> | void;
-  onAssistantTurnSettled?: (messageId: string) => Promise<unknown> | void;
   onboardingFinished?: boolean;
   phase?: OnboardingPhase;
   readOnly?: boolean;
@@ -56,8 +64,9 @@ const AgentOnboardingConversation = memo<AgentOnboardingConversationProps>(
     discoveryUserMessageCount,
     feedbackSubmitted,
     finishTargetUrl,
+    hasMessages,
+    isInputReady = true,
     onAfterWrapUp,
-    onAssistantTurnSettled,
     onboardingFinished,
     phase,
     readOnly,
@@ -66,9 +75,6 @@ const AgentOnboardingConversation = memo<AgentOnboardingConversationProps>(
   }) => {
     const isMobile = useIsMobile();
     const displayMessages = useConversationStore(conversationSelectors.displayMessages);
-    const pendingInterventionCount = useConversationStore(
-      (s) => dataSelectors.pendingInterventions(s).length,
-    );
     // The agent-marketplace intervention renders as an absolute overlay anchored
     // to the chat input area, which would otherwise occlude the last message.
     // Reserve matching scroll headroom inside ChatList so the latest message can
@@ -83,29 +89,17 @@ const AgentOnboardingConversation = memo<AgentOnboardingConversationProps>(
         ),
     );
 
-    // The welcome ("AI opens") is rendered client-side from i18n until the
-    // user sends their first message — at which point the welcome and the
-    // user's reply are persisted together. Greeting state is therefore the
-    // pre-conversation period when no messages have been recorded yet.
-    const isGreetingState = useMemo(() => displayMessages.length === 0, [displayMessages]);
-
-    const latestAssistantMessageId = useMemo(() => {
-      const latest = displayMessages.at(-1);
-      if (!latest || !assistantLikeRoles.has(latest.role)) return undefined;
-
-      return latest.id;
-    }, [displayMessages]);
-
-    const isLatestAssistantGenerating = useConversationStore((s) =>
-      latestAssistantMessageId
-        ? messageStateSelectors.isAssistantGroupItemGenerating(latestAssistantMessageId)(s)
-        : false,
+    // The welcome is UI-only. It must not be persisted or inserted into LLM
+    // history; otherwise the setup copy can compete with the user's first
+    // actual naming instruction. `hasMessages` prevents the brief messages-fetch
+    // window for returning users from flashing Welcome.
+    const isGreetingState = useMemo(
+      () => !hasMessages && displayMessages.length === 0,
+      [hasMessages, displayMessages],
     );
 
     const [showGreeting, setShowGreeting] = useState(isGreetingState);
     const prevGreetingRef = useRef(isGreetingState);
-    const armedSettledMessageIdRef = useRef<string>(undefined);
-    const firedSettledMessageIdRef = useRef<string>(undefined);
 
     useEffect(() => {
       if (prevGreetingRef.current && !isGreetingState) {
@@ -124,33 +118,16 @@ const AgentOnboardingConversation = memo<AgentOnboardingConversationProps>(
       prevGreetingRef.current = isGreetingState;
     }, [isGreetingState]);
 
-    useEffect(() => {
-      if (!onAssistantTurnSettled || !latestAssistantMessageId) return;
-
-      if (pendingInterventionCount > 0) {
-        armedSettledMessageIdRef.current = undefined;
-        return;
-      }
-
-      if (isLatestAssistantGenerating) {
-        armedSettledMessageIdRef.current = latestAssistantMessageId;
-        return;
-      }
-
-      if (armedSettledMessageIdRef.current !== latestAssistantMessageId) return;
-      if (firedSettledMessageIdRef.current === latestAssistantMessageId) return;
-
-      firedSettledMessageIdRef.current = latestAssistantMessageId;
-      armedSettledMessageIdRef.current = undefined;
-      void onAssistantTurnSettled(latestAssistantMessageId);
-    }, [
-      isLatestAssistantGenerating,
-      latestAssistantMessageId,
-      onAssistantTurnSettled,
-      pendingInterventionCount,
-    ]);
-
+    const hasPersistedAssistantOpener = displayMessages.at(0)?.role === 'assistant';
+    const shouldShowSyntheticWelcome =
+      !onboardingFinished && !hasPersistedAssistantOpener && displayMessages.length > 0;
     const shouldShowGreetingWelcome = showGreeting && !onboardingFinished;
+    const shouldShowGreetingActions = showGreeting && !onboardingFinished;
+
+    const syntheticWelcome = useMemo(() => {
+      if (!shouldShowSyntheticWelcome) return undefined;
+      return <WelcomeMessage />;
+    }, [shouldShowSyntheticWelcome]);
 
     const greetingWelcome = useMemo(() => {
       if (!shouldShowGreetingWelcome) return undefined;
@@ -181,8 +158,6 @@ const AgentOnboardingConversation = memo<AgentOnboardingConversationProps>(
         />
       );
 
-    const listWelcome = greetingWelcome;
-
     const itemContent = (index: number, id: string) => {
       const isLatestItem = displayMessages.length === index + 1;
 
@@ -201,9 +176,10 @@ const AgentOnboardingConversation = memo<AgentOnboardingConversationProps>(
         <Flexbox flex={1} style={{ overflow: 'hidden' }}>
           <ChatList
             footerSlot={agentMarketplaceSpacer}
+            headerSlot={syntheticWelcome}
             itemContent={itemContent}
             showWelcome={shouldShowGreetingWelcome}
-            welcome={listWelcome}
+            welcome={greetingWelcome}
           />
         </Flexbox>
         {!readOnly && !onboardingFinished && (
@@ -213,7 +189,7 @@ const AgentOnboardingConversation = memo<AgentOnboardingConversationProps>(
               phase={phase}
               onAfterFinish={onAfterWrapUp}
             />
-            {shouldShowGreetingWelcome &&
+            {shouldShowGreetingActions &&
               (isMobile ? (
                 <NameSuggestions variant={'chips'} />
               ) : (
@@ -226,6 +202,7 @@ const AgentOnboardingConversation = memo<AgentOnboardingConversationProps>(
               disableQueue
               allowExpand={false}
               feature={chatInputFeature}
+              isConfigLoading={!isInputReady}
               leftActions={chatInputLeftActions}
               rightActions={chatInputRightActions}
               showRuntimeConfig={false}
