@@ -655,8 +655,9 @@ export default {
   'settingChatAppearance.transitionMode.options.none.value': 'None',
   'settingChatAppearance.transitionMode.options.smooth': 'Smooth',
   'settingChatAppearance.transitionMode.title': 'Transition Animation',
-  'settingCommon.devMode.desc': 'Enable to show developer-related features and options',
-  'settingCommon.devMode.title': 'Developer Mode',
+  'settingCommon.devMode.desc':
+    'Show technical details and manual controls for chats, models, and local tools. This does not change model responses.',
+  'settingCommon.devMode.title': 'Advanced tools',
   'settingCommon.lang.autoMode': 'Follow System',
   'settingCommon.lang.title': 'Language',
   'settingCommon.liteMode.desc': 'Simplify the interface and hide advanced features',
@@ -811,6 +812,8 @@ export default {
   'settingSystem.oauth.signout.success': 'Sign out successful',
   'settingSystem.title': 'System Settings',
   'serviceModel.modelAssignments.title': 'Model Assignments',
+  'serviceModel.contextLimit.placeholder': 'Context limit',
+  'serviceModel.memoryModels.title': 'Memory Models',
   'serviceModel.optionalFeatures.title': 'Optional Features',
   'settingSystemTools.appEnvironment.chromium.desc': 'Chromium browser engine version',
   'settingSystemTools.appEnvironment.desc': 'Built-in runtime versions in the desktop app',
@@ -990,6 +993,18 @@ When I am ___, I need ___
   'systemAgent.inputCompletion.modelDesc':
     'Suggests text while you type. When enabled, this model generates the suggestions.',
   'systemAgent.inputCompletion.title': 'Input Suggestions',
+  'systemAgent.userMemoryEmbedding.label': 'Model',
+  'systemAgent.userMemoryEmbedding.modelDesc':
+    'Model used to embed memory content for retrieval. The context limit caps each embedding input.',
+  'systemAgent.userMemoryEmbedding.title': 'Memory Embedding',
+  'systemAgent.memoryAnalysisAgentConfig.label': 'Model',
+  'systemAgent.memoryAnalysisAgentConfig.modelDesc':
+    'Model used to decide whether conversations contain memory and extract identities, preferences, contexts, activities, and experiences.',
+  'systemAgent.memoryAnalysisAgentConfig.title': 'Memory Analysis',
+  'systemAgent.userMemoryPersonaWriter.label': 'Model',
+  'systemAgent.userMemoryPersonaWriter.modelDesc':
+    'Model used to write persona-oriented memory summaries.',
+  'systemAgent.userMemoryPersonaWriter.title': 'Memory Persona Writer',
   'systemAgent.promptRewrite.label': 'Model',
   'systemAgent.promptRewrite.modelDesc':
     'Improves prompts before generation. When enabled, this model rewrites the prompt.',
@@ -1006,6 +1021,8 @@ When I am ___, I need ___
   'systemAgent.translation.title': 'Message Translation',
   'tab.about': 'About',
   'tab.advanced': 'Advanced',
+  'tab.advanced.appUpdates.title': 'App updates',
+  'tab.advanced.toolsAndDiagnostics.title': 'Tools and diagnostics',
   'tab.addAgentSkill': 'Add Agent Skill',
   'tab.advanced.updateChannel.canary': 'Canary',
   'tab.advanced.updateChannel.canaryDesc':
@@ -1016,7 +1033,7 @@ When I am ___, I need ___
   'tab.advanced.updateChannel.nightlyDesc': 'Automated daily builds with the latest changes.',
   'tab.advanced.updateChannel.stable': 'Stable',
   'tab.advanced.updateChannel.stableDesc': 'Production-ready releases.',
-  'tab.advanced.updateChannel.title': 'Update Channel',
+  'tab.advanced.updateChannel.title': 'Update channel',
   'tab.addCustomMcp': 'Add Custom MCP Skill',
   'tab.addCustomMcp.desc': 'Manually configure a custom MCP server',
   'tab.addCustomSkill': 'Add',

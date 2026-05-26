@@ -12,7 +12,7 @@ import type {
   ExplorerTreeHandle,
   ExplorerTreeNode,
 } from '@/features/ExplorerTree';
-import { ExplorerTree, FOLDER_ICON_CSS } from '@/features/ExplorerTree';
+import { ExplorerTree, FOLDER_ICON_CSS, getExplorerTreeStyleVars } from '@/features/ExplorerTree';
 import { useChatStore } from '@/store/chat';
 
 import DocumentExplorerToolbar from './DocumentExplorerToolbar';
@@ -101,6 +101,10 @@ const DocumentExplorerTree = memo<Props>(({ agentId, data, mutate, style }) => {
   );
   const defaultExpandedIds = useMemo(
     () => nodes.filter((node) => node.isFolder && node.parentId == null).map((node) => node.id),
+    [nodes],
+  );
+  const treeStyleVars = useMemo(
+    () => getExplorerTreeStyleVars({ reserveChevronSlot: nodes.some((node) => node.isFolder) }),
     [nodes],
   );
 
@@ -194,9 +198,17 @@ const DocumentExplorerTree = memo<Props>(({ agentId, data, mutate, style }) => {
       const isFolder = !!node.isFolder;
       const targetParentId = isFolder ? node.id : (node.parentId ?? null);
 
+      // Right-click on a row that's part of the current multi-selection acts
+      // on the whole selection; otherwise it targets only the right-clicked
+      // row (which matches typical file-tree UX where right-clicking outside
+      // the selection narrows the action).
+      const selectedIds = treeRef.current?.getSelectedIds() ?? [];
+      const isMulti = selectedIds.length > 1 && selectedIds.includes(node.id);
+      const deleteIds = isMulti ? selectedIds : [node.id];
+
       const items: NonNullable<MenuProps['items']> = [];
 
-      if (isFolder && !isSkill) {
+      if (isFolder && !isSkill && !isMulti) {
         items.push(
           {
             key: 'new-folder',
@@ -212,7 +224,7 @@ const DocumentExplorerTree = memo<Props>(({ agentId, data, mutate, style }) => {
         );
       }
 
-      if (!isSkill) {
+      if (!isSkill && !isMulti) {
         items.push({
           key: 'rename',
           label: t('workingPanel.resources.tree.rename'),
@@ -224,8 +236,10 @@ const DocumentExplorerTree = memo<Props>(({ agentId, data, mutate, style }) => {
         danger: true,
         icon: <Trash2Icon size={14} />,
         key: 'delete',
-        label: t('delete', { ns: 'common' }),
-        onClick: () => ops.deleteDocument(node.id),
+        label: isMulti
+          ? t('workingPanel.resources.tree.deleteSelected', { count: deleteIds.length })
+          : t('delete', { ns: 'common' }),
+        onClick: () => ops.deleteDocuments(deleteIds),
       });
 
       return items;
@@ -234,14 +248,13 @@ const DocumentExplorerTree = memo<Props>(({ agentId, data, mutate, style }) => {
   );
 
   return (
-    <div className={styles.tree} style={style}>
+    <div className={styles.tree} style={{ ...style, ...treeStyleVars }}>
       <ExplorerTree<AgentDocumentItem>
         iconsColored
         canDrag={canDrag}
         canDrop={canDrop}
         canRename={canRename}
         defaultExpandedIds={defaultExpandedIds}
-        density="compact"
         getContextMenuItems={getContextMenuItems}
         iconSet="complete"
         nodes={nodes}

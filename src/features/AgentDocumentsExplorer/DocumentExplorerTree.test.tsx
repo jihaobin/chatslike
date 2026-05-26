@@ -28,6 +28,10 @@ vi.mock('@lobehub/ui', () => ({
   Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
 }));
 
+vi.mock('@lobehub/ui/base-ui', () => ({
+  confirmModal: modalConfirm,
+}));
+
 vi.mock('antd', () => ({
   App: {
     useApp: () => ({
@@ -126,7 +130,11 @@ vi.mock('@/features/ExplorerTree', () => {
     );
   };
 
-  return { ExplorerTree, FOLDER_ICON_CSS: '' };
+  return {
+    ExplorerTree,
+    FOLDER_ICON_CSS: '',
+    getExplorerTreeStyleVars: () => ({}),
+  };
 });
 
 const createDocument = (overrides: Partial<AgentDocumentItem>): AgentDocumentItem =>
