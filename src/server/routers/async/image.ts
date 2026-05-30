@@ -1,5 +1,4 @@
 import { ASYNC_TASK_TIMEOUT } from '@lobechat/business-config/server';
-import { ENABLE_BUSINESS_FEATURES } from '@lobechat/business-const';
 import {
   buildMappedBusinessModelFields,
   resolveBusinessModelMapping,
@@ -423,24 +422,22 @@ export const imageRouter = router({
             console.error('[image-async] notification failed:', err);
           }
 
-          if (ENABLE_BUSINESS_FEATURES) {
-            await chargeAfterGenerate({
-              metrics: { latency: duration },
-              metadata: {
-                asyncTaskId: taskId,
-                generationBatchId,
-                topicId: generationTopicId,
-                ...buildMappedBusinessModelFields({
-                  provider,
-                  requestedModelId,
-                  resolvedModelId,
-                }),
-              },
-              modelUsage,
-              provider,
-              userId: ctx.userId,
-            });
-          }
+          await chargeAfterGenerate({
+            metrics: { latency: duration },
+            metadata: {
+              asyncTaskId: taskId,
+              generationBatchId,
+              topicId: generationTopicId,
+              ...buildMappedBusinessModelFields({
+                provider,
+                requestedModelId,
+                resolvedModelId,
+              }),
+            },
+            modelUsage,
+            provider,
+            userId: ctx.userId,
+          });
 
           log('Async image generation completed successfully: %s', taskId);
           return { success: true };
@@ -491,6 +488,31 @@ export const imageRouter = router({
           error: new AsyncTaskError(errorType, errorMessage),
           status: AsyncTaskStatus.Error,
         });
+
+        try {
+          const { requestedModelId, resolvedModelId } = await resolveBusinessModelMapping(
+            provider,
+            model,
+          );
+
+          await chargeAfterGenerate({
+            metadata: {
+              asyncTaskId: taskId,
+              generationBatchId,
+              topicId: generationTopicId,
+              ...buildMappedBusinessModelFields({
+                provider,
+                requestedModelId,
+                resolvedModelId,
+              }),
+            },
+            provider,
+            success: false,
+            userId: ctx.userId,
+          });
+        } catch (chargeError) {
+          console.error('[image-async] chargeAfterGenerate failed:', chargeError);
+        }
 
         log('Task status updated to Error: %s, errorType: %s', taskId, errorType);
 

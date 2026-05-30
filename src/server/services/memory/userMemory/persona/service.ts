@@ -12,7 +12,6 @@ import {
 import type { UserServiceModelConfig } from '@lobechat/types';
 import { desc, eq } from 'drizzle-orm';
 
-import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
 import { UserModel } from '@/database/models/user';
 import { UserMemoryModel } from '@/database/models/userMemory';
 import { UserPersonaModel } from '@/database/models/userMemory/persona';
@@ -114,8 +113,6 @@ export class UserPersonaService {
       {} as ProviderKeyVaultMap,
     );
 
-    const hooks = getBusinessModelRuntimeHooks(payload.userId, 'lobehub');
-
     const runtime = await resolveRuntimeAgentConfig(
       agentConfig,
       keyVaults,
@@ -127,7 +124,6 @@ export class UserPersonaService {
         preferred: { providerIds: [providerId] },
         userId: payload.userId,
       } satisfies RuntimeResolveOptions,
-      hooks,
     );
 
     const personaModel = new UserPersonaModel(this.db, payload.userId);

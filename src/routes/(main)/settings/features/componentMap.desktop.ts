@@ -1,3 +1,4 @@
+import AdminBilling from '@/business/client/BusinessSettingPages/AdminBilling';
 import Billing from '@/business/client/BusinessSettingPages/Billing';
 import Credits from '@/business/client/BusinessSettingPages/Credits';
 import Notification from '@/business/client/BusinessSettingPages/Notification';
@@ -25,6 +26,7 @@ import Storage from '../storage';
 import SystemTools from '../system-tools';
 
 export const componentMap = {
+  [SettingsTabs.AdminBilling]: AdminBilling,
   [SettingsTabs.Advanced]: Advanced,
   [SettingsTabs.Appearance]: Appearance,
   [SettingsTabs.Provider]: Provider,

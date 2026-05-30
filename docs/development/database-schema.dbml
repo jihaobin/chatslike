@@ -556,6 +556,217 @@ table verifications {
   }
 }
 
+table admin_audit_logs {
+  id text [pk, not null]
+  admin_user_id text [not null]
+  target_user_id text
+  action varchar(64) [not null]
+  amount_credits bigint
+  billing_order_id text
+  reason text [not null]
+  metadata jsonb [default: `{}`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    (admin_user_id, created_at) [name: 'admin_audit_logs_admin_created_idx']
+    (target_user_id, created_at) [name: 'admin_audit_logs_target_created_idx']
+    action [name: 'admin_audit_logs_action_idx']
+  }
+}
+
+table billing_orders {
+  id text [pk, not null]
+  user_id text [not null]
+  order_type varchar(32) [not null]
+  status varchar(32) [not null, default: 'pending']
+  amount_cents integer [not null]
+  currency varchar(8) [not null, default: 'CNY']
+  credits bigint [not null, default: 0]
+  plan_id varchar(32)
+  period varchar(16)
+  payment_channel varchar(32)
+  payment_transaction_id text
+  activated_grant_id text
+  paid_at "timestamp with time zone"
+  activated_at "timestamp with time zone"
+  metadata jsonb [default: `{}`]
+  accessed_at "timestamp with time zone" [not null, default: `now()`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+  updated_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'billing_orders_user_created_idx']
+    status [name: 'billing_orders_status_idx']
+  }
+}
+
+table credit_accounts {
+  id text [pk, not null]
+  user_id text [not null]
+  available_credits bigint [not null, default: 0]
+  frozen_credits bigint [not null, default: 0]
+  lifetime_consumed_credits bigint [not null, default: 0]
+  lifetime_granted_credits bigint [not null, default: 0]
+  risk_reason text
+  status varchar(32) [not null, default: 'active']
+  accessed_at "timestamp with time zone" [not null, default: `now()`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+  updated_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    user_id [name: 'credit_accounts_user_id_unique', unique]
+    status [name: 'credit_accounts_status_idx']
+  }
+}
+
+table credit_grants {
+  id text [pk, not null]
+  user_id text [not null]
+  source varchar(32) [not null]
+  total_credits bigint [not null]
+  remaining_credits bigint [not null]
+  starts_at "timestamp with time zone"
+  expires_at "timestamp with time zone"
+  billing_order_id text
+  admin_audit_log_id text
+  operation_id text [not null]
+  metadata jsonb [default: `{}`]
+  status varchar(32) [not null, default: 'active']
+  accessed_at "timestamp with time zone" [not null, default: `now()`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+  updated_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    operation_id [name: 'credit_grants_operation_id_unique', unique]
+    (user_id, status) [name: 'credit_grants_user_status_idx']
+    (user_id, source) [name: 'credit_grants_user_source_idx']
+    starts_at [name: 'credit_grants_starts_at_idx']
+    expires_at [name: 'credit_grants_expires_at_idx']
+  }
+}
+
+table credit_ledger_entries {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  user_id text [not null]
+  event_type varchar(32) [not null]
+  amount_credits bigint [not null]
+  balance_after_credits bigint [not null]
+  grant_id text
+  reservation_id text
+  billing_order_id text
+  usage_record_id text
+  operation_id text [not null]
+  reason text
+  metadata jsonb [default: `{}`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'credit_ledger_user_created_idx']
+    operation_id [name: 'credit_ledger_operation_idx']
+    event_type [name: 'credit_ledger_event_type_idx']
+  }
+}
+
+table credit_reservations {
+  id text [pk, not null]
+  user_id text [not null]
+  operation_id text [not null]
+  business_type varchar(32) [not null]
+  business_id text
+  provider text [not null]
+  model text [not null]
+  estimated_credits bigint [not null]
+  captured_credits bigint [not null, default: 0]
+  released_credits bigint [not null, default: 0]
+  status varchar(32) [not null, default: 'pending']
+  metadata jsonb [default: `{}`]
+  captured_at "timestamp with time zone"
+  released_at "timestamp with time zone"
+  accessed_at "timestamp with time zone" [not null, default: `now()`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+  updated_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    operation_id [name: 'credit_reservations_operation_id_unique', unique]
+    (user_id, status) [name: 'credit_reservations_user_status_idx']
+    (business_type, business_id) [name: 'credit_reservations_business_idx']
+  }
+}
+
+table model_pricing {
+  id text [pk, not null]
+  provider text [not null]
+  model text [not null]
+  modality varchar(32) [not null]
+  input_credits_per_million_tokens bigint
+  output_credits_per_million_tokens bigint
+  fixed_credits_per_unit bigint
+  unit varchar(32)
+  parameter_rules jsonb [default: `{}`]
+  provider_cost "numeric(20, 6)"
+  sell_rate "numeric(20, 6)"
+  currency varchar(8) [not null, default: 'CNY']
+  effective_at "timestamp with time zone" [not null, default: `now()`]
+  status varchar(32) [not null, default: 'active']
+  accessed_at "timestamp with time zone" [not null, default: `now()`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+  updated_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    (provider, model, modality) [name: 'model_pricing_provider_model_modality_unique', unique]
+    status [name: 'model_pricing_status_idx']
+  }
+}
+
+table payment_transactions {
+  id text [pk, not null]
+  billing_order_id text [not null]
+  channel varchar(32) [not null]
+  provider_transaction_id text
+  status varchar(32) [not null, default: 'created']
+  amount_cents integer [not null]
+  raw_callback jsonb
+  signature_verified boolean [not null, default: false]
+  amount_verified boolean [not null, default: false]
+  callback_received_at "timestamp with time zone"
+  metadata jsonb [default: `{}`]
+  accessed_at "timestamp with time zone" [not null, default: `now()`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+  updated_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    billing_order_id [name: 'payment_transactions_order_idx']
+    (channel, provider_transaction_id) [name: 'payment_transactions_provider_tx_unique', unique]
+  }
+}
+
+table usage_records {
+  id text [pk, not null]
+  user_id text [not null]
+  modality varchar(32) [not null]
+  business_id text
+  reservation_id text
+  provider text [not null]
+  model text [not null]
+  input_tokens integer
+  output_tokens integer
+  estimated_credits bigint [not null, default: 0]
+  actual_credits bigint [not null, default: 0]
+  released_credits bigint [not null, default: 0]
+  overrun_credits bigint [not null, default: 0]
+  provider_request_id text
+  status varchar(32) [not null]
+  params jsonb [default: `{}`]
+  metadata jsonb [default: `{}`]
+  created_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'usage_records_user_created_idx']
+    modality [name: 'usage_records_modality_idx']
+    (modality, business_id) [name: 'usage_records_business_idx']
+  }
+}
+
 table chat_groups {
   id text [pk, not null]
   title text

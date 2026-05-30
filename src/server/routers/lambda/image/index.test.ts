@@ -327,7 +327,7 @@ describe('imageRouter', () => {
       );
     });
 
-    it('should return charge result when chargeBeforeGenerate returns a value', async () => {
+    it('should return charge error batch when chargeBeforeGenerate returns one', async () => {
       const chargeResult = {
         success: true as const,
         data: {
@@ -335,7 +335,7 @@ describe('imageRouter', () => {
           generations: [{ id: 'charged-gen' }],
         },
       };
-      mockChargeBeforeGenerate.mockResolvedValue(chargeResult);
+      mockChargeBeforeGenerate.mockResolvedValue({ errorBatch: chargeResult });
 
       const ctx = createMockCtx();
       const input = createDefaultInput();
@@ -346,6 +346,49 @@ describe('imageRouter', () => {
       expect(result).toEqual(chargeResult);
       // Should not proceed with database transaction
       expect(mockServerDB.transaction).not.toHaveBeenCalled();
+    });
+
+    it('should store billing reservation metadata in generation batch config', async () => {
+      mockChargeBeforeGenerate.mockResolvedValue({
+        billing: {
+          estimatedCredits: 80_000,
+          operationId: 'image:test-user-id:topic-1:test-provider:stable-diffusion:hash',
+          reservationId: 'reservation-image-1',
+        },
+      });
+
+      const ctx = createMockCtx();
+      const input = createDefaultInput();
+
+      const caller = imageRouter.createCaller(ctx);
+      await caller.createImage(input);
+
+      const transactionCallback = mockServerDB.transaction.mock.calls[0][0];
+      const insert = vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockReturnValue([{ id: 'batch-billing' }]),
+        }),
+      });
+
+      await transactionCallback({
+        insert,
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      });
+
+      expect(insert().values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            billing: expect.objectContaining({
+              estimatedCredits: 80_000,
+              reservationId: 'reservation-image-1',
+            }),
+          }),
+        }),
+      );
     });
 
     it('should call chargeBeforeGenerate with correct parameters', async () => {

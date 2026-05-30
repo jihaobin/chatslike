@@ -69,7 +69,8 @@ vi.mock('@lobechat/memory-user-memory', () => ({
   })),
 }));
 
-vi.mock('@/server/services/memory/userMemory/extract', () => ({
+vi.mock('@/server/services/memory/userMemory/extract', async (importOriginal) => ({
+  ...((await importOriginal()) as Record<string, unknown>),
   resolveRuntimeAgentConfig: vi.fn().mockResolvedValue({}),
 }));
 
@@ -174,7 +175,20 @@ describe('UserPersonaService', () => {
           baseURL: undefined,
         },
       }),
-      undefined,
     );
+    expect(vi.mocked(resolveRuntimeAgentConfig).mock.lastCall).toHaveLength(3);
+  });
+
+  it('does not attach user billing hooks to internal persona writer runtime', async () => {
+    const service = new UserPersonaService(db);
+
+    await service.composeWriting({ userId, username: 'User' });
+
+    expect(resolveRuntimeAgentConfig).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      expect.any(Object),
+    );
+    expect(vi.mocked(resolveRuntimeAgentConfig).mock.lastCall).toHaveLength(3);
   });
 });

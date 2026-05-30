@@ -167,8 +167,8 @@ export const imageRouter = router({
       provider,
       userId,
     });
-    if (chargeResult) {
-      return chargeResult;
+    if (chargeResult?.errorBatch) {
+      return chargeResult.errorBatch;
     }
 
     // Step 1: Atomically create all database records in a transaction
@@ -177,7 +177,9 @@ export const imageRouter = router({
 
       // 1. Create generationBatch
       const newBatch: NewGenerationBatch = {
-        config: configForDatabase,
+        config: chargeResult?.billing
+          ? { ...configForDatabase, billing: chargeResult.billing }
+          : configForDatabase,
         generationTopicId,
         height: params.height,
         model,

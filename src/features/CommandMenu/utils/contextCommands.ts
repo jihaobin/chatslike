@@ -71,6 +71,9 @@ const BUSINESS_SETTINGS_COMMANDS: ContextCommand[] = [
     path: '/settings/billing',
     subPath: 'billing',
   },
+];
+
+const CLOUD_BUSINESS_SETTINGS_COMMANDS: ContextCommand[] = [
   {
     icon: Gift,
     keywords: ['referral', 'rewards', 'invite', 'bonus'],
@@ -194,6 +197,7 @@ export const CONTEXT_COMMANDS: Record<ContextType, ContextCommand[]> = {
 
 interface BuildContextCommandsOptions {
   enableBusinessFeatures: boolean;
+  enablePlatformBilling: boolean;
 }
 
 /**
@@ -201,11 +205,14 @@ interface BuildContextCommandsOptions {
  */
 export const buildContextCommands = ({
   enableBusinessFeatures,
+  enablePlatformBilling,
 }: BuildContextCommandsOptions): Record<ContextType, ContextCommand[]> => ({
   ...CONTEXT_COMMANDS,
-  settings: enableBusinessFeatures
-    ? [...CONTEXT_COMMANDS.settings, ...BUSINESS_SETTINGS_COMMANDS]
-    : CONTEXT_COMMANDS.settings,
+  settings: [
+    ...CONTEXT_COMMANDS.settings,
+    ...(enablePlatformBilling ? BUSINESS_SETTINGS_COMMANDS : []),
+    ...(enableBusinessFeatures ? CLOUD_BUSINESS_SETTINGS_COMMANDS : []),
+  ],
 });
 
 /**

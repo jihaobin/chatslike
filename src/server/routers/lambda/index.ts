@@ -2,6 +2,7 @@
  * This file contains the root router of Lobe Chat tRPC-backend
  */
 import { accountDeletionRouter } from '@/business/server/lambda-routers/accountDeletion';
+import { adminBillingRouter } from '@/business/server/lambda-routers/adminBilling';
 import { referralRouter } from '@/business/server/lambda-routers/referral';
 import { spendRouter } from '@/business/server/lambda-routers/spend';
 import { subscriptionRouter } from '@/business/server/lambda-routers/subscription';
@@ -129,6 +130,7 @@ export const lambdaRouter = router({
   video: videoRouter,
   webBrowsing: webBrowsingRouter,
   accountDeletion: accountDeletionRouter,
+  adminBilling: adminBillingRouter,
   referral: referralRouter,
   spend: spendRouter,
   subscription: subscriptionRouter,

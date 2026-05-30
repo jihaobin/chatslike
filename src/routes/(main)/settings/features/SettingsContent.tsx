@@ -3,6 +3,7 @@
 import { Fragment, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
 import NavHeader from '@/features/NavHeader';
 import SettingContainer from '@/features/Setting/SettingContainer';
 import { SettingsTabs } from '@/store/global/initialState';
@@ -25,6 +26,7 @@ interface SettingsContentProps {
 
 const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
   const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
+  const enablePlatformBilling = isPlatformBillingEnabled();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,14 +43,18 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
     if (
       [
         SettingsTabs.About,
+        SettingsTabs.AdminBilling,
         SettingsTabs.ServiceModel,
         SettingsTabs.Provider,
         SettingsTabs.Profile,
         SettingsTabs.Stats,
         SettingsTabs.Usage,
         SettingsTabs.Security,
+        ...(enablePlatformBilling
+          ? [SettingsTabs.Plans, SettingsTabs.Credits, SettingsTabs.Billing]
+          : []),
         ...(enableBusinessFeatures
-          ? [SettingsTabs.Plans, SettingsTabs.Credits, SettingsTabs.Billing, SettingsTabs.Referral]
+          ? [SettingsTabs.Referral]
           : []),
       ].includes(tab as any)
     ) {

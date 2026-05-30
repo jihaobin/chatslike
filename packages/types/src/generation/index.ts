@@ -49,6 +49,11 @@ export type GenerationAsset = ImageGenerationAsset | VideoGenerationAsset;
 
 export interface GenerationConfig {
   aspectRatio?: string;
+  billing?: {
+    estimatedCredits: number;
+    operationId: string;
+    reservationId: string;
+  };
   cfg?: number;
   endImageUrl?: string | null;
   height?: number;

@@ -728,6 +728,27 @@
       "when": 1779464293586,
       "tag": "0103_add_llm_tracing_and_eval_experiments",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1779856110627,
+      "tag": "0104_add_billing_credits_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1779939693604,
+      "tag": "0105_add_credit_grants_operation_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1779951385246,
+      "tag": "0106_add_credit_grants_starts_at",
+      "breakpoints": true
     }
   ],
   "version": "6"

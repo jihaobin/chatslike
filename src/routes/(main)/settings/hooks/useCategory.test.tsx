@@ -20,6 +20,41 @@ vi.hoisted(() => {
   });
 });
 
+vi.mock('@lobehub/ui', () => ({
+  Avatar: () => <div data-testid="avatar" />,
+}));
+
+vi.mock('@lobehub/ui/icons', () => ({
+  SkillsIcon: () => <svg data-testid="skills-icon" />,
+}));
+
+vi.mock('lucide-react', () => {
+  const Icon = () => <svg data-testid="icon" />;
+
+  return {
+    BellIcon: Icon,
+    Brain: Icon,
+    BrainCircuit: Icon,
+    ChartColumnBigIcon: Icon,
+    Circle: Icon,
+    Coins: Icon,
+    CreditCard: Icon,
+    Database: Icon,
+    EllipsisIcon: Icon,
+    EthernetPort: Icon,
+    Gift: Icon,
+    Info: Icon,
+    KeyboardIcon: Icon,
+    KeyIcon: Icon,
+    KeyRound: Icon,
+    Map: Icon,
+    MessageCircleIcon: Icon,
+    PaletteIcon: Icon,
+    Sparkles: Icon,
+    TerminalSquare: Icon,
+  };
+});
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -36,6 +71,11 @@ const createWrapper = (showProvider: boolean) => {
               provider_settings: true,
             }),
             showProvider,
+          },
+          serverConfig: {
+            aiProvider: {},
+            enableBusinessFeatures: true,
+            telemetry: {},
           },
         })
       }
@@ -74,5 +114,19 @@ describe('settings useCategory', () => {
     const keys = result.current.flatMap((group) => group.items.map((item) => item.key));
 
     expect(keys).not.toContain(SettingsTabs.Provider);
+  });
+
+  it('shows Admin Billing only for super-admin users', () => {
+    useUserStore.setState({ user: { id: 'admin-user', role: 'admin' } });
+
+    expect(getItemKeys()).not.toContain(SettingsTabs.AdminBilling);
+
+    useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
+
+    expect(getItemKeys()).toContain(SettingsTabs.AdminBilling);
+
+    useUserStore.setState({ user: { id: 'normal-user' } }, false);
+
+    expect(getItemKeys()).not.toContain(SettingsTabs.AdminBilling);
   });
 });

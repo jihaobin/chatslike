@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { GenerationModel } from '@/database/models/generation';
 import type { LobeChatDatabase } from '@/database/type';
@@ -14,6 +15,9 @@ vi.mock('@/database/models/generation');
 vi.mock('@/server/services/generation/video');
 vi.mock('@/utils/sanitizeFileName', () => ({
   sanitizeFileName: vi.fn((...args) => args.join('-')),
+}));
+vi.mock('@/business/server/video-generation/chargeAfterGenerate', () => ({
+  chargeAfterGenerate: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('debug', () => ({
@@ -60,7 +64,11 @@ describe('videoBackgroundPolling', () => {
     generationTopicId: 'topic-789',
     inferenceId: 'inference-abc',
     model: 'test-model',
-    prechargeResult: { credits: 10 },
+    prechargeResult: {
+      estimatedCredits: 100_000,
+      operationId: 'video:user-xyz:topic-789:test-provider:test-model:hash',
+      reservationId: 'reservation-video-1',
+    },
     provider: 'test-provider',
     userId: 'user-xyz',
   };
@@ -134,6 +142,22 @@ describe('videoBackgroundPolling', () => {
         duration: expect.any(Number),
         status: AsyncTaskStatus.Success,
       });
+
+      expect(chargeAfterGenerate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latency: expect.any(Number),
+          metadata: expect.objectContaining({
+            asyncTaskId: 'task-123',
+            generationBatchId: 'batch-123',
+            modelId: 'test-model',
+            topicId: 'topic-789',
+          }),
+          model: 'test-model',
+          prechargeResult: mockParams.prechargeResult,
+          provider: 'test-provider',
+          userId: 'user-xyz',
+        }),
+      );
     });
   });
 
@@ -182,6 +206,22 @@ describe('videoBackgroundPolling', () => {
         error: expect.any(AsyncTaskError),
         status: AsyncTaskStatus.Error,
       });
+
+      expect(chargeAfterGenerate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isError: true,
+          metadata: expect.objectContaining({
+            asyncTaskId: 'task-123',
+            generationBatchId: 'batch-123',
+            modelId: 'test-model',
+            topicId: 'topic-789',
+          }),
+          model: 'test-model',
+          prechargeResult: mockParams.prechargeResult,
+          provider: 'test-provider',
+          userId: 'user-xyz',
+        }),
+      );
 
       const errorCall = mockAsyncTaskModel.update.mock.calls[0][1];
       expect(errorCall.error).toBeInstanceOf(AsyncTaskError);

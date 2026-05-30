@@ -20,6 +20,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
 import { type CellProps } from '@/components/Cell';
 import { SettingsTabs } from '@/store/global/initialState';
 import {
@@ -52,6 +53,7 @@ export const useCategory = (): CategoryGroup[] => {
   const { t } = useTranslation(['setting', 'auth', 'subscription']);
   const { hideDocs, showApiKeyManage, showProvider } = useServerConfigStore(featureFlagsSelectors);
   const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
+  const enablePlatformBilling = isPlatformBillingEnabled();
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
 
   return useMemo(() => {
@@ -73,30 +75,36 @@ export const useCategory = (): CategoryGroup[] => {
       }),
     ];
 
-    const subscription: CategoryItem[] = enableBusinessFeatures
+    const subscription: CategoryItem[] =
+      enablePlatformBilling || enableBusinessFeatures
       ? [
-          makeItem({ icon: Map, key: SettingsTabs.Plans, label: t('subscription:tab.plans') }),
-          makeItem({
-            icon: ChartColumnBigIcon,
-            key: SettingsTabs.Usage,
-            label: t('setting:tab.usage'),
-          }),
-          makeItem({
-            icon: Coins,
-            key: SettingsTabs.Credits,
-            label: t('subscription:tab.credits'),
-          }),
-          makeItem({
-            icon: CreditCard,
-            key: SettingsTabs.Billing,
-            label: t('subscription:tab.billing'),
-          }),
-          makeItem({
-            icon: Gift,
-            key: SettingsTabs.Referral,
-            label: t('subscription:tab.referral'),
-          }),
-        ]
+          enablePlatformBilling &&
+            makeItem({ icon: Map, key: SettingsTabs.Plans, label: t('subscription:tab.plans') }),
+          enablePlatformBilling &&
+            makeItem({
+              icon: ChartColumnBigIcon,
+              key: SettingsTabs.Usage,
+              label: t('setting:tab.usage'),
+            }),
+          enablePlatformBilling &&
+            makeItem({
+              icon: Coins,
+              key: SettingsTabs.Credits,
+              label: t('subscription:tab.credits'),
+            }),
+          enablePlatformBilling &&
+            makeItem({
+              icon: CreditCard,
+              key: SettingsTabs.Billing,
+              label: t('subscription:tab.billing'),
+            }),
+          enableBusinessFeatures &&
+            makeItem({
+              icon: Gift,
+              key: SettingsTabs.Referral,
+              label: t('subscription:tab.referral'),
+            }),
+        ].filter((item): item is CategoryItem => Boolean(item))
       : [];
 
     const agent: CategoryItem[] = [
@@ -138,5 +146,14 @@ export const useCategory = (): CategoryGroup[] => {
       { items: agent, key: SettingsGroupKey.Agent, title: t('setting:group.aiConfig') },
       { items: system, key: SettingsGroupKey.System, title: t('setting:group.system') },
     ].filter((group) => group.items.length > 0);
-  }, [t, enableBusinessFeatures, hideDocs, showApiKeyManage, showProvider, isDevMode, navigate]);
+  }, [
+    t,
+    enableBusinessFeatures,
+    enablePlatformBilling,
+    hideDocs,
+    showApiKeyManage,
+    showProvider,
+    isDevMode,
+    navigate,
+  ]);
 };
