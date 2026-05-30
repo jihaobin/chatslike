@@ -17,13 +17,13 @@ const getVercelUrl = () => {
   return `https://${process.env.VERCEL_BRANCH_URL}`;
 };
 
-const APP_URL = process.env.APP_URL
-  ? process.env.APP_URL
-  : isInVercel
+const APP_URL =
+  process.env.APP_URL ||
+  (isInVercel
     ? getVercelUrl()
     : process.env.NODE_ENV === 'development'
       ? `http://localhost:${process.env.PORT || 3010}`
-      : `http://localhost:${process.env.PORT || 3210}`;
+      : `http://localhost:${process.env.PORT || 3210}`);
 
 // INTERNAL_APP_URL is used for server-to-server calls to bypass CDN/proxy
 // Falls back to APP_URL if not set
@@ -37,6 +37,7 @@ export const getAppConfig = () => {
   return createEnv({
     clientPrefix: 'NEXT_PUBLIC_',
     client: {
+      NEXT_PUBLIC_ENABLE_PLATFORM_BILLING: z.boolean(),
       NEXT_PUBLIC_ENABLE_SENTRY: z.boolean(),
     },
     server: {
@@ -75,6 +76,23 @@ export const getAppConfig = () => {
        */
       MARKET_TRUSTED_CLIENT_ID: z.string().optional(),
 
+      ALIPAY_APP_ID: z.string().optional(),
+      ALIPAY_PRIVATE_KEY: z.string().optional(),
+      ALIPAY_PUBLIC_KEY: z.string().optional(),
+      ALIPAY_NOTIFY_URL: z.string().optional(),
+
+      WECHAT_PAY_MCH_ID: z.string().optional(),
+      WECHAT_PAY_APP_ID: z.string().optional(),
+      WECHAT_PAY_API_V3_KEY: z.string().optional(),
+      WECHAT_PAY_PRIVATE_KEY: z.string().optional(),
+      WECHAT_PAY_SERIAL_NO: z.string().optional(),
+      WECHAT_PAY_NOTIFY_URL: z.string().optional(),
+
+      BILLING_TRIAL_CREDITS: z.coerce.number().int().positive().optional(),
+      BILLING_TRIAL_VALID_DAYS: z.coerce.number().int().positive().optional(),
+      BILLING_FREE_DAILY_LIMIT: z.coerce.number().int().positive().optional(),
+      BILLING_PAID_DAILY_LIMIT: z.coerce.number().int().positive().optional(),
+
       AGENT_GATEWAY_SERVICE_TOKEN: z.string().optional(),
       AGENT_GATEWAY_URL: z.string().url().optional(),
       /**
@@ -88,6 +106,7 @@ export const getAppConfig = () => {
     },
     runtimeEnv: {
       // Sentry
+      NEXT_PUBLIC_ENABLE_PLATFORM_BILLING: process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING === '1',
       NEXT_PUBLIC_ENABLE_SENTRY: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
 
       AGENTS_INDEX_URL: !!process.env.AGENTS_INDEX_URL
@@ -119,6 +138,23 @@ export const getAppConfig = () => {
 
       MARKET_TRUSTED_CLIENT_SECRET: process.env.MARKET_TRUSTED_CLIENT_SECRET,
       MARKET_TRUSTED_CLIENT_ID: process.env.MARKET_TRUSTED_CLIENT_ID,
+
+      ALIPAY_APP_ID: process.env.ALIPAY_APP_ID,
+      ALIPAY_PRIVATE_KEY: process.env.ALIPAY_PRIVATE_KEY,
+      ALIPAY_PUBLIC_KEY: process.env.ALIPAY_PUBLIC_KEY,
+      ALIPAY_NOTIFY_URL: process.env.ALIPAY_NOTIFY_URL,
+
+      WECHAT_PAY_MCH_ID: process.env.WECHAT_PAY_MCH_ID,
+      WECHAT_PAY_APP_ID: process.env.WECHAT_PAY_APP_ID,
+      WECHAT_PAY_API_V3_KEY: process.env.WECHAT_PAY_API_V3_KEY,
+      WECHAT_PAY_PRIVATE_KEY: process.env.WECHAT_PAY_PRIVATE_KEY,
+      WECHAT_PAY_SERIAL_NO: process.env.WECHAT_PAY_SERIAL_NO,
+      WECHAT_PAY_NOTIFY_URL: process.env.WECHAT_PAY_NOTIFY_URL,
+
+      BILLING_TRIAL_CREDITS: process.env.BILLING_TRIAL_CREDITS,
+      BILLING_TRIAL_VALID_DAYS: process.env.BILLING_TRIAL_VALID_DAYS,
+      BILLING_FREE_DAILY_LIMIT: process.env.BILLING_FREE_DAILY_LIMIT,
+      BILLING_PAID_DAILY_LIMIT: process.env.BILLING_PAID_DAILY_LIMIT,
 
       AGENT_GATEWAY_SERVICE_TOKEN: process.env.AGENT_GATEWAY_SERVICE_TOKEN,
       AGENT_GATEWAY_URL: process.env.AGENT_GATEWAY_URL,

@@ -15,6 +15,7 @@ export interface LobeUser {
   id: string;
   interests?: string[];
   latestName?: string | null;
+  role?: string | null;
   username?: string | null;
 }
 
@@ -118,6 +119,7 @@ export interface UserInitializationState {
   /** @deprecated Use onboarding field instead */
   isOnboard?: boolean;
   lastName?: string;
+  role?: string | null;
   onboarding?: UserOnboarding;
   preference: UserPreference;
   /**

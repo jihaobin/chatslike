@@ -153,6 +153,7 @@ export const userRouter = router({
       lastName: state.lastName,
       onboarding: state.onboarding,
       preference: state.preference as UserPreference,
+      role: state.role,
       settings: state.settings,
       userId: ctx.userId,
       username: state.username,

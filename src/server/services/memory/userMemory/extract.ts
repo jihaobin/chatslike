@@ -55,7 +55,6 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { join } from 'pathe';
 import { z } from 'zod';
 
-import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { type ListTopicsForMemoryExtractorCursor } from '@/database/models/topic';
 import { TopicModel } from '@/database/models/topic';
@@ -2455,26 +2454,21 @@ export class MemoryExtractionExecutor {
       userId,
     };
 
-    const hooks = getBusinessModelRuntimeHooks(userId, 'lobehub');
-
     const runtimes: RuntimeBundle = {
       embeddings: await resolveRuntimeAgentConfig(
         memoryServiceConfig.agents.embedding,
         keyVaults,
         embeddingOptions,
-        hooks,
       ),
       gatekeeper: await resolveRuntimeAgentConfig(
         memoryServiceConfig.agents.gatekeeper,
         keyVaults,
         gatekeeperOptions,
-        hooks,
       ),
       layerExtractor: await resolveRuntimeAgentConfig(
         memoryServiceConfig.agents.layerExtractor,
         keyVaults,
         layerExtractorOptions,
-        hooks,
       ),
     };
 

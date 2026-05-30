@@ -3,6 +3,7 @@ import debug from 'debug';
 
 import { getProviderContentPolicyErrorMessage } from '@/business/server/getProviderContentPolicyErrorMessage';
 import { trackProviderContentPolicyViolation } from '@/business/server/trackProviderContentPolicyViolation';
+import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { GenerationModel } from '@/database/models/generation';
 import type { LobeChatDatabase } from '@/database/type';
@@ -23,10 +24,44 @@ interface BackgroundPollingParams {
   generationTopicId: string;
   inferenceId: string;
   model: string;
-  prechargeResult?: any;
+  prechargeResult?: Record<string, unknown>;
   provider: string;
   userId: string;
 }
+
+interface VideoComputePriceParams {
+  generateAudio?: boolean;
+  resolution?: string;
+}
+
+type PollVideoStatusResult =
+  | {
+      headers?: Record<string, string>;
+      status: 'success';
+      videoUrl: string;
+    }
+  | {
+      error?: string;
+      status: 'failed';
+    }
+  | {
+      status: 'pending' | 'processing';
+    };
+
+interface VideoPollingRuntime {
+  handlePollVideoStatus: (inferenceId: string) => Promise<PollVideoStatusResult | undefined>;
+}
+
+const getVideoComputePriceParams = (config: unknown): VideoComputePriceParams => {
+  if (!config || typeof config !== 'object') return {};
+
+  const value = config as { generateAudio?: unknown; resolution?: unknown };
+
+  return {
+    ...(typeof value.generateAudio === 'boolean' ? { generateAudio: value.generateAudio } : {}),
+    ...(typeof value.resolution === 'string' ? { resolution: value.resolution } : {}),
+  };
+};
 
 export async function processBackgroundVideoPolling(
   db: LobeChatDatabase,
@@ -37,8 +72,10 @@ export async function processBackgroundVideoPolling(
     asyncTaskId,
     generationBatchId,
     generationId,
+    generationTopicId,
     inferenceId,
     model,
+    prechargeResult,
     provider,
     userId,
   } = params;
@@ -103,6 +140,27 @@ export async function processBackgroundVideoPolling(
       status: AsyncTaskStatus.Success,
     });
 
+    if (prechargeResult) {
+      try {
+        await chargeAfterGenerate({
+          computePriceParams: getVideoComputePriceParams(batch?.config),
+          latency: duration,
+          metadata: {
+            asyncTaskId,
+            generationBatchId,
+            modelId: model,
+            topicId: batch?.generationTopicId ?? generationTopicId,
+          },
+          model,
+          prechargeResult,
+          provider,
+          userId,
+        });
+      } catch (chargeError) {
+        console.error('[video-polling] Failed to charge after generate:', chargeError);
+      }
+    }
+
     log('Video processing completed successfully for task: %s', asyncTaskId);
   } catch (error) {
     log('Background video polling error for task: %s', asyncTaskId, error);
@@ -138,11 +196,31 @@ export async function processBackgroundVideoPolling(
       ),
       status: AsyncTaskStatus.Error,
     });
+
+    if (prechargeResult) {
+      try {
+        await chargeAfterGenerate({
+          isError: true,
+          metadata: {
+            asyncTaskId,
+            generationBatchId,
+            modelId: model,
+            topicId: generationTopicId,
+          },
+          model,
+          prechargeResult,
+          provider,
+          userId,
+        });
+      } catch (chargeError) {
+        console.error('[video-polling] Failed to refund precharge on error:', chargeError);
+      }
+    }
   }
 }
 
 async function pollUntilCompletion(
-  modelRuntime: any,
+  modelRuntime: VideoPollingRuntime,
   inferenceId: string,
 ): Promise<{ headers?: Record<string, string>; videoUrl: string } | null> {
   const maxRetries = 120;
@@ -153,6 +231,10 @@ async function pollUntilCompletion(
       log('Polling attempt %d/%d for task: %s', attempt + 1, maxRetries, inferenceId);
 
       const result = await modelRuntime.handlePollVideoStatus(inferenceId);
+
+      if (!result) {
+        throw new Error('Video status polling is not supported by this provider');
+      }
 
       if (result.status === 'success') {
         log('Video generation succeeded for task: %s', inferenceId);

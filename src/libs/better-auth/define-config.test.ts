@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { BetterAuthOptions } from 'better-auth/minimal';
+
 const mocks = vi.hoisted(() => ({
   betterAuth: vi.fn((options) => options),
+  onBusinessUserPhoneVerified: vi.fn(),
 }));
 
 vi.mock('@better-auth/expo', () => ({
@@ -64,6 +67,10 @@ vi.mock('undici', () => ({
 
 vi.mock('@/business/server/better-auth', () => ({
   businessEmailValidator: vi.fn(),
+}));
+
+vi.mock('@/business/server/user', () => ({
+  onBusinessUserPhoneVerified: mocks.onBusinessUserPhoneVerified,
 }));
 
 vi.mock('@/envs/app', () => ({
@@ -131,5 +138,35 @@ describe('defineConfig', () => {
         }),
       }),
     );
+  });
+
+  it('should grant trial credits after phone verification succeeds', async () => {
+    const { defineConfig } = await import('./define-config');
+
+    const options = defineConfig({ plugins: [] }) as unknown as BetterAuthOptions;
+    const afterUpdate = options.databaseHooks?.user?.update?.after;
+
+    expect(afterUpdate).toBeDefined();
+
+    await afterUpdate?.(
+      {
+        createdAt: new Date('2026-05-29T00:00:00Z'),
+        email: 'phone@example.com',
+        emailVerified: true,
+        id: 'user-phone-verified',
+        image: null,
+        name: 'Phone User',
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+        updatedAt: new Date('2026-05-29T00:00:00Z'),
+      },
+      {} as never,
+    );
+
+    expect(mocks.onBusinessUserPhoneVerified).toHaveBeenCalledWith({
+      db: {},
+      phoneNumber: '+8613800000000',
+      userId: 'user-phone-verified',
+    });
   });
 });

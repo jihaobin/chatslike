@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 import { useCommandMenuContext } from './CommandMenuContext';
@@ -18,6 +19,7 @@ const ContextCommands = memo(() => {
   const { handleNavigate } = useCommandMenu();
   const { menuContext, pathname } = useCommandMenuContext();
   const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
+  const enablePlatformBilling = isPlatformBillingEnabled();
 
   // Extract subPath from pathname
   const subPath = useMemo(() => {
@@ -25,13 +27,16 @@ const ContextCommands = memo(() => {
     return pathParts && pathParts.length > 1 ? pathParts[1] : undefined;
   }, [pathname]);
 
-  const commands = getContextCommands(menuContext, subPath, { enableBusinessFeatures });
+  const commands = getContextCommands(menuContext, subPath, {
+    enableBusinessFeatures,
+    enablePlatformBilling,
+  });
 
   // Get settings commands to show globally (when not in settings context)
   const globalSettingsCommands = useMemo(() => {
     if (menuContext === 'settings') return [];
-    return buildContextCommands({ enableBusinessFeatures }).settings;
-  }, [menuContext, enableBusinessFeatures]);
+    return buildContextCommands({ enableBusinessFeatures, enablePlatformBilling }).settings;
+  }, [menuContext, enableBusinessFeatures, enablePlatformBilling]);
 
   const hasCommands = commands.length > 0 || globalSettingsCommands.length > 0;
 

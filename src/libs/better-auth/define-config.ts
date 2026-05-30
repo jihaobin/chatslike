@@ -15,6 +15,7 @@ import { validateEmail } from 'better-auth-harmony/email';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 import { businessEmailValidator } from '@/business/server/better-auth';
+import { onBusinessUserPhoneVerified } from '@/business/server/user';
 import { appEnv } from '@/envs/app';
 import { authEnv } from '@/envs/auth';
 import {
@@ -213,6 +214,19 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
               createdAt: user.createdAt,
               // TODO: if add phone plugin, we should fill phone here
             });
+          },
+        },
+        update: {
+          after: async (user) => {
+            const phoneNumber = user.phone;
+
+            if (user.phoneNumberVerified === true && typeof phoneNumber === 'string') {
+              await onBusinessUserPhoneVerified({
+                db: serverDB,
+                phoneNumber,
+                userId: user.id,
+              });
+            }
           },
         },
       },

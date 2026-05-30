@@ -19,6 +19,10 @@ import { safeParseJSON } from '@lobechat/utils';
 import { ModelProvider } from 'model-bank';
 
 import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
+import {
+  isPlatformBillingEnabled,
+  assertPlatformHostedProviderConfigured,
+} from '@/business/server/billing/platformModels';
 import { AiProviderModel } from '@/database/models/aiProvider';
 import { type LobeChatDatabase } from '@/database/type';
 import { getLLMConfig } from '@/envs/llm';
@@ -405,6 +409,18 @@ export const initModelRuntimeFromDB = async (
   userId: string,
   provider: string,
 ): Promise<ModelRuntime> => {
+  // Commercial cloud mode uses platform-hosted model credentials only.
+  // OSS/self-hosted mode keeps the existing user keyVault path below.
+  if (isPlatformBillingEnabled()) {
+    assertPlatformHostedProviderConfigured(provider, getLLMConfig());
+
+    const businessHooks = getBusinessModelRuntimeHooks(userId, provider);
+    const tracingHooks = createLLMGenerationTracingHook(userId, provider);
+    const hooks = mergeModelRuntimeHooks(businessHooks, tracingHooks);
+
+    return initModelRuntimeWithUserPayload(provider, { runtimeProvider: provider }, { userId }, hooks);
+  }
+
   // 1. Get user's provider configuration from database
   const aiProviderModel = new AiProviderModel(db, userId);
 

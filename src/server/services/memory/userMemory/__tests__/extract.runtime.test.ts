@@ -1,10 +1,23 @@
 import { type AiProviderRuntimeState } from '@lobechat/types';
 import { type EnabledAiModel } from 'model-bank';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type MemoryExtractionPrivateConfig } from '@/server/globalConfig/parseMemoryExtractionConfig';
 
 import { makeTaskErrorItem, MemoryExtractionExecutor } from '../extract';
+
+const { initializeWithProvider } = vi.hoisted(() => ({
+  initializeWithProvider: vi.fn((provider: string, _options?: unknown, _hooks?: unknown) => ({
+    provider,
+  })),
+}));
+
+vi.mock('@lobechat/model-runtime', async (importOriginal) => ({
+  ...((await importOriginal()) as Record<string, unknown>),
+  ModelRuntime: {
+    initializeWithProvider,
+  },
+}));
 
 const createRuntimeState = (models: EnabledAiModel[], keyVaults: Record<string, any>) =>
   ({
@@ -65,6 +78,10 @@ const resolveRuntimeKeyVaults = async (
 
   return (executor as any).resolveRuntimeKeyVaults(runtimeState, memoryServiceConfig);
 };
+
+beforeEach(() => {
+  initializeWithProvider.mockClear();
+});
 
 describe('MemoryExtractionExecutor.resolveRuntimeKeyVaults', () => {
   it('drops fallback credentials when user memory provider is overridden', () => {
@@ -473,6 +490,33 @@ describe('MemoryExtractionExecutor.resolveRuntimeKeyVaults', () => {
     });
 
     warnSpy.mockRestore();
+  });
+});
+
+describe('MemoryExtractionExecutor.resolveRuntimeBundle', () => {
+  it('does not attach user billing hooks to internal memory extraction runtimes', async () => {
+    const executor = createExecutor({
+      agentGateKeeper: { model: 'gate-1', provider: 'lobehub' },
+      agentLayerExtractor: {
+        contextLimit: 2048,
+        layers: {
+          activity: 'layer-act',
+          context: 'layer-ctx',
+          experience: 'layer-exp',
+          identity: 'layer-id',
+          preference: 'layer-pref',
+        },
+        model: 'layer-1',
+        provider: 'lobehub',
+      },
+      embedding: { model: 'embed-1', provider: 'lobehub' },
+    });
+    const memoryServiceConfig = (executor as any).resolveUserMemoryServiceConfig();
+
+    await (executor as any).getRuntime('user-1', memoryServiceConfig, {});
+
+    expect(initializeWithProvider).toHaveBeenCalled();
+    expect(initializeWithProvider.mock.calls.every((call) => call[2] === undefined)).toBe(true);
   });
 });
 

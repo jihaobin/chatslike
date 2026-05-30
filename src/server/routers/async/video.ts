@@ -1,5 +1,4 @@
 import { ASYNC_TASK_TIMEOUT } from '@lobechat/business-config/server';
-import { ENABLE_BUSINESS_FEATURES } from '@lobechat/business-const';
 import {
   buildMappedBusinessModelFields,
   resolveBusinessModelMapping,
@@ -210,7 +209,7 @@ export const videoRouter = router({
           status: AsyncTaskStatus.Success,
         });
 
-        if (ENABLE_BUSINESS_FEATURES && prechargeResult) {
+        if (prechargeResult) {
           try {
             await chargeAfterGenerate({
               computePriceParams: {
@@ -290,7 +289,7 @@ export const videoRouter = router({
 
       log('Task status updated to Error: %s', asyncTaskId);
 
-      if (prechargeResult && ENABLE_BUSINESS_FEATURES) {
+      if (prechargeResult) {
         try {
           await chargeAfterGenerate({
             isError: true,

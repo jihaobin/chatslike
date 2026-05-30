@@ -25,6 +25,7 @@ import {
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
 import { useElectronStore } from '@/store/electron';
 import { electronSyncSelectors } from '@/store/electron/selectors';
 import { SettingsTabs } from '@/store/global/initialState';
@@ -43,6 +44,8 @@ export enum SettingsGroupKey {
   Subscription = 'subscription',
   System = 'system',
 }
+
+const SUPER_ADMIN_ROLE = 'super-admin';
 
 export interface CategoryItem {
   icon: any;
@@ -68,6 +71,9 @@ export const useCategory = () => {
   ]);
   const remoteServerUrl = useElectronStore(electronSyncSelectors.remoteServerUrl);
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
+  const isSuperAdmin = useUserStore(
+    (s) => userProfileSelectors.userProfile(s)?.role === SUPER_ADMIN_ROLE,
+  );
 
   const avatarUrl = useMemo(() => {
     if (!avatar) return undefined;
@@ -77,6 +83,7 @@ export const useCategory = () => {
     return avatar;
   }, [avatar, remoteServerUrl]);
   const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
+  const enablePlatformBilling = isPlatformBillingEnabled();
   const categoryGroups: CategoryGroup[] = useMemo(() => {
     const groups: CategoryGroup[] = [];
 
@@ -116,14 +123,39 @@ export const useCategory = () => {
     });
 
     // Subscription group
-    if (enableBusinessFeatures) {
+    if (enablePlatformBilling || enableBusinessFeatures) {
       const subscriptionItems: CategoryItem[] = [
-        { icon: Map, key: SettingsTabs.Plans, label: tSubscription('tab.plans') },
-        { icon: ChartColumnBigIcon, key: SettingsTabs.Usage, label: t('tab.usage') },
-        { icon: Coins, key: SettingsTabs.Credits, label: tSubscription('tab.credits') },
-        { icon: CreditCard, key: SettingsTabs.Billing, label: tSubscription('tab.billing') },
-        { icon: Gift, key: SettingsTabs.Referral, label: tSubscription('tab.referral') },
-      ];
+        enablePlatformBilling && {
+          icon: Map,
+          key: SettingsTabs.Plans,
+          label: tSubscription('tab.plans'),
+        },
+        enablePlatformBilling && {
+          icon: ChartColumnBigIcon,
+          key: SettingsTabs.Usage,
+          label: t('tab.usage'),
+        },
+        enablePlatformBilling && {
+          icon: Coins,
+          key: SettingsTabs.Credits,
+          label: tSubscription('tab.credits'),
+        },
+        enablePlatformBilling && {
+          icon: CreditCard,
+          key: SettingsTabs.Billing,
+          label: tSubscription('tab.billing'),
+        },
+        enableBusinessFeatures && {
+          icon: Gift,
+          key: SettingsTabs.Referral,
+          label: tSubscription('tab.referral'),
+        },
+        isSuperAdmin && {
+          icon: KeyIcon,
+          key: SettingsTabs.AdminBilling,
+          label: tSubscription('tab.adminBilling'),
+        },
+      ].filter(Boolean) as CategoryItem[];
 
       groups.push({
         items: subscriptionItems,
@@ -225,11 +257,13 @@ export const useCategory = () => {
     tAuth,
     tSubscription,
     enableBusinessFeatures,
+    enablePlatformBilling,
     hideDocs,
     mobile,
     showApiKeyManage,
     showProvider,
     isDevMode,
+    isSuperAdmin,
     avatarUrl,
     username,
   ]);

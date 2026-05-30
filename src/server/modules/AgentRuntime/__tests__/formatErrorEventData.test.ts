@@ -94,6 +94,23 @@ describe('formatErrorEventData', () => {
       expect(out.errorType).toBe('ProviderRateLimited');
       expect(out.error).toBe('rate limited');
     });
+
+    it('preserves billing insufficient credits errors for client recharge UI', () => {
+      const err = Object.assign(new Error('Insufficient credits'), {
+        error: {
+          availableCredits: 10_000,
+          code: 'INSUFFICIENT_CREDITS',
+          deficitCredits: 30_000,
+          requiredCredits: 40_000,
+        },
+        errorType: 'INSUFFICIENT_CREDITS',
+      });
+
+      const out = formatErrorEventData(err, 'call_llm');
+
+      expect(out.errorType).toBe('INSUFFICIENT_CREDITS');
+      expect(out.error).toBe('Insufficient credits');
+    });
   });
 
   describe('non-PG fallbacks (unchanged behavior)', () => {
