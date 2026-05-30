@@ -3,13 +3,15 @@
   "features.agentSelfIteration.title": "Agent-zelfiteratie",
   "features.assistantMessageGroup.desc": "Groepeer berichten van de agent en de resultaten van hun tool-aanroepen samen voor weergave",
   "features.assistantMessageGroup.title": "Agentberichtengroepering",
+  "features.executionDeviceSwitcher.desc": "Toon de uitvoeringsapparaatwisselaar in de heterogene agentwerkbalk, zodat u runs naar dit apparaat, een cloud-sandbox of een aangesloten extern apparaat kunt routeren.",
+  "features.executionDeviceSwitcher.title": "Uitvoeringsapparaatwisselaar",
   "features.gatewayMode.desc": "Voer agenttaken op de server uit via de Gateway‑WebSocket in plaats van ze lokaal uit te voeren. Zorgt voor snellere uitvoering en vermindert het gebruik van clientbronnen.",
   "features.gatewayMode.title": "Server-side uitvoering van agenten (Gateway)",
   "features.groupChat.desc": "Schakel coördinatie van groepschats met meerdere agenten in.",
   "features.groupChat.title": "Groepschat (Meerdere Agenten)",
   "features.inputMarkdown.desc": "Toon Markdown in het invoerveld in realtime (vette tekst, codeblokken, tabellen, enz.).",
   "features.inputMarkdown.title": "Markdown-weergave bij Invoer",
-  "features.messenger.desc": "Praat met je agents via Telegram (en andere messengers) via de gedeelde LobeHub-bot. Voegt een Messenger-tabblad toe in Instellingen om je account te koppelen en te kiezen welke agent berichten ontvangt.",
-  "features.messenger.title": "Messenger",
+  "features.platformAgent.desc": "Toon de \"Platformagent toevoegen\"-optie in het creatiemenu. Platformagents (bijv. OpenClaw, Hermes) draaien op een verbonden apparaat en communiceren terug via lh connect.",
+  "features.platformAgent.title": "Platform Agent Creatie",
   "title": "Labs"
 }

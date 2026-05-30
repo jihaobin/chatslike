@@ -27,7 +27,7 @@ module.exports = defineConfig({
   ],
   temperature: 0,
   saveImmediately: true,
-  modelName: 'gpt-4o',
+  modelName: 'deepseek-v4-flash',
   experimental: {
     jsonMode: true,
   },

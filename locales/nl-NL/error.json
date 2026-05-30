@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "Credits opladen",
+  "billingError.actions.upgrade": "Plan upgraden",
   "error.backHome": "Terug naar home",
   "error.desc": "Probeer het later opnieuw of keer terug naar de bekende wereld.",
   "error.retry": "Opnieuw laden",

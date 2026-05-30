@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "شارژ اعتبار",
+  "billingError.actions.upgrade": "ارتقای طرح",
   "error.backHome": "بازگشت به خانه",
   "error.desc": "بعداً دوباره امتحان کنید یا به دنیای آشنا بازگردید.",
   "error.retry": "بارگذاری مجدد",

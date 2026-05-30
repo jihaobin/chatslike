@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "크레딧 충전",
+  "billingError.actions.upgrade": "요금제 업그레이드",
   "error.backHome": "홈으로 돌아가기",
   "error.desc": "페이지를 일시적으로 사용할 수 없습니다. 홈으로 돌아가거나 잠시 후 다시 시도하세요(설정은 손실되지 않습니다)",
   "error.retry": "다시 로드",

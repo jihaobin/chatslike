@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "充值积分",
+  "billingError.actions.upgrade": "升级计划",
   "error.backHome": "返回首页",
   "error.desc": "页面暂时不可用。你可以返回首页，或稍后重试（你的设置不会因此丢失）",
   "error.retry": "重新加载",

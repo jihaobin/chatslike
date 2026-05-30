@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "Doładuj kredyty",
+  "billingError.actions.upgrade": "Ulepsz plan",
   "error.backHome": "Powrót do strony głównej",
   "error.desc": "Spróbuj ponownie później lub wróć do znanego świata.",
   "error.retry": "Odśwież",

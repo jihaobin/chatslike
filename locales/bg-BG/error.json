@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "Попълване на кредити",
+  "billingError.actions.upgrade": "Надстройка на плана",
   "error.backHome": "Обратно към началната страница",
   "error.desc": "Опитайте отново по-късно или се върнете към познатия свят.",
   "error.retry": "Презареди",

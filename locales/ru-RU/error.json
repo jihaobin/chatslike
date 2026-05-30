@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "Пополнить кредиты",
+  "billingError.actions.upgrade": "Обновить тариф",
   "error.backHome": "Вернуться на главную",
   "error.desc": "Попробуйте позже или вернитесь в знакомый мир.",
   "error.retry": "Перезагрузить",

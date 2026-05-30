@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "Ricarica crediti",
+  "billingError.actions.upgrade": "Aggiorna piano",
   "error.backHome": "Torna alla Home",
   "error.desc": "Riprova più tardi o torna al mondo conosciuto.",
   "error.retry": "Ricarica",

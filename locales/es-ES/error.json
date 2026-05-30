@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "Recargar créditos",
+  "billingError.actions.upgrade": "Mejorar plan",
   "error.backHome": "Volver al inicio",
   "error.desc": "Inténtalo más tarde o regresa al mundo conocido.",
   "error.retry": "Recargar",

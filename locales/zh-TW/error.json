@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "加值點數",
+  "billingError.actions.upgrade": "升級方案",
   "error.backHome": "返回首頁",
   "error.desc": "待會再試試，或者回到已知的世界",
   "error.retry": "重新加載",

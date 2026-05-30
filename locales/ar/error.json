@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "شحن الرصيد",
+  "billingError.actions.upgrade": "ترقية الخطة",
   "error.backHome": "العودة إلى الصفحة الرئيسية",
   "error.desc": "حاول مرة أخرى لاحقًا، أو عد إلى العالم المعروف.",
   "error.retry": "إعادة التحميل",

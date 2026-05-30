@@ -353,6 +353,7 @@
   "messengerBanner.title": "お好きなメッセージングアプリでLobe AIと話しましょう",
   "more": "もっと見る",
   "navPanel.agent": "アシスタント",
+  "navPanel.bottomDivider": "下部に固定されるアイテム",
   "navPanel.customizeSidebar": "サイドバーをカスタマイズ",
   "navPanel.displayItems": "項目を表示",
   "navPanel.hidden": "非表示",

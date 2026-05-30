@@ -1,4 +1,6 @@
 {
+  "billingError.actions.topUp": "Nạp thêm tín dụng",
+  "billingError.actions.upgrade": "Nâng cấp gói",
   "error.backHome": "Quay về Trang chủ",
   "error.desc": "Hãy thử lại sau, hoặc quay về thế giới quen thuộc.",
   "error.retry": "Tải lại",
