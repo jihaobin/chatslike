@@ -6,6 +6,17 @@ vi.mock('@lobechat/const', () => ({
   isDesktop: true,
 }));
 
+const translationFallbacks: Record<string, string> = {
+  'billingNative.plans.pixel.discount.max': 'Up to {{percent}} off',
+  'billingNative.plans.pixel.discount.short': 'Save {{percent}}',
+  'billingNative.plans.pixel.perMonthAmount': '{{amount}} / month',
+  'billingNative.plans.pixel.period.yearly': 'Yearly',
+  'billingNative.plans.pixel.price.perMonthYearly': '/ month (yearly)',
+  'billingNative.plans.pixel.price.perYear': '{{price}} / year',
+  'compare.title': 'Plan Comparison',
+  'modelPricing.title': 'Text Model Pricing',
+};
+
 vi.mock('react-i18next', () => ({
   Trans: ({
     components,
@@ -30,7 +41,18 @@ vi.mock('react-i18next', () => ({
     return <>{i18nKey}</>;
   },
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback ?? key,
+    t: (key: string, fallbackOrOptions?: string | Record<string, React.ReactNode>) => {
+      const template =
+        typeof fallbackOrOptions === 'string'
+          ? fallbackOrOptions
+          : (translationFallbacks[key] ?? key);
+      const values = typeof fallbackOrOptions === 'object' ? fallbackOrOptions : {};
+
+      return Object.entries(values).reduce(
+        (text, [name, value]) => text.replaceAll(`{{${name}}}`, String(value)),
+        template,
+      );
+    },
   }),
 }));
 
@@ -44,9 +66,13 @@ vi.mock('antd-style', () => ({
 
 vi.mock('lucide-react', () => ({
   BanIcon: () => <svg data-testid="ban-icon" />,
+  AtomIcon: () => <svg data-testid="atom-icon" />,
   BoxIcon: () => <svg data-testid="box-icon" />,
+  CheckIcon: () => <svg data-testid="check-icon" />,
+  ChevronDownIcon: () => <svg data-testid="chevron-down-icon" />,
   ChevronRightIcon: () => <svg data-testid="chevron-right-icon" />,
   CircleDollarSignIcon: () => <svg data-testid="circle-dollar-sign-icon" />,
+  CircleHelpIcon: () => <svg data-testid="circle-help-icon" />,
   CreditCardIcon: () => <svg data-testid="credit-card-icon" />,
   ExternalLinkIcon: () => <svg data-testid="external-link-icon" />,
   GiftIcon: () => <svg data-testid="gift-icon" />,
@@ -56,8 +82,10 @@ vi.mock('lucide-react', () => ({
   ReceiptTextIcon: () => <svg data-testid="receipt-icon" />,
   RefreshCwIcon: () => <svg data-testid="refresh-icon" />,
   ShoppingCartIcon: () => <svg data-testid="shopping-cart-icon" />,
+  SparklesIcon: () => <svg data-testid="sparkles-icon" />,
   WalletCardsIcon: () => <svg data-testid="wallet-icon" />,
   WifiIcon: () => <svg data-testid="wifi-icon" />,
+  ZapIcon: () => <svg data-testid="zap-icon" />,
 }));
 
 vi.mock('antd', () => ({
@@ -539,13 +567,16 @@ describe('Business billing pages', () => {
 
     render(<Plans />);
 
-    expect(screen.getByText('Free')).toBeInTheDocument();
-    expect(screen.getByText('Starter')).toBeInTheDocument();
-    expect(screen.getByText('Premium')).toBeInTheDocument();
-    expect(screen.getByText('Ultimate')).toBeInTheDocument();
-    expect(screen.getByText('5,000,000')).toBeInTheDocument();
-    expect(screen.getByText('CNY 99.00 / month')).toBeInTheDocument();
-    expect(screen.getByText('CNY 990.00 / year')).toBeInTheDocument();
+    expect(screen.getByText('Plans')).toBeInTheDocument();
+    expect(screen.getByText('Yearly')).toBeInTheDocument();
+    expect(screen.getByText('Up to 37% off')).toBeInTheDocument();
+    expect(screen.getAllByText('Starter').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Premium').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Ultimate').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/5,000,000/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Text Model Pricing')).toBeInTheDocument();
+    expect(screen.getByText('Plan Comparison')).toBeInTheDocument();
+    expect(screen.getByText('FAQ')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Purchase' })[0]).toBeEnabled();
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
   }, 30_000);
@@ -572,7 +603,7 @@ describe('Business billing pages', () => {
     await waitFor(() =>
       expect(createSubscriptionOrder).toHaveBeenCalledWith({
         channel: 'alipay',
-        period: 'month',
+        period: 'year',
         planId: 'starter',
       }),
     );
@@ -611,12 +642,12 @@ describe('Business billing pages', () => {
     const { default: Plans } = await import('../Plans');
 
     render(<Plans />);
-    fireEvent.click(screen.getByRole('button', { name: 'Renew' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Renew' })[0]);
 
     await waitFor(() =>
       expect(createSubscriptionRenewOrder).toHaveBeenCalledWith({
         channel: 'alipay',
-        period: 'month',
+        period: 'year',
         planId: 'premium',
       }),
     );
@@ -658,7 +689,7 @@ describe('Business billing pages', () => {
     expect(delayedButtons).toHaveLength(2);
     expect(delayedButtons[0]).toBeDisabled();
     expect(delayedButtons[1]).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Upgrade' })[0]);
 
     await waitFor(() =>
       expect(createSubscriptionUpgradeOrder).toHaveBeenCalledWith({
