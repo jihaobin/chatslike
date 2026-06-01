@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest';
 
 import { __testing, sharedModulePreload } from './sharedRendererConfig';
 
+describe('sharedResolveDedupe', () => {
+  it('keeps UI and motion contexts singleton across peer dependency instances', () => {
+    expect(__testing.sharedResolveDedupe).toEqual(
+      expect.arrayContaining([
+        '@lobehub/ui',
+        '@lobehub/ui/base-ui',
+        '@lobehub/ui/icons',
+        'motion',
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+      ]),
+    );
+  });
+});
+
 describe('sharedModulePreload', () => {
   it('keeps vendor modulepreload dependencies while excluding i18n chunks', () => {
     const resolveDependencies = sharedModulePreload.resolveDependencies!;

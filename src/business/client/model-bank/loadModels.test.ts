@@ -1,13 +1,24 @@
 import type { LobeDefaultAiModelListItem } from 'model-bank';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { loadModels } from './loadModels';
+
 const loadBusinessModels = vi.hoisted(() => vi.fn());
+const state = vi.hoisted(() => ({
+  commercialRuntime: {
+    platformHostedModels: {
+      enabled: true,
+    },
+  },
+}));
 
 vi.mock('@lobechat/business-model-bank/model-config', () => ({
   loadModels: loadBusinessModels,
 }));
 
-import { loadModels } from './loadModels';
+vi.mock('@/business/shared/commercialRuntime', () => ({
+  commercialRuntime: state.commercialRuntime,
+}));
 
 const models = [
   {
@@ -49,17 +60,16 @@ describe('business loadModels', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllEnvs();
   });
 
-  it('keeps all business model-bank models when platform billing is disabled', async () => {
-    vi.stubEnv('NEXT_PUBLIC_ENABLE_PLATFORM_BILLING', '0');
+  it('keeps all business model-bank models when platform hosted models are disabled', async () => {
+    state.commercialRuntime.platformHostedModels.enabled = false;
 
     await expect(loadModels()).resolves.toEqual(models);
   });
 
-  it('keeps only platform hosted providers when platform billing is enabled', async () => {
-    vi.stubEnv('NEXT_PUBLIC_ENABLE_PLATFORM_BILLING', '1');
+  it('keeps only platform hosted providers when platform hosted models are enabled', async () => {
+    state.commercialRuntime.platformHostedModels.enabled = true;
 
     const result = await loadModels();
 

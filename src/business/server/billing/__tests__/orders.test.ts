@@ -56,15 +56,15 @@ vi.mock('../payments', () => ({
 }));
 
 const pendingOrder = {
-  amountCents: 9900,
-  credits: 1_000_000,
+  amountCents: 600,
+  credits: 5_000_000,
   id: 'order-1',
   orderType: 'top_up',
   status: 'pending',
 };
 
 const succeededTransaction = {
-  amountCents: 9900,
+  amountCents: 600,
   billingOrderId: 'order-1',
   channel: 'alipay',
   id: 'payment-1',
@@ -99,13 +99,13 @@ describe('BillingOrderService', () => {
 
     const result = await service.createTopUpOrder({
       channel: 'alipay',
-      productId: 'topup_1m',
+      productId: 'topup_5m',
     });
 
     expect(createOrder).toHaveBeenCalledWith(
       expect.objectContaining({
-        amountCents: 9900,
-        credits: 1_000_000,
+        amountCents: 600,
+        credits: 5_000_000,
         metadata: expect.objectContaining({
           priceSource: 'temporary_test',
         }),
@@ -115,19 +115,22 @@ describe('BillingOrderService', () => {
       }),
     );
     expect(createPayment).toHaveBeenCalledWith({
-      amountCents: 9900,
+      amountCents: 600,
       channel: 'alipay',
-      description: '1,000,000 Credits',
+      description: '5M',
       orderId: 'order-1',
     });
     expect(createPendingTransaction).toHaveBeenCalledWith({
-      amountCents: 9900,
+      amountCents: 600,
       billingOrderId: 'order-1',
       channel: 'alipay',
       providerTransactionId: undefined,
     });
-    expect(result.order).toMatchObject({ amountCents: 9900, credits: 1_000_000 });
-    expect(result.payment).toMatchObject({ qrCodeUrl: '/pay/order-1', transactionId: 'payment-created' });
+    expect(result.order).toMatchObject({ amountCents: 600, credits: 5_000_000 });
+    expect(result.payment).toMatchObject({
+      qrCodeUrl: '/pay/order-1',
+      transactionId: 'payment-created',
+    });
   });
 
   it('closes the pending order when payment creation fails', async () => {
@@ -139,7 +142,7 @@ describe('BillingOrderService', () => {
     await expect(
       service.createTopUpOrder({
         channel: 'alipay',
-        productId: 'topup_1m',
+        productId: 'topup_5m',
       }),
     ).rejects.toThrow('payment not configured');
     expect(closePendingOrder).toHaveBeenCalledWith('order-1');
@@ -327,12 +330,19 @@ describe('BillingOrderService', () => {
 
   it('does not activate credits for a closed order callback', async () => {
     findOrderById.mockResolvedValue({ ...pendingOrder, status: 'closed' });
-    recordPaymentCallback.mockResolvedValue({ id: 'payment-closed' });
+    recordPaymentCallback.mockResolvedValue({
+      amountCents: 600,
+      billingOrderId: 'order-1',
+      channel: 'alipay',
+      id: 'payment-closed',
+      signatureVerified: true,
+      status: 'succeeded',
+    });
     const service = new BillingOrderService({} as never, 'user-1');
 
     await expect(
       service.markPaidAndActivate({
-        amountCents: 9900,
+        amountCents: 600,
         channel: 'alipay',
         orderId: 'order-1',
         providerTransactionId: 'ali-tx-closed',
@@ -357,16 +367,15 @@ describe('BillingOrderService', () => {
   });
 
   it('does not activate credits when a pending order closes during callback handling', async () => {
-    findOrderById.mockResolvedValueOnce(pendingOrder).mockResolvedValueOnce({
-      ...pendingOrder,
-      status: 'closed',
-    });
+    findOrderById
+      .mockResolvedValueOnce(pendingOrder)
+      .mockResolvedValueOnce({ ...pendingOrder, status: 'closed' });
     recordPaymentCallback.mockResolvedValue(succeededTransaction);
     const service = new BillingOrderService({} as never, 'user-1');
 
     await expect(
       service.markPaidAndActivate({
-        amountCents: 9900,
+        amountCents: 600,
         channel: 'alipay',
         orderId: 'order-1',
         providerTransactionId: 'ali-tx-race',
@@ -382,16 +391,16 @@ describe('BillingOrderService', () => {
   });
 
   it('activates top-up credits once after a verified payment callback', async () => {
-    findOrderById
-      .mockResolvedValueOnce(pendingOrder)
-      .mockResolvedValueOnce(pendingOrder)
-      .mockResolvedValueOnce({ ...pendingOrder, status: 'activated' });
+    findOrderById.mockResolvedValueOnce(pendingOrder).mockResolvedValueOnce(pendingOrder);
     recordPaymentCallback.mockResolvedValue(succeededTransaction);
-    grantTopUpCredits.mockResolvedValue({ id: 'grant-1' });
+    updateOrderStatus
+      .mockResolvedValueOnce({ ...pendingOrder, status: 'paid' })
+      .mockResolvedValueOnce({ ...pendingOrder, status: 'activated' });
+    grantTopUpCredits.mockResolvedValue({ id: 'grant-top-up-1' });
     const service = new BillingOrderService({} as never, 'user-1');
 
     const first = await service.markPaidAndActivate({
-      amountCents: 9900,
+      amountCents: 600,
       channel: 'alipay',
       orderId: 'order-1',
       providerTransactionId: 'ali-tx-1',
@@ -399,8 +408,10 @@ describe('BillingOrderService', () => {
       signatureVerified: true,
       succeeded: true,
     });
+
+    findOrderById.mockResolvedValueOnce({ ...pendingOrder, status: 'activated' });
     const second = await service.markPaidAndActivate({
-      amountCents: 9900,
+      amountCents: 600,
       channel: 'alipay',
       orderId: 'order-1',
       providerTransactionId: 'ali-tx-1',
@@ -413,7 +424,7 @@ describe('BillingOrderService', () => {
     expect(second).toEqual({ activated: false, orderId: 'order-1' });
     expect(grantTopUpCredits).toHaveBeenCalledTimes(1);
     expect(grantTopUpCredits).toHaveBeenCalledWith({
-      amountCredits: 1_000_000,
+      amountCredits: 5_000_000,
       billingOrderId: 'order-1',
       operationId: 'top_up:order-1',
     });
@@ -422,7 +433,7 @@ describe('BillingOrderService', () => {
   it('does not activate credits for a verified but unsuccessful payment callback', async () => {
     findOrderById.mockResolvedValue(pendingOrder);
     recordPaymentCallback.mockResolvedValue({
-      amountCents: 9900,
+      amountCents: 600,
       billingOrderId: 'order-1',
       channel: 'alipay',
       id: 'payment-wait',
@@ -433,7 +444,7 @@ describe('BillingOrderService', () => {
 
     await expect(
       service.markPaidAndActivate({
-        amountCents: 9900,
+        amountCents: 600,
         channel: 'alipay',
         orderId: 'order-1',
         providerTransactionId: 'ali-tx-wait',
@@ -460,7 +471,7 @@ describe('BillingOrderService', () => {
   it('rejects replaying a provider transaction onto another order', async () => {
     findOrderById.mockResolvedValue(pendingOrder);
     findTransactionByProviderTransactionId.mockResolvedValue({
-      amountCents: 9900,
+      amountCents: 600,
       billingOrderId: 'other-order',
       channel: 'alipay',
       id: 'payment-other',
@@ -471,7 +482,7 @@ describe('BillingOrderService', () => {
 
     await expect(
       service.markPaidAndActivate({
-        amountCents: 9900,
+        amountCents: 600,
         channel: 'alipay',
         orderId: 'order-1',
         providerTransactionId: 'ali-tx-replay',
@@ -490,17 +501,20 @@ describe('BillingOrderService', () => {
   });
 
   it('runs payment activation inside a database transaction', async () => {
-    const tx = { tx: true };
+    const tx = {};
     const db = {
       transaction: vi.fn(async (callback) => callback(tx)),
     };
-    findOrderById.mockResolvedValue(pendingOrder);
+    findOrderById.mockResolvedValueOnce(pendingOrder).mockResolvedValueOnce(pendingOrder);
     recordPaymentCallback.mockResolvedValue(succeededTransaction);
-    grantTopUpCredits.mockResolvedValue({ id: 'grant-1' });
+    updateOrderStatus
+      .mockResolvedValueOnce({ ...pendingOrder, status: 'paid' })
+      .mockResolvedValueOnce({ ...pendingOrder, status: 'activated' });
+    grantTopUpCredits.mockResolvedValue({ id: 'grant-top-up-1' });
     const service = new BillingOrderService(db as never, 'user-1');
 
     await service.markPaidAndActivate({
-      amountCents: 9900,
+      amountCents: 600,
       channel: 'alipay',
       orderId: 'order-1',
       providerTransactionId: 'ali-tx-1',
@@ -513,24 +527,19 @@ describe('BillingOrderService', () => {
   });
 
   it('does not persist paid status when credit activation fails inside the transaction', async () => {
+    const tx = {};
     const db = {
-      transaction: vi.fn(async (callback) => callback({})),
+      transaction: vi.fn(async (callback) => callback(tx)),
     };
-    findOrderById.mockResolvedValue(pendingOrder);
-    recordPaymentCallback.mockResolvedValue({
-      amountCents: 9900,
-      billingOrderId: 'order-1',
-      channel: 'alipay',
-      id: 'payment-1',
-      signatureVerified: true,
-      status: 'succeeded',
-    });
+    findOrderById.mockResolvedValueOnce(pendingOrder).mockResolvedValueOnce(pendingOrder);
+    recordPaymentCallback.mockResolvedValue(succeededTransaction);
+    updateOrderStatus.mockResolvedValue({ ...pendingOrder, status: 'paid' });
     grantTopUpCredits.mockRejectedValue(new Error('grant failed'));
     const service = new BillingOrderService(db as never, 'user-1');
 
     await expect(
       service.markPaidAndActivate({
-        amountCents: 9900,
+        amountCents: 600,
         channel: 'alipay',
         orderId: 'order-1',
         providerTransactionId: 'ali-tx-1',

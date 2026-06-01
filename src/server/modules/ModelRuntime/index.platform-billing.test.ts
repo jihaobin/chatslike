@@ -1,5 +1,7 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { initModelRuntimeFromDB } from './index';
 
 const {
   getAiProviderById,
@@ -8,6 +10,7 @@ const {
   llmConfig,
   initializeWithProvider,
   mergeModelRuntimeHooks,
+  runtimeState,
 } = vi.hoisted(() => ({
   getAiProviderById: vi.fn(),
   getBusinessModelRuntimeHooks: vi.fn(),
@@ -20,6 +23,10 @@ const {
     businessHooks,
     tracingHooks,
   })),
+  runtimeState: {
+    nativeBillingEnabled: false,
+    platformHostedModelsEnabled: false,
+  },
 }));
 
 vi.mock('@lobechat/model-runtime', () => ({
@@ -37,6 +44,21 @@ vi.mock('@lobechat/model-runtime/vertexai', () => ({
 
 vi.mock('@/business/server/model-runtime', () => ({
   getBusinessModelRuntimeHooks,
+}));
+
+vi.mock('@/business/shared/commercialRuntime', () => ({
+  commercialRuntime: {
+    nativeBilling: {
+      get enabled() {
+        return runtimeState.nativeBillingEnabled;
+      },
+    },
+    platformHostedModels: {
+      get enabled() {
+        return runtimeState.platformHostedModelsEnabled;
+      },
+    },
+  },
 }));
 
 vi.mock('@/database/models/aiProvider', () => ({
@@ -59,11 +81,7 @@ vi.mock('@/server/services/llmGenerationTracing/hook', () => ({
   createLLMGenerationTracingHook: vi.fn(() => ({ tracing: true })),
 }));
 
-import { initModelRuntimeFromDB } from './index';
-
 describe('initModelRuntimeFromDB platform billing', () => {
-  const originalPlatformBilling = process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING;
-
   beforeEach(() => {
     getAiProviderById.mockReset();
     getBusinessModelRuntimeHooks.mockReset();
@@ -75,20 +93,39 @@ describe('initModelRuntimeFromDB platform billing', () => {
     }
     llmConfig.OPENAI_API_KEY = 'platform-openai-key';
     initializeWithProvider.mockReturnValue({ runtime: true });
-  });
-
-  afterEach(() => {
-    process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING = originalPlatformBilling;
+    runtimeState.nativeBillingEnabled = false;
+    runtimeState.platformHostedModelsEnabled = false;
   });
 
   it('uses platform environment credentials without reading user keyVaults when enabled', async () => {
-    process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING = '1';
+    runtimeState.nativeBillingEnabled = true;
+    runtimeState.platformHostedModelsEnabled = true;
+    const businessHooks = { billing: true };
+    getBusinessModelRuntimeHooks.mockReturnValue(businessHooks);
 
     const runtime = await initModelRuntimeFromDB({} as never, 'user-1', 'openai');
 
     expect(runtime).toEqual({ runtime: true });
     expect(getAiProviderById).not.toHaveBeenCalled();
     expect(getUserKeyVaults).not.toHaveBeenCalled();
+    expect(getBusinessModelRuntimeHooks).toHaveBeenCalledWith('user-1', 'openai');
+    expect(mergeModelRuntimeHooks).toHaveBeenCalledWith(businessHooks, { tracing: true });
+    expect(initializeWithProvider).toHaveBeenCalledWith(
+      'openai',
+      { apiKey: 'platform-openai-key', userId: 'user-1' },
+      { businessHooks, tracingHooks: { tracing: true } },
+    );
+  });
+
+  it('uses platform environment credentials without billing hooks when only platform hosted models are enabled', async () => {
+    runtimeState.platformHostedModelsEnabled = true;
+
+    const runtime = await initModelRuntimeFromDB({} as never, 'user-1', 'openai');
+
+    expect(runtime).toEqual({ runtime: true });
+    expect(getAiProviderById).not.toHaveBeenCalled();
+    expect(getUserKeyVaults).not.toHaveBeenCalled();
+    expect(getBusinessModelRuntimeHooks).not.toHaveBeenCalled();
     expect(initializeWithProvider).toHaveBeenCalledWith(
       'openai',
       { apiKey: 'platform-openai-key', userId: 'user-1' },
@@ -97,16 +134,20 @@ describe('initModelRuntimeFromDB platform billing', () => {
   });
 
   it('blocks custom providers when platform billing is enabled', async () => {
-    process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING = '1';
+    runtimeState.nativeBillingEnabled = true;
+    runtimeState.platformHostedModelsEnabled = true;
 
-    await expect(initModelRuntimeFromDB({} as never, 'user-1', 'custom-openai')).rejects.toMatchObject({
+    await expect(
+      initModelRuntimeFromDB({} as never, 'user-1', 'custom-openai'),
+    ).rejects.toMatchObject({
       code: 'PLATFORM_MODEL_ONLY',
     });
     expect(getAiProviderById).not.toHaveBeenCalled();
   });
 
   it('blocks hosted providers without their own platform credential', async () => {
-    process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING = '1';
+    runtimeState.nativeBillingEnabled = true;
+    runtimeState.platformHostedModelsEnabled = true;
 
     await expect(initModelRuntimeFromDB({} as never, 'user-1', 'anthropic')).rejects.toMatchObject({
       code: 'PLATFORM_MODEL_CREDENTIAL_MISSING',
@@ -116,7 +157,6 @@ describe('initModelRuntimeFromDB platform billing', () => {
   });
 
   it('keeps the user provider config path when platform billing is disabled', async () => {
-    process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING = '0';
     getAiProviderById.mockResolvedValue({
       keyVaults: { apiKey: 'user-openai-key', baseURL: 'https://user.example.com/v1' },
       settings: {},
@@ -125,6 +165,7 @@ describe('initModelRuntimeFromDB platform billing', () => {
     await initModelRuntimeFromDB({} as never, 'user-1', 'openai');
 
     expect(getAiProviderById).toHaveBeenCalledWith('openai', getUserKeyVaults);
+    expect(getBusinessModelRuntimeHooks).not.toHaveBeenCalled();
     expect(initializeWithProvider).toHaveBeenCalledWith(
       'openai',
       { apiKey: 'user-openai-key', baseURL: 'https://user.example.com/v1', userId: 'user-1' },

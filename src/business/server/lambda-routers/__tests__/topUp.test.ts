@@ -46,8 +46,8 @@ describe('topUpRouter', () => {
   it('creates a top-up order for the authed user', async () => {
     createTopUpOrder.mockResolvedValue({
       order: {
-        amountCents: 9900,
-        credits: 1_000_000,
+        amountCents: 600,
+        credits: 5_000_000,
         id: 'order-1',
         status: 'pending',
       },
@@ -59,11 +59,11 @@ describe('topUpRouter', () => {
     const caller = topUpRouter.createCaller({ userId: 'user-1' });
 
     await expect(
-      caller.createOrder({ channel: 'alipay', productId: 'topup_1m' }),
+      caller.createOrder({ channel: 'alipay', productId: 'topup_5m' }),
     ).resolves.toMatchObject({
       order: {
-        amountCents: 9900,
-        credits: 1_000_000,
+        amountCents: 600,
+        credits: 5_000_000,
         id: 'order-1',
       },
       payment: {
@@ -72,7 +72,7 @@ describe('topUpRouter', () => {
     });
     expect(createTopUpOrder).toHaveBeenCalledWith({
       channel: 'alipay',
-      productId: 'topup_1m',
+      productId: 'topup_5m',
     });
   });
 

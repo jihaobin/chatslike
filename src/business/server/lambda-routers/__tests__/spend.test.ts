@@ -3,12 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { spendRouter } from '../spend';
 
-const { getBalance, getTextPricing, listUsageRecords, mockDb } = vi.hoisted(() => ({
-  getBalance: vi.fn(),
-  getTextPricing: vi.fn(),
-  listUsageRecords: vi.fn(),
-  mockDb: {},
-}));
+const { getBalance, getTextPricing, listGrantPackages, listUsageRecords, mockDb } = vi.hoisted(
+  () => ({
+    getBalance: vi.fn(),
+    getTextPricing: vi.fn(),
+    listGrantPackages: vi.fn(),
+    listUsageRecords: vi.fn(),
+    mockDb: {},
+  }),
+);
 
 vi.mock('@/database/core/db-adaptor', () => ({
   getServerDB: vi.fn(async () => mockDb),
@@ -17,6 +20,7 @@ vi.mock('@/database/core/db-adaptor', () => ({
 vi.mock('@/business/server/billing/credits', () => ({
   CreditsService: vi.fn().mockImplementation(() => ({
     getBalance,
+    listGrantPackages,
     listUsageRecords,
   })),
 }));
@@ -34,6 +38,7 @@ describe('spendRouter', () => {
       inputCreditsPerMillionTokens: 4_000_000,
       outputCreditsPerMillionTokens: 10_000_000,
     });
+    listGrantPackages.mockReset();
     listUsageRecords.mockReset();
   });
 
@@ -79,5 +84,25 @@ describe('spendRouter', () => {
       items: [{ id: 'usage-1', modality: 'text' }],
     });
     expect(listUsageRecords).toHaveBeenCalledWith({ cursor: undefined, pageSize: 20 });
+  });
+
+  it('lists credit grant packages for the authed user', async () => {
+    listGrantPackages.mockResolvedValue({
+      active: {
+        rechargeCredits: 300_000,
+        subscriptionCredits: 200_000,
+        totalCredits: 500_000,
+      },
+      packages: [{ id: 'grant-1', remainingCredits: 300_000, source: 'top_up', status: 'active' }],
+    });
+    const caller = spendRouter.createCaller({ userId: 'user-1' });
+
+    await expect(caller.listGrantPackages()).resolves.toMatchObject({
+      active: {
+        rechargeCredits: 300_000,
+        subscriptionCredits: 200_000,
+      },
+      packages: [{ id: 'grant-1', source: 'top_up' }],
+    });
   });
 });

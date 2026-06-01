@@ -66,10 +66,14 @@ describe('billing env', () => {
     });
   });
 
-  it('registers billing variables in the server app env config', () => {
+  it('registers billing and commercial variables in the server app env config', () => {
     const config = getAppConfig();
 
     expect(config.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING).toBe(false);
+    expect(config.ENABLE_COMMERCIAL).toBe(false);
+    expect(config.ENABLE_NATIVE_BILLING).toBe(false);
+    expect(config.ENABLE_PLATFORM_HOSTED_MODELS).toBe(false);
+    expect(config.ENABLE_LOBEHUB_CLOUD_INTEGRATION).toBe(false);
     expect(config.BILLING_TRIAL_CREDITS).toBeUndefined();
     expect(config.ALIPAY_PRIVATE_KEY).toBeUndefined();
     expect(config.WECHAT_PAY_API_V3_KEY).toBeUndefined();

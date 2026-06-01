@@ -196,22 +196,22 @@ export const CONTEXT_COMMANDS: Record<ContextType, ContextCommand[]> = {
 };
 
 interface BuildContextCommandsOptions {
-  enableBusinessFeatures: boolean;
-  enablePlatformBilling: boolean;
+  nativeBillingEnabled: boolean;
+  referralEnabled: boolean;
 }
 
 /**
  * Build the full command map, optionally appending business-only entries.
  */
 export const buildContextCommands = ({
-  enableBusinessFeatures,
-  enablePlatformBilling,
+  nativeBillingEnabled,
+  referralEnabled,
 }: BuildContextCommandsOptions): Record<ContextType, ContextCommand[]> => ({
   ...CONTEXT_COMMANDS,
   settings: [
     ...CONTEXT_COMMANDS.settings,
-    ...(enablePlatformBilling ? BUSINESS_SETTINGS_COMMANDS : []),
-    ...(enableBusinessFeatures ? CLOUD_BUSINESS_SETTINGS_COMMANDS : []),
+    ...(nativeBillingEnabled ? BUSINESS_SETTINGS_COMMANDS : []),
+    ...(referralEnabled ? CLOUD_BUSINESS_SETTINGS_COMMANDS : []),
   ],
 });
 

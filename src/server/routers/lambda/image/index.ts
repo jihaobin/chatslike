@@ -9,6 +9,7 @@ import { isProviderModelAvailable } from 'model-bank';
 import { z } from 'zod';
 
 import { chargeBeforeGenerate } from '@/business/server/image-generation/chargeBeforeGenerate';
+import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { type NewGeneration, type NewGenerationBatch } from '@/database/schemas';
 import { asyncTasks, generationBatches, generations } from '@/database/schemas';
@@ -57,6 +58,12 @@ const createImageInputSchema = z.object({
   provider: z.string(),
 });
 export type CreateImageServicePayload = z.infer<typeof createImageInputSchema>;
+
+const omitBillingMetadata = <T extends Record<string, unknown>>(config: T) => {
+  const { billing: _billing, ...configWithoutBilling } = config;
+
+  return configWithoutBilling;
+};
 
 export const imageRouter = router({
   createImage: imageProcedure.input(createImageInputSchema).mutation(async ({ input, ctx }) => {
@@ -157,19 +164,24 @@ export const imageRouter = router({
     // Defensive check: ensure no full URLs enter the database
     validateNoUrlsInConfig(configForDatabase, 'configForDatabase');
 
-    const chargeResult = await chargeBeforeGenerate({
-      clientIp: ctx.clientIp,
-      configForDatabase,
-      generationParams,
-      generationTopicId,
-      imageNum,
-      model,
-      provider,
-      userId,
-    });
+    const chargeResult = commercialRuntime.nativeBilling.enabled
+      ? await chargeBeforeGenerate({
+          clientIp: ctx.clientIp,
+          configForDatabase,
+          generationParams,
+          generationTopicId,
+          imageNum,
+          model,
+          provider,
+          userId,
+        })
+      : undefined;
     if (chargeResult?.errorBatch) {
       return chargeResult.errorBatch;
     }
+    const configWithBilling = chargeResult?.billing
+      ? { ...configForDatabase, billing: chargeResult.billing }
+      : omitBillingMetadata(configForDatabase);
 
     // Step 1: Atomically create all database records in a transaction
     const { batch: createdBatch, generationsWithTasks } = await serverDB.transaction(async (tx) => {
@@ -177,9 +189,7 @@ export const imageRouter = router({
 
       // 1. Create generationBatch
       const newBatch: NewGenerationBatch = {
-        config: chargeResult?.billing
-          ? { ...configForDatabase, billing: chargeResult.billing }
-          : configForDatabase,
+        config: configWithBilling,
         generationTopicId,
         height: params.height,
         model,

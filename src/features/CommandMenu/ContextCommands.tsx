@@ -3,7 +3,11 @@ import { ChevronRight } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
+import {
+  lobeHubCloudAdapter,
+  nativeBillingAdapter,
+  nativeReferralAdapter,
+} from '@/business/shared/adapters';
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 import { useCommandMenuContext } from './CommandMenuContext';
@@ -18,8 +22,11 @@ const ContextCommands = memo(() => {
   const { t: tCommon } = useTranslation('common');
   const { handleNavigate } = useCommandMenu();
   const { menuContext, pathname } = useCommandMenuContext();
-  const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
-  const enablePlatformBilling = isPlatformBillingEnabled();
+  const commercial = useServerConfigStore(serverConfigSelectors.commercial);
+  const nativeBillingEnabled = nativeBillingAdapter.getCapability(commercial).enabled;
+  const lobeHubCloudEnabled = lobeHubCloudAdapter.getCapability(commercial).enabled;
+  const nativeReferralEnabled = nativeReferralAdapter.getCapability(commercial).enabled;
+  const referralEnabled = nativeReferralEnabled || lobeHubCloudEnabled;
 
   // Extract subPath from pathname
   const subPath = useMemo(() => {
@@ -28,15 +35,15 @@ const ContextCommands = memo(() => {
   }, [pathname]);
 
   const commands = getContextCommands(menuContext, subPath, {
-    enableBusinessFeatures,
-    enablePlatformBilling,
+    nativeBillingEnabled,
+    referralEnabled,
   });
 
   // Get settings commands to show globally (when not in settings context)
   const globalSettingsCommands = useMemo(() => {
     if (menuContext === 'settings') return [];
-    return buildContextCommands({ enableBusinessFeatures, enablePlatformBilling }).settings;
-  }, [menuContext, enableBusinessFeatures, enablePlatformBilling]);
+    return buildContextCommands({ nativeBillingEnabled, referralEnabled }).settings;
+  }, [menuContext, nativeBillingEnabled, referralEnabled]);
 
   const hasCommands = commands.length > 0 || globalSettingsCommands.length > 0;
 

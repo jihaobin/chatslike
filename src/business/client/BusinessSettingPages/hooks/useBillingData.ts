@@ -1,5 +1,4 @@
-import useSWR from 'swr';
-import { mutate } from 'swr';
+import useSWR, { mutate } from 'swr';
 
 import { billingService } from '@/services/billing';
 
@@ -7,6 +6,11 @@ const BILLING_PAGE_SIZE = 20;
 
 export const useBillingBalance = () =>
   useSWR('billing.balance', () => billingService.getBalance(), {
+    refreshInterval: 15_000,
+  });
+
+export const useBillingGrantPackages = () =>
+  useSWR('billing.grantPackages', () => billingService.listGrantPackages(), {
     refreshInterval: 15_000,
   });
 
@@ -21,8 +25,7 @@ const POLLING_ORDER_STATUSES = new Set(['paid', 'pending']);
 
 export const useBillingOrder = (orderId?: string) =>
   useSWR(orderId ? ['billing.order', orderId] : null, () => billingService.getOrder(orderId!), {
-    refreshInterval: (order) =>
-      order && POLLING_ORDER_STATUSES.has(order.status) ? 3000 : 0,
+    refreshInterval: (order) => (order && POLLING_ORDER_STATUSES.has(order.status) ? 3000 : 0),
   });
 
 export const useSubscriptionPlans = () =>

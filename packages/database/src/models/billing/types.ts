@@ -1,4 +1,9 @@
-import type { CreditGrantSource, CreditReservationStatus, UsageModality } from '../../schemas';
+import type {
+  CreditGrantSource,
+  CreditGrantStatus,
+  CreditReservationStatus,
+  UsageModality,
+} from '../../schemas';
 
 export interface BillingBalance {
   availableCredits: number;
@@ -6,6 +11,27 @@ export interface BillingBalance {
   lifetimeConsumedCredits: number;
   lifetimeGrantedCredits: number;
   status: 'active' | 'frozen' | 'risk';
+}
+
+export interface CreditGrantPackage {
+  billingOrderId: string | null;
+  createdAt: Date;
+  expiresAt: Date | null;
+  id: string;
+  remainingCredits: number;
+  source: CreditGrantSource;
+  startsAt: Date | null;
+  status: CreditGrantStatus;
+  totalCredits: number;
+}
+
+export interface CreditGrantSummary {
+  active: {
+    rechargeCredits: number;
+    subscriptionCredits: number;
+    totalCredits: number;
+  };
+  packages: CreditGrantPackage[];
 }
 
 export interface GrantCreditsParams {

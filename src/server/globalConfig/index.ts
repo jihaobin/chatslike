@@ -1,5 +1,6 @@
 import { ENABLE_BUSINESS_FEATURES } from '@lobechat/business-const';
 
+import { getCommercialRuntimeConfig } from '@/business/shared/commercialRuntime';
 import { klavisEnv } from '@/config/klavis';
 import { isDesktop } from '@/const/version';
 import { appEnv, getAppConfig } from '@/envs/app';
@@ -29,6 +30,13 @@ const getBetterAuthSSOProviders = () => {
 
 export const getServerGlobalConfig = async () => {
   const { DEFAULT_AGENT_CONFIG } = getAppConfig();
+  const commercial = getCommercialRuntimeConfig({
+    ENABLE_COMMERCIAL: process.env.ENABLE_COMMERCIAL,
+    ENABLE_LOBEHUB_CLOUD_INTEGRATION: process.env.ENABLE_LOBEHUB_CLOUD_INTEGRATION,
+    ENABLE_NATIVE_BILLING: process.env.ENABLE_NATIVE_BILLING,
+    ENABLE_PLATFORM_HOSTED_MODELS: process.env.ENABLE_PLATFORM_HOSTED_MODELS,
+    NEXT_PUBLIC_ENABLE_PLATFORM_BILLING: process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING,
+  });
 
   const config: GlobalServerConfig = {
     aiProvider: await genServerAiProvidersConfig({
@@ -112,6 +120,7 @@ export const getServerGlobalConfig = async () => {
         }
       : undefined),
 
+    commercial,
     // Expose Agent Gateway URL to client (used by hetero agents; also required for queue mode)
     ...(appEnv.AGENT_GATEWAY_URL ? { agentGatewayUrl: appEnv.AGENT_GATEWAY_URL } : undefined),
 

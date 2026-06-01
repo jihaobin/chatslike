@@ -18,11 +18,9 @@ import {
 import { safeParseJSON } from '@lobechat/utils';
 import { ModelProvider } from 'model-bank';
 
+import { assertPlatformHostedProviderConfigured } from '@/business/server/billing/platformModels';
 import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
-import {
-  isPlatformBillingEnabled,
-  assertPlatformHostedProviderConfigured,
-} from '@/business/server/billing/platformModels';
+import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AiProviderModel } from '@/database/models/aiProvider';
 import { type LobeChatDatabase } from '@/database/type';
 import { getLLMConfig } from '@/envs/llm';
@@ -411,14 +409,21 @@ export const initModelRuntimeFromDB = async (
 ): Promise<ModelRuntime> => {
   // Commercial cloud mode uses platform-hosted model credentials only.
   // OSS/self-hosted mode keeps the existing user keyVault path below.
-  if (isPlatformBillingEnabled()) {
+  if (commercialRuntime.platformHostedModels.enabled) {
     assertPlatformHostedProviderConfigured(provider, getLLMConfig());
 
-    const businessHooks = getBusinessModelRuntimeHooks(userId, provider);
+    const businessHooks = commercialRuntime.nativeBilling.enabled
+      ? getBusinessModelRuntimeHooks(userId, provider)
+      : undefined;
     const tracingHooks = createLLMGenerationTracingHook(userId, provider);
     const hooks = mergeModelRuntimeHooks(businessHooks, tracingHooks);
 
-    return initModelRuntimeWithUserPayload(provider, { runtimeProvider: provider }, { userId }, hooks);
+    return initModelRuntimeWithUserPayload(
+      provider,
+      { runtimeProvider: provider },
+      { userId },
+      hooks,
+    );
   }
 
   // 1. Get user's provider configuration from database
@@ -441,7 +446,9 @@ export const initModelRuntimeFromDB = async (
   const payload = buildPayloadFromKeyVaults(keyVaults, runtimeProvider);
 
   // 4. Get business hooks (billing in cloud, undefined in OSS)
-  const businessHooks = getBusinessModelRuntimeHooks(userId, provider);
+  const businessHooks = commercialRuntime.nativeBilling.enabled
+    ? getBusinessModelRuntimeHooks(userId, provider)
+    : undefined;
 
   // 5. Compose with the per-call llm_generation_tracing hook (no-op when the
   //    service is unconfigured, so OSS / self-hosted setups pay nothing for it).

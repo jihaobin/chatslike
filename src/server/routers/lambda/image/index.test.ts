@@ -14,6 +14,7 @@ const {
   mockCreateAsyncCaller,
   mockLoadModels,
   mockResolveBusinessModelMapping,
+  nativeBillingEnabled,
 } = vi.hoisted(() => ({
   mockServerDB: {
     transaction: vi.fn(),
@@ -25,6 +26,7 @@ const {
   mockCreateAsyncCaller: vi.fn(),
   mockLoadModels: vi.fn(),
   mockResolveBusinessModelMapping: vi.fn(),
+  nativeBillingEnabled: { value: true },
 }));
 
 // Mock debug
@@ -55,6 +57,16 @@ vi.mock('@/database/models/asyncTask', () => ({
 // Mock chargeBeforeGenerate
 vi.mock('@/business/server/image-generation/chargeBeforeGenerate', () => ({
   chargeBeforeGenerate: (params: any) => mockChargeBeforeGenerate(params),
+}));
+
+vi.mock('@/business/shared/commercialRuntime', () => ({
+  commercialRuntime: {
+    nativeBilling: {
+      get enabled() {
+        return nativeBillingEnabled.value;
+      },
+    },
+  },
 }));
 
 vi.mock('@lobechat/business-model-runtime', async (importOriginal) => ({
@@ -114,6 +126,7 @@ describe('imageRouter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    nativeBillingEnabled.value = true;
 
     // Default mock implementations
     mockResolveBusinessModelMapping.mockImplementation(
@@ -405,6 +418,104 @@ describe('imageRouter', () => {
           model: 'stable-diffusion',
           provider: 'test-provider',
           userId: mockUserId,
+        }),
+      );
+    });
+
+    it('should skip pre-charge and billing metadata when native billing is disabled', async () => {
+      nativeBillingEnabled.value = false;
+      mockChargeBeforeGenerate.mockResolvedValue({
+        billing: {
+          estimatedCredits: 80_000,
+          operationId: 'image:test-user-id:topic-1:test-provider:stable-diffusion:hash',
+          reservationId: 'reservation-image-1',
+        },
+      });
+
+      const ctx = createMockCtx();
+      const input = createDefaultInput();
+
+      const caller = imageRouter.createCaller(ctx);
+      await caller.createImage(input);
+
+      expect(mockChargeBeforeGenerate).not.toHaveBeenCalled();
+
+      const transactionCallback = mockServerDB.transaction.mock.calls[0][0];
+      const insert = vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockReturnValue([{ id: 'batch-without-billing' }]),
+        }),
+      });
+
+      await transactionCallback({
+        insert,
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      });
+
+      expect(insert().values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.not.objectContaining({
+            billing: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('should strip forged billing metadata when native billing is disabled', async () => {
+      nativeBillingEnabled.value = false;
+
+      const ctx = createMockCtx();
+      const input = createDefaultInput({
+        params: {
+          billing: {
+            estimatedCredits: 1,
+            operationId: 'forged-operation',
+            reservationId: 'forged-reservation',
+          },
+          customOption: 'keep-me',
+          height: 512,
+          prompt: 'a beautiful sunset',
+          width: 512,
+        },
+      });
+
+      const caller = imageRouter.createCaller(ctx);
+      await caller.createImage(input);
+
+      expect(mockChargeBeforeGenerate).not.toHaveBeenCalled();
+
+      const transactionCallback = mockServerDB.transaction.mock.calls[0][0];
+      const insert = vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockReturnValue([{ id: 'batch-without-forged-billing' }]),
+        }),
+      });
+
+      await transactionCallback({
+        insert,
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      });
+
+      expect(insert().values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            customOption: 'keep-me',
+          }),
+        }),
+      );
+      expect(insert().values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.not.objectContaining({
+            billing: expect.anything(),
+          }),
         }),
       );
     });

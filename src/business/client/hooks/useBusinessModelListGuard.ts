@@ -1,10 +1,8 @@
 import { toast } from '@lobehub/ui';
 import { useTranslation } from 'react-i18next';
 
-import {
-  isPlatformBillingEnabled,
-  isPlatformHostedProvider,
-} from '@/business/shared/platformModels';
+import { commercialRuntime } from '@/business/shared/commercialRuntime';
+import { isPlatformHostedProvider } from '@/business/shared/platformModels';
 
 export interface BusinessModelListGuard {
   isModelRestricted?: (modelId: string, providerId: string) => boolean;
@@ -14,7 +12,7 @@ export interface BusinessModelListGuard {
 export const useBusinessModelListGuard = (): BusinessModelListGuard => {
   const { t } = useTranslation('subscription');
 
-  if (!isPlatformBillingEnabled()) return {};
+  if (!commercialRuntime.platformHostedModels.enabled) return {};
 
   return {
     isModelRestricted: (_modelId, providerId) => !isPlatformHostedProvider(providerId),

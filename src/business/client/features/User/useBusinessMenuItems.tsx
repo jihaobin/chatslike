@@ -1,18 +1,18 @@
 import { Icon } from '@lobehub/ui';
-import { type ItemType } from 'antd/es/menu/interface';
+import type { ItemType } from 'antd/es/menu/interface';
 import { ChartColumnBigIcon, Coins, CreditCard, Map } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
+import { commercialRuntime } from '@/business/shared/commercialRuntime';
 
 export default function useBusinessMenuItems(isSignin: boolean | undefined): ItemType[] {
   const { t } = useTranslation('common');
-  const enablePlatformBilling = isPlatformBillingEnabled();
+  const enableNativeBilling = commercialRuntime.nativeBilling.enabled;
 
   return useMemo(() => {
-    if (!isSignin || !enablePlatformBilling) return [];
+    if (!isSignin || !enableNativeBilling) return [];
 
     return [
       {
@@ -39,5 +39,5 @@ export default function useBusinessMenuItems(isSignin: boolean | undefined): Ite
         label: <Link to="/settings/billing">{t('userPanel.billing')}</Link>,
       },
     ];
-  }, [enablePlatformBilling, isSignin, t]);
+  }, [enableNativeBilling, isSignin, t]);
 }

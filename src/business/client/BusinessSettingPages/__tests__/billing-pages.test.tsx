@@ -7,6 +7,28 @@ vi.mock('@lobechat/const', () => ({
 }));
 
 vi.mock('react-i18next', () => ({
+  Trans: ({
+    components,
+    i18nKey,
+    values,
+  }: {
+    components?: Record<string, React.ReactElement>;
+    i18nKey: string;
+    values?: Record<string, React.ReactNode>;
+  }) => {
+    if (i18nKey === 'billingNative.credits.purchase.upgradeSaving' && components?.plan) {
+      const PlanLink = components.plan.type;
+      const planProps = components.plan.props;
+
+      return (
+        <>
+          Upgrade to <PlanLink {...planProps}>{values?.planName}</PlanLink> to save {values?.amount}
+        </>
+      );
+    }
+
+    return <>{i18nKey}</>;
+  },
   useTranslation: () => ({
     t: (key: string, fallback?: string) => fallback ?? key,
   }),
@@ -22,13 +44,26 @@ vi.mock('antd-style', () => ({
 
 vi.mock('lucide-react', () => ({
   BanIcon: () => <svg data-testid="ban-icon" />,
+  BoxIcon: () => <svg data-testid="box-icon" />,
+  ChevronRightIcon: () => <svg data-testid="chevron-right-icon" />,
   CircleDollarSignIcon: () => <svg data-testid="circle-dollar-sign-icon" />,
   CreditCardIcon: () => <svg data-testid="credit-card-icon" />,
+  ExternalLinkIcon: () => <svg data-testid="external-link-icon" />,
   GiftIcon: () => <svg data-testid="gift-icon" />,
   LockOpenIcon: () => <svg data-testid="lock-open-icon" />,
   MinusCircleIcon: () => <svg data-testid="minus-circle-icon" />,
+  PencilIcon: () => <svg data-testid="pencil-icon" />,
+  ReceiptTextIcon: () => <svg data-testid="receipt-icon" />,
   RefreshCwIcon: () => <svg data-testid="refresh-icon" />,
+  ShoppingCartIcon: () => <svg data-testid="shopping-cart-icon" />,
   WalletCardsIcon: () => <svg data-testid="wallet-icon" />,
+  WifiIcon: () => <svg data-testid="wifi-icon" />,
+}));
+
+vi.mock('antd', () => ({
+  Radio: ({ checked }: { checked?: boolean; disabled?: boolean }) => (
+    <input readOnly checked={checked} type="radio" />
+  ),
 }));
 
 vi.mock('@lobehub/ui', () => ({
@@ -47,18 +82,20 @@ vi.mock('@lobehub/ui', () => ({
     onClick?: () => void;
     type?: string;
   }) => (
-    <button data-button-type={type} disabled={disabled || loading} onClick={onClick} type="button">
+    <button data-button-type={type} disabled={disabled || loading} type="button" onClick={onClick}>
       {icon}
       {children}
     </button>
   ),
-  Flexbox: ({
-    children,
-    className,
-  }: {
-    children?: React.ReactNode;
-    className?: string;
-  }) => <div className={className}>{children}</div>,
+  Empty: ({ description, title }: { description?: React.ReactNode; title?: React.ReactNode }) => (
+    <div>
+      <span>{title}</span>
+      <span>{description}</span>
+    </div>
+  ),
+  Flexbox: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div className={className}>{children}</div>
+  ),
   Icon: ({ icon: IconComponent }: { icon?: React.ComponentType }) =>
     IconComponent ? <IconComponent /> : null,
   Input: ({
@@ -69,7 +106,46 @@ vi.mock('@lobehub/ui', () => ({
     onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
     value?: string;
-  }) => <input onChange={onChange} placeholder={placeholder} value={value} />,
+  }) => <input placeholder={placeholder} value={value} onChange={onChange} />,
+  InputNumber: ({
+    defaultValue,
+    min,
+    onChange,
+    placeholder,
+    value,
+  }: {
+    defaultValue?: number;
+    min?: number;
+    onChange?: (value: number | null) => void;
+    placeholder?: string;
+    value?: number;
+  }) => (
+    <input
+      defaultValue={defaultValue}
+      min={min}
+      placeholder={placeholder}
+      type="number"
+      value={value}
+      onChange={(event) => onChange?.(Number(event.currentTarget.value))}
+    />
+  ),
+  Select: ({
+    onChange,
+    options,
+    value,
+  }: {
+    onChange?: (value: string) => void;
+    options?: { label: React.ReactNode; value: string }[];
+    value?: string;
+  }) => (
+    <select value={value} onChange={(event) => onChange?.(event.currentTarget.value)}>
+      {options?.map((item) => (
+        <option key={item.value} value={item.value}>
+          {item.label}
+        </option>
+      ))}
+    </select>
+  ),
   Skeleton: () => <div data-testid="skeleton" />,
   Tabs: ({
     activeKey,
@@ -85,8 +161,8 @@ vi.mock('@lobehub/ui', () => ({
         <button
           aria-pressed={activeKey === item.key}
           key={item.key}
-          onClick={() => onChange?.(item.key)}
           type="button"
+          onClick={() => onChange?.(item.key)}
         >
           {item.label}
         </button>
@@ -106,6 +182,37 @@ vi.mock('@lobehub/ui', () => ({
     if (code) return <code>{children}</code>;
     if (as === 'h2') return <h2>{children}</h2>;
     return <span>{children}</span>;
+  },
+}));
+
+vi.mock('react-router-dom', () => ({
+  Link: ({
+    children,
+    className,
+    to,
+  }: {
+    children?: React.ReactNode;
+    className?: string;
+    to: string;
+  }) => (
+    <a className={className} href={to}>
+      {children}
+    </a>
+  ),
+}));
+
+vi.mock('@/features/User/UserAvatar', () => ({
+  default: () => <div data-testid="user-avatar" />,
+}));
+
+vi.mock('@/store/user', () => ({
+  useUserStore: (selector?: (state: Record<string, unknown>) => unknown) =>
+    selector ? selector({ user: { fullName: 'Test User' } }) : { user: { fullName: 'Test User' } },
+}));
+
+vi.mock('@/store/user/selectors', () => ({
+  userProfileSelectors: {
+    displayUserName: (state: { user?: { fullName?: string } }) => state.user?.fullName ?? '',
   },
 }));
 
@@ -197,6 +304,41 @@ vi.mock('../hooks/useBillingData', () => ({
     isLoading: false,
     mutate: mutateBalance,
   }),
+  useBillingGrantPackages: () => ({
+    data: {
+      active: {
+        rechargeCredits: 300_000,
+        subscriptionCredits: 200_000,
+        totalCredits: 500_000,
+      },
+      packages: [
+        {
+          billingOrderId: 'order-topup',
+          createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+          id: 'grant-topup',
+          remainingCredits: 300_000,
+          source: 'top_up',
+          startsAt: null,
+          status: 'active',
+          totalCredits: 500_000,
+        },
+        {
+          billingOrderId: 'order-subscription',
+          createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          expiresAt: new Date('2026-07-01T00:00:00.000Z'),
+          id: 'grant-subscription',
+          remainingCredits: 200_000,
+          source: 'subscription',
+          startsAt: null,
+          status: 'active',
+          totalCredits: 200_000,
+        },
+      ],
+    },
+    isLoading: false,
+    mutate: vi.fn(),
+  }),
   useBillingOrder,
   useCurrentSubscription,
   useBillingOrders: () => ({
@@ -265,18 +407,21 @@ describe('Business billing pages', () => {
 
     render(<Credits />);
 
-    expect(screen.getByText('Available Credits')).toBeInTheDocument();
-    expect(screen.getByText('500,000')).toBeInTheDocument();
-    expect(screen.getByText('Top up Credits')).toBeInTheDocument();
-    expect(screen.getByText('1,000,000 Credits')).toBeInTheDocument();
+    expect(screen.getByText('Top-up Credits Balance')).toBeInTheDocument();
+    expect(screen.getAllByText('300,000').length).toBeGreaterThan(0);
+    expect(screen.getByText('Subscription Credits')).toBeInTheDocument();
+    expect(screen.getAllByText('200,000').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Purchase Credits').length).toBeGreaterThan(0);
+    expect(screen.getByText('5M')).toBeInTheDocument();
+    expect(screen.getByText('My Credits Packages')).toBeInTheDocument();
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
   }, 30_000);
 
   it('creates a top-up payment order from the credits page', async () => {
     createTopUpOrder.mockResolvedValue({
       order: {
-        amountCents: 9900,
-        credits: 1_000_000,
+        amountCents: 600,
+        credits: 5_000_000,
         currency: 'CNY',
         id: 'order-1',
         status: 'pending',
@@ -289,29 +434,52 @@ describe('Business billing pages', () => {
     const { default: Credits } = await import('../Credits');
 
     render(<Credits />);
-    fireEvent.click(screen.getByRole('button', { name: /Create payment order/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
 
     await waitFor(() =>
       expect(createTopUpOrder).toHaveBeenCalledWith({
         channel: 'alipay',
-        productId: 'topup_1m',
+        productId: 'topup_5m',
       }),
     );
     expect(await screen.findByText('Pending payment order')).toBeInTheDocument();
     expect(screen.getByText('order-1')).toBeInTheDocument();
-    expect(screen.getByText('Order status')).toBeInTheDocument();
     expect(screen.getByText('pending')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open payment link' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Open payment link/ })).toHaveAttribute(
       'href',
       '/api/payments/mock/alipay/order-1',
     );
   }, 30_000);
 
+  it('updates custom credits total and hides the custom input when focus leaves purchase controls', async () => {
+    const { default: Credits } = await import('../Credits');
+
+    render(<Credits />);
+    fireEvent.click(screen.getByRole('button', { name: '20M' }));
+    fireEvent.click(screen.getByRole('button', { name: /Custom/ }));
+
+    const customInput = screen.getByPlaceholderText('1');
+    expect(customInput).toHaveAttribute('min', '1');
+    expect(customInput).toHaveValue(20);
+
+    fireEvent.change(customInput, { target: { value: '3' } });
+
+    expect(screen.getByText('$ 3.6')).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByText('My Credits Packages'));
+
+    expect(screen.queryByPlaceholderText('1')).not.toBeInTheDocument();
+    expect(screen.getByText('$ 3.6')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Custom/ }));
+    expect(screen.getByPlaceholderText('1')).toBeInTheDocument();
+  }, 30_000);
+
   it('shows polled activated order status and refreshes billing data', async () => {
     createTopUpOrder.mockResolvedValue({
       order: {
-        amountCents: 9900,
-        credits: 1_000_000,
+        amountCents: 600,
+        credits: 5_000_000,
         currency: 'CNY',
         id: 'order-1',
         status: 'pending',
@@ -327,7 +495,7 @@ describe('Business billing pages', () => {
     const { default: Credits } = await import('../Credits');
 
     render(<Credits />);
-    fireEvent.click(screen.getByRole('button', { name: /Create payment order/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
 
     expect(await screen.findByText('activated')).toBeInTheDocument();
     await waitFor(() => expect(mutateBalance).toHaveBeenCalled());
@@ -339,7 +507,7 @@ describe('Business billing pages', () => {
     const { default: Credits } = await import('../Credits');
 
     render(<Credits />);
-    fireEvent.click(screen.getByRole('button', { name: /Create payment order/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
 
     expect(
       await screen.findByText(

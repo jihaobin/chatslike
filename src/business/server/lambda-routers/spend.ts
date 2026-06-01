@@ -43,6 +43,8 @@ export const spendRouter = router({
 
   getBalance: spendProcedure.query(({ ctx }) => ctx.creditsService.getBalance()),
 
+  listGrantPackages: spendProcedure.query(({ ctx }) => ctx.creditsService.listGrantPackages()),
+
   listUsageRecords: spendProcedure
     .input(
       z

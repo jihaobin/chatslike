@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, lte, or, sql } from 'drizzle-orm';
 
 import type { CreditGrantItem, CreditReservationItem } from '../../schemas';
 import {
@@ -9,11 +9,12 @@ import {
 } from '../../schemas';
 import type { LobeChatDatabase, Transaction } from '../../type';
 import {
-  CreditAccountFrozenError,
-  InsufficientCreditsError,
   type BillingBalance,
   type CaptureReservationParams,
+  CreditAccountFrozenError,
+  type CreditGrantSummary,
   type GrantCreditsParams,
+  InsufficientCreditsError,
   type ReleaseReservationParams,
   type ReservationCaptureResult,
   type ReserveCreditsParams,
@@ -64,10 +65,7 @@ export class CreditReservationModel {
 
     if (existing) return existing;
 
-    const [created] = await db
-      .insert(creditAccounts)
-      .values({ userId: this.userId })
-      .returning();
+    const [created] = await db.insert(creditAccounts).values({ userId: this.userId }).returning();
 
     return created;
   }
@@ -118,7 +116,11 @@ export class CreditReservationModel {
           or(isNull(creditGrants.expiresAt), sql`${creditGrants.expiresAt} > ${now}`),
         ),
       )
-      .orderBy(grantPrioritySql, sql`${creditGrants.expiresAt} asc nulls last`, asc(creditGrants.createdAt));
+      .orderBy(
+        grantPrioritySql,
+        sql`${creditGrants.expiresAt} asc nulls last`,
+        asc(creditGrants.createdAt),
+      );
 
     for (const grant of grants) {
       if (remainingToConsume <= 0) break;
@@ -243,8 +245,8 @@ export class CreditReservationModel {
 
     if (!hasAccountChanges) return account;
 
-      const [updatedAccount] = await db
-        .update(creditAccounts)
+    const [updatedAccount] = await db
+      .update(creditAccounts)
       .set({
         availableCredits: nextAvailableCredits,
         lifetimeGrantedCredits: nextLifetimeGrantedCredits,
@@ -253,7 +255,7 @@ export class CreditReservationModel {
       .where(eq(creditAccounts.id, account.id))
       .returning();
 
-      return assertSingleRowUpdated(updatedAccount, 'Credit account update conflict');
+    return assertSingleRowUpdated(updatedAccount, 'Credit account update conflict');
   }
 
   getBalance = async (): Promise<BillingBalance> => {
@@ -266,6 +268,59 @@ export class CreditReservationModel {
         lifetimeConsumedCredits: account.lifetimeConsumedCredits,
         lifetimeGrantedCredits: account.lifetimeGrantedCredits,
         status: account.status,
+      };
+    });
+  };
+
+  listGrantPackages = async (): Promise<CreditGrantSummary> => {
+    return runInTransaction(this.db, async (tx) => {
+      await this.syncGrantAvailability(tx);
+      const now = new Date();
+
+      const grants = await tx
+        .select({
+          billingOrderId: creditGrants.billingOrderId,
+          createdAt: creditGrants.createdAt,
+          expiresAt: creditGrants.expiresAt,
+          id: creditGrants.id,
+          remainingCredits: creditGrants.remainingCredits,
+          source: creditGrants.source,
+          startsAt: creditGrants.startsAt,
+          status: creditGrants.status,
+          totalCredits: creditGrants.totalCredits,
+        })
+        .from(creditGrants)
+        .where(eq(creditGrants.userId, this.userId))
+        .orderBy(desc(creditGrants.createdAt));
+
+      const isAvailable = (grant: (typeof grants)[number]) =>
+        grant.status === 'active' &&
+        grant.remainingCredits > 0 &&
+        (!grant.startsAt || grant.startsAt <= now) &&
+        (!grant.expiresAt || grant.expiresAt > now);
+
+      return {
+        active: grants.reduce(
+          (summary, grant) => {
+            if (!isAvailable(grant)) return summary;
+
+            if (grant.source === 'subscription') {
+              summary.subscriptionCredits += grant.remainingCredits;
+            } else {
+              summary.rechargeCredits += grant.remainingCredits;
+            }
+
+            summary.totalCredits += grant.remainingCredits;
+
+            return summary;
+          },
+          {
+            rechargeCredits: 0,
+            subscriptionCredits: 0,
+            totalCredits: 0,
+          },
+        ),
+        packages: grants,
       };
     });
   };
@@ -296,7 +351,7 @@ export class CreditReservationModel {
         .values({
           expiresAt: params.expiresAt,
           metadata: {
-            ...(params.metadata ?? {}),
+            ...params.metadata,
             ...(startsInFuture ? { activated: false } : {}),
           },
           operationId: params.operationId,
@@ -491,7 +546,7 @@ export class CreditReservationModel {
             capturedAt: new Date(),
             capturedCredits,
             metadata: {
-              ...((reservation.metadata as Record<string, unknown> | null) ?? {}),
+              ...(reservation.metadata as Record<string, unknown> | null),
               overrunCredits,
             },
             status: 'exception',

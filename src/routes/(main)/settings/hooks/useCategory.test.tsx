@@ -1,7 +1,8 @@
-import { renderHook } from '@testing-library/react';
-import { type ReactNode } from 'react';
+import { act, renderHook } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { CommercialRuntimeConfig } from '@/business/shared/commercialRuntime';
 import { mapFeatureFlagsEnvToState } from '@/config/featureFlags';
 import { SettingsTabs } from '@/store/global/initialState';
 import { initServerConfigStore, Provider } from '@/store/serverConfig/store';
@@ -61,7 +62,29 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-const createWrapper = (showProvider: boolean) => {
+const createCommercialConfig = (
+  overrides?: Partial<{
+    lobeHubCloudIntegration: boolean;
+    nativeBilling: boolean;
+    platformHostedModels: boolean;
+  }>,
+): CommercialRuntimeConfig => ({
+  commercial: {
+    enabled: Boolean(
+      overrides?.lobeHubCloudIntegration ||
+      overrides?.nativeBilling ||
+      overrides?.platformHostedModels,
+    ),
+  },
+  lobeHubCloudIntegration: { enabled: overrides?.lobeHubCloudIntegration ?? false },
+  nativeBilling: { enabled: overrides?.nativeBilling ?? false },
+  platformHostedModels: { enabled: overrides?.platformHostedModels ?? false },
+});
+
+const createWrapper = (
+  showProvider: boolean,
+  commercial: CommercialRuntimeConfig = createCommercialConfig(),
+) => {
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <Provider
       createStore={() =>
@@ -74,6 +97,7 @@ const createWrapper = (showProvider: boolean) => {
           },
           serverConfig: {
             aiProvider: {},
+            commercial,
             enableBusinessFeatures: true,
             telemetry: {},
           },
@@ -87,9 +111,9 @@ const createWrapper = (showProvider: boolean) => {
   return Wrapper;
 };
 
-const getItemKeys = () => {
+const getItemKeys = (commercial?: CommercialRuntimeConfig) => {
   const { result } = renderHook(() => useCategory(), {
-    wrapper: createWrapper(true),
+    wrapper: createWrapper(true, commercial),
   });
 
   return result.current.flatMap((group) => group.items.map((item) => item.key));
@@ -117,16 +141,66 @@ describe('settings useCategory', () => {
   });
 
   it('shows Admin Billing only for super-admin users', () => {
-    useUserStore.setState({ user: { id: 'admin-user', role: 'admin' } });
+    act(() => {
+      useUserStore.setState({ user: { id: 'admin-user', role: 'admin' } });
+    });
 
-    expect(getItemKeys()).not.toContain(SettingsTabs.AdminBilling);
+    const nativeBillingConfig = createCommercialConfig({ nativeBilling: true });
 
-    useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
+    expect(getItemKeys(nativeBillingConfig)).not.toContain(SettingsTabs.AdminBilling);
 
-    expect(getItemKeys()).toContain(SettingsTabs.AdminBilling);
+    act(() => {
+      useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
+    });
 
-    useUserStore.setState({ user: { id: 'normal-user' } }, false);
+    expect(getItemKeys(nativeBillingConfig)).toContain(SettingsTabs.AdminBilling);
 
-    expect(getItemKeys()).not.toContain(SettingsTabs.AdminBilling);
+    act(() => {
+      useUserStore.setState({ user: { id: 'normal-user' } }, false);
+    });
+
+    expect(getItemKeys(nativeBillingConfig)).not.toContain(SettingsTabs.AdminBilling);
+  });
+
+  it('shows native billing tabs when native billing is enabled', () => {
+    const keys = getItemKeys(createCommercialConfig({ nativeBilling: true }));
+
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        SettingsTabs.Plans,
+        SettingsTabs.Usage,
+        SettingsTabs.Credits,
+        SettingsTabs.Billing,
+      ]),
+    );
+  });
+
+  it('hides native billing tabs when native billing is disabled', () => {
+    const keys = getItemKeys(createCommercialConfig({ lobeHubCloudIntegration: true }));
+
+    expect(keys).not.toContain(SettingsTabs.Plans);
+    expect(keys).not.toContain(SettingsTabs.Usage);
+    expect(keys).not.toContain(SettingsTabs.Credits);
+    expect(keys).not.toContain(SettingsTabs.Billing);
+  });
+
+  it('shows Referral only for the official cloud integration while native referral is unavailable', () => {
+    expect(getItemKeys(createCommercialConfig({ nativeBilling: true }))).not.toContain(
+      SettingsTabs.Referral,
+    );
+
+    expect(getItemKeys(createCommercialConfig({ lobeHubCloudIntegration: true }))).toContain(
+      SettingsTabs.Referral,
+    );
+  });
+
+  it('requires native billing capability for Admin Billing', () => {
+    act(() => {
+      useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } });
+    });
+
+    expect(getItemKeys(createCommercialConfig({ lobeHubCloudIntegration: true }))).not.toContain(
+      SettingsTabs.AdminBilling,
+    );
   });
 });

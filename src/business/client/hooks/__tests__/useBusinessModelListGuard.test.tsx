@@ -1,7 +1,16 @@
 import { renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useBusinessModelListGuard } from '../useBusinessModelListGuard';
 
 const toastInfo = vi.hoisted(() => vi.fn());
+const state = vi.hoisted(() => ({
+  commercialRuntime: {
+    platformHostedModels: {
+      enabled: true,
+    },
+  },
+}));
 
 vi.mock('@lobehub/ui', () => ({
   toast: {
@@ -15,27 +24,25 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-import { useBusinessModelListGuard } from '../useBusinessModelListGuard';
+vi.mock('@/business/shared/commercialRuntime', () => ({
+  commercialRuntime: state.commercialRuntime,
+}));
 
 describe('useBusinessModelListGuard', () => {
   beforeEach(() => {
     toastInfo.mockClear();
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it('does not restrict models when platform billing is disabled', () => {
-    vi.stubEnv('NEXT_PUBLIC_ENABLE_PLATFORM_BILLING', '0');
+  it('does not restrict models when platform hosted models are disabled', () => {
+    state.commercialRuntime.platformHostedModels.enabled = false;
 
     const { result } = renderHook(() => useBusinessModelListGuard());
 
     expect(result.current).toEqual({});
   });
 
-  it('restricts custom providers when platform billing is enabled', () => {
-    vi.stubEnv('NEXT_PUBLIC_ENABLE_PLATFORM_BILLING', '1');
+  it('restricts custom providers when platform hosted models are enabled', () => {
+    state.commercialRuntime.platformHostedModels.enabled = true;
 
     const { result } = renderHook(() => useBusinessModelListGuard());
 

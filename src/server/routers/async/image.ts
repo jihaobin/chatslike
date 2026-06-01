@@ -47,6 +47,19 @@ const IMAGE_GENERATION_NO_IMAGE_MESSAGE = [
   'Try a milder prompt or another model.',
 ].join(' ');
 
+const hasImageBillingMetadata = (config: unknown) => {
+  if (!config || typeof config !== 'object') return false;
+
+  const billing = (config as { billing?: Record<string, unknown> }).billing;
+  if (!billing) return false;
+
+  return (
+    typeof billing.estimatedCredits === 'number' &&
+    typeof billing.operationId === 'string' &&
+    typeof billing.reservationId === 'string'
+  );
+};
+
 const imageProcedure = asyncAuthedProcedure.use(async (opts) => {
   const { ctx } = opts;
 
@@ -422,22 +435,24 @@ export const imageRouter = router({
             console.error('[image-async] notification failed:', err);
           }
 
-          await chargeAfterGenerate({
-            metrics: { latency: duration },
-            metadata: {
-              asyncTaskId: taskId,
-              generationBatchId,
-              topicId: generationTopicId,
-              ...buildMappedBusinessModelFields({
-                provider,
-                requestedModelId,
-                resolvedModelId,
-              }),
-            },
-            modelUsage,
-            provider,
-            userId: ctx.userId,
-          });
+          if (hasImageBillingMetadata(generationBatch.config)) {
+            await chargeAfterGenerate({
+              metrics: { latency: duration },
+              metadata: {
+                asyncTaskId: taskId,
+                generationBatchId,
+                topicId: generationTopicId,
+                ...buildMappedBusinessModelFields({
+                  provider,
+                  requestedModelId,
+                  resolvedModelId,
+                }),
+              },
+              modelUsage,
+              provider,
+              userId: ctx.userId,
+            });
+          }
 
           log('Async image generation completed successfully: %s', taskId);
           return { success: true };
@@ -495,21 +510,23 @@ export const imageRouter = router({
             model,
           );
 
-          await chargeAfterGenerate({
-            metadata: {
-              asyncTaskId: taskId,
-              generationBatchId,
-              topicId: generationTopicId,
-              ...buildMappedBusinessModelFields({
-                provider,
-                requestedModelId,
-                resolvedModelId,
-              }),
-            },
-            provider,
-            success: false,
-            userId: ctx.userId,
-          });
+          if (hasImageBillingMetadata(generationBatch.config)) {
+            await chargeAfterGenerate({
+              metadata: {
+                asyncTaskId: taskId,
+                generationBatchId,
+                topicId: generationTopicId,
+                ...buildMappedBusinessModelFields({
+                  provider,
+                  requestedModelId,
+                  resolvedModelId,
+                }),
+              },
+              provider,
+              success: false,
+              userId: ctx.userId,
+            });
+          }
         } catch (chargeError) {
           console.error('[image-async] chargeAfterGenerate failed:', chargeError);
         }

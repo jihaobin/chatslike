@@ -20,8 +20,10 @@ import { useMenu } from './useMenu';
 const PanelContent: FC<{ closePopover: () => void }> = ({ closePopover }) => {
   const isLoginWithAuth = useUserStore(authSelectors.isLoginWithAuth);
   const [openSignIn, signOut] = useUserStore((s) => [s.openLogin, s.logout]);
-  const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
+  const commercialEnabled = useServerConfigStore(serverConfigSelectors.commercialEnabled);
+  const nativeBillingEnabled = useServerConfigStore(serverConfigSelectors.nativeBillingEnabled);
   const { mainItems, logoutItems } = useMenu();
+  const showBusinessPanelContent = commercialEnabled || nativeBillingEnabled;
 
   const handleSignIn = () => {
     openSignIn();
@@ -56,7 +58,7 @@ const PanelContent: FC<{ closePopover: () => void }> = ({ closePopover }) => {
           <Link style={{ color: 'inherit' }} to={'/settings/stats'}>
             <DataStatistics />
           </Link>
-          {enableBusinessFeatures && <BusinessPanelContent />}
+          {showBusinessPanelContent && <BusinessPanelContent />}
         </>
       ) : (
         <UserLoginOrSignup onClick={handleSignIn} />

@@ -18,6 +18,7 @@ import { getProviderContentPolicyErrorMessage } from '@/business/server/getProvi
 import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
 import { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
 import { getVideoFreeQuota } from '@/business/server/video-generation/getVideoFreeQuota';
+import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import {
   asyncTasks,
@@ -153,13 +154,15 @@ export const videoRouter = router({
     }
 
     // Step 0: Pre-charge (atomic budget deduction to prevent concurrent abuse)
-    const { errorBatch, prechargeResult } = await chargeBeforeGenerate({
-      generationTopicId,
-      model,
-      params,
-      provider,
-      userId,
-    });
+    const { errorBatch, prechargeResult } = commercialRuntime.nativeBilling.enabled
+      ? await chargeBeforeGenerate({
+          generationTopicId,
+          model,
+          params,
+          provider,
+          userId,
+        })
+      : {};
     if (errorBatch) return errorBatch;
 
     // Generate a one-time token for webhook callback verification

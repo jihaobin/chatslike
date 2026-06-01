@@ -1,13 +1,26 @@
 'use client';
 
+import { isDesktop } from '@lobechat/const';
 import { Fragment, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
+import {
+  lobeHubCloudAdapter,
+  nativeBillingAdapter,
+  nativeNotificationAdapter,
+  nativeReferralAdapter,
+} from '@/business/shared/adapters';
 import NavHeader from '@/features/NavHeader';
 import SettingContainer from '@/features/Setting/SettingContainer';
 import { SettingsTabs } from '@/store/global/initialState';
-import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
+import {
+  featureFlagsSelectors,
+  serverConfigSelectors,
+  useServerConfigStore,
+} from '@/store/serverConfig';
+import { useUserStore } from '@/store/user';
+import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
+import { userGeneralSettingsSelectors } from '@/store/user/slices/settings/selectors';
 
 import { componentMap } from './componentMap';
 
@@ -19,14 +32,27 @@ const REDIRECT_MAP: Record<string, string> = {
   [SettingsTabs.Image]: SettingsTabs.ServiceModel,
 };
 
+const SUPER_ADMIN_ROLE = 'super-admin';
+
 interface SettingsContentProps {
   activeTab?: string;
   mobile?: boolean;
 }
 
 const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
-  const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
-  const enablePlatformBilling = isPlatformBillingEnabled();
+  const { hideDocs, showApiKeyManage, showProvider } = useServerConfigStore(featureFlagsSelectors);
+  const commercial = useServerConfigStore(serverConfigSelectors.commercial);
+  const nativeBillingEnabled = nativeBillingAdapter.getCapability(commercial).enabled;
+  const cloudBusinessEnabled = lobeHubCloudAdapter.getCapability(commercial).enabled;
+  const nativeNotificationEnabled = nativeNotificationAdapter.getCapability(commercial).enabled;
+  const nativeReferralEnabled = nativeReferralAdapter.getCapability(commercial).enabled;
+  const notificationEnabled = nativeNotificationEnabled || cloudBusinessEnabled;
+  const referralEnabled = nativeReferralEnabled || cloudBusinessEnabled;
+  const isSuperAdmin = useUserStore(
+    (s) => userProfileSelectors.userProfile(s)?.role === SUPER_ADMIN_ROLE,
+  );
+  const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
+  const apiKeyEnabled = showApiKeyManage || isDevMode;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,6 +62,33 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
   }, [activeTab, navigate]);
 
   const renderComponent = (tab: string) => {
+    const allowedTabs = [
+      SettingsTabs.Advanced,
+      SettingsTabs.Appearance,
+      SettingsTabs.Creds,
+      SettingsTabs.Hotkey,
+      SettingsTabs.Memory,
+      SettingsTabs.Messenger,
+      SettingsTabs.Profile,
+      SettingsTabs.Security,
+      SettingsTabs.ServiceModel,
+      SettingsTabs.Skill,
+      SettingsTabs.Stats,
+      SettingsTabs.Storage,
+      ...(!hideDocs ? [SettingsTabs.About] : []),
+      ...(apiKeyEnabled ? [SettingsTabs.APIKey] : []),
+      ...(showProvider ? [SettingsTabs.Provider] : []),
+      ...(isDesktop ? [SettingsTabs.Proxy, SettingsTabs.SystemTools] : []),
+      ...(nativeBillingEnabled
+        ? [SettingsTabs.Plans, SettingsTabs.Usage, SettingsTabs.Credits, SettingsTabs.Billing]
+        : []),
+      ...(nativeBillingEnabled && isSuperAdmin ? [SettingsTabs.AdminBilling] : []),
+      ...(referralEnabled ? [SettingsTabs.Referral] : []),
+      ...(notificationEnabled ? [SettingsTabs.Notification] : []),
+    ];
+
+    if (!allowedTabs.includes(tab as SettingsTabs)) return null;
+
     const Component = componentMap[tab as keyof typeof componentMap] || componentMap.appearance;
     if (!Component) return null;
 
@@ -43,19 +96,18 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
     if (
       [
         SettingsTabs.About,
-        SettingsTabs.AdminBilling,
+        ...(apiKeyEnabled ? [SettingsTabs.APIKey] : []),
         SettingsTabs.ServiceModel,
-        SettingsTabs.Provider,
+        ...(showProvider ? [SettingsTabs.Provider] : []),
         SettingsTabs.Profile,
         SettingsTabs.Stats,
-        SettingsTabs.Usage,
         SettingsTabs.Security,
-        ...(enablePlatformBilling
-          ? [SettingsTabs.Plans, SettingsTabs.Credits, SettingsTabs.Billing]
+        ...(notificationEnabled ? [SettingsTabs.Notification] : []),
+        ...(nativeBillingEnabled
+          ? [SettingsTabs.Plans, SettingsTabs.Usage, SettingsTabs.Credits, SettingsTabs.Billing]
           : []),
-        ...(enableBusinessFeatures
-          ? [SettingsTabs.Referral]
-          : []),
+        ...(nativeBillingEnabled && isSuperAdmin ? [SettingsTabs.AdminBilling] : []),
+        ...(referralEnabled ? [SettingsTabs.Referral] : []),
       ].includes(tab as any)
     ) {
       componentProps.mobile = mobile;

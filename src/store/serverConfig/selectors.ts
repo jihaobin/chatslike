@@ -3,6 +3,15 @@ import { type ServerConfigStore } from './store';
 export const featureFlagsSelectors = (s: ServerConfigStore) => s.featureFlags;
 
 export const serverConfigSelectors = {
+  commercial: (s: ServerConfigStore) =>
+    s.serverConfig.commercial || {
+      commercial: { enabled: s.serverConfig.enableBusinessFeatures || false },
+      lobeHubCloudIntegration: { enabled: false },
+      nativeBilling: { enabled: false },
+      platformHostedModels: { enabled: false },
+    },
+  commercialEnabled: (s: ServerConfigStore) =>
+    serverConfigSelectors.commercial(s).commercial.enabled,
   disableEmailPassword: (s: ServerConfigStore) => s.serverConfig.disableEmailPassword || false,
   enableBusinessFeatures: (s: ServerConfigStore) => s.serverConfig.enableBusinessFeatures || false,
   enableEmailVerification: (s: ServerConfigStore) =>
@@ -17,6 +26,12 @@ export const serverConfigSelectors = {
     s.serverConfig.enableVisualUnderstanding || false,
   enabledTelemetryChat: (s: ServerConfigStore) => s.serverConfig.telemetry.langfuse || false,
   isMobile: (s: ServerConfigStore) => s.isMobile || false,
+  lobeHubCloudIntegrationEnabled: (s: ServerConfigStore) =>
+    serverConfigSelectors.commercial(s).lobeHubCloudIntegration.enabled,
+  nativeBillingEnabled: (s: ServerConfigStore) =>
+    serverConfigSelectors.commercial(s).nativeBilling.enabled,
   oAuthSSOProviders: (s: ServerConfigStore) => s.serverConfig.oAuthSSOProviders,
+  platformHostedModelsEnabled: (s: ServerConfigStore) =>
+    serverConfigSelectors.commercial(s).platformHostedModels.enabled,
   visualUnderstanding: (s: ServerConfigStore) => s.serverConfig.visualUnderstanding,
 };

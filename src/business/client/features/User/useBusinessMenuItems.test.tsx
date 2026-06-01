@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import useBusinessMenuItems from './useBusinessMenuItems';
 
 const state = vi.hoisted(() => ({
-  enablePlatformBilling: true,
+  commercialRuntime: {
+    nativeBilling: {
+      enabled: true,
+    },
+  },
 }));
 
 vi.mock('@lobehub/ui', () => ({
@@ -28,13 +32,13 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('@/business/shared/platformModels', () => ({
-  isPlatformBillingEnabled: () => state.enablePlatformBilling,
+vi.mock('@/business/shared/commercialRuntime', () => ({
+  commercialRuntime: state.commercialRuntime,
 }));
 
 describe('useBusinessMenuItems', () => {
   it('returns billing navigation items for signed-in users', () => {
-    state.enablePlatformBilling = true;
+    state.commercialRuntime.nativeBilling.enabled = true;
 
     const { result } = renderHook(() => useBusinessMenuItems(true));
     const keys = result.current.map((item) => item?.key);
@@ -50,15 +54,15 @@ describe('useBusinessMenuItems', () => {
   });
 
   it('hides billing navigation items for anonymous users', () => {
-    state.enablePlatformBilling = true;
+    state.commercialRuntime.nativeBilling.enabled = true;
 
     const { result } = renderHook(() => useBusinessMenuItems(false));
 
     expect(result.current).toEqual([]);
   });
 
-  it('hides billing navigation items when platform billing is disabled', () => {
-    state.enablePlatformBilling = false;
+  it('hides billing navigation items when native billing is disabled', () => {
+    state.commercialRuntime.nativeBilling.enabled = false;
 
     const { result } = renderHook(() => useBusinessMenuItems(true));
 

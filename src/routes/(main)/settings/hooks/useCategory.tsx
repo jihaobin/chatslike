@@ -25,7 +25,12 @@ import {
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
+import {
+  lobeHubCloudAdapter,
+  nativeBillingAdapter,
+  nativeNotificationAdapter,
+  nativeReferralAdapter,
+} from '@/business/shared/adapters';
 import { useElectronStore } from '@/store/electron';
 import { electronSyncSelectors } from '@/store/electron/selectors';
 import { SettingsTabs } from '@/store/global/initialState';
@@ -82,8 +87,13 @@ export const useCategory = () => {
     }
     return avatar;
   }, [avatar, remoteServerUrl]);
-  const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
-  const enablePlatformBilling = isPlatformBillingEnabled();
+  const commercial = useServerConfigStore(serverConfigSelectors.commercial);
+  const nativeBillingEnabled = nativeBillingAdapter.getCapability(commercial).enabled;
+  const lobeHubCloudEnabled = lobeHubCloudAdapter.getCapability(commercial).enabled;
+  const nativeNotificationEnabled = nativeNotificationAdapter.getCapability(commercial).enabled;
+  const nativeReferralEnabled = nativeReferralAdapter.getCapability(commercial).enabled;
+  const notificationEnabled = nativeNotificationEnabled || lobeHubCloudEnabled;
+  const referralEnabled = nativeReferralEnabled || lobeHubCloudEnabled;
   const categoryGroups: CategoryGroup[] = useMemo(() => {
     const groups: CategoryGroup[] = [];
 
@@ -109,7 +119,7 @@ export const useCategory = () => {
         key: SettingsTabs.Hotkey,
         label: t('tab.hotkey'),
       },
-      enableBusinessFeatures && {
+      notificationEnabled && {
         icon: BellIcon,
         key: SettingsTabs.Notification,
         label: t('tab.notification'),
@@ -123,38 +133,39 @@ export const useCategory = () => {
     });
 
     // Subscription group
-    if (enablePlatformBilling || enableBusinessFeatures) {
+    if (nativeBillingEnabled || referralEnabled) {
       const subscriptionItems: CategoryItem[] = [
-        enablePlatformBilling && {
+        nativeBillingEnabled && {
           icon: Map,
           key: SettingsTabs.Plans,
           label: tSubscription('tab.plans'),
         },
-        enablePlatformBilling && {
+        nativeBillingEnabled && {
           icon: ChartColumnBigIcon,
           key: SettingsTabs.Usage,
           label: t('tab.usage'),
         },
-        enablePlatformBilling && {
+        nativeBillingEnabled && {
           icon: Coins,
           key: SettingsTabs.Credits,
           label: tSubscription('tab.credits'),
         },
-        enablePlatformBilling && {
+        nativeBillingEnabled && {
           icon: CreditCard,
           key: SettingsTabs.Billing,
           label: tSubscription('tab.billing'),
         },
-        enableBusinessFeatures && {
+        referralEnabled && {
           icon: Gift,
           key: SettingsTabs.Referral,
           label: tSubscription('tab.referral'),
         },
-        isSuperAdmin && {
-          icon: KeyIcon,
-          key: SettingsTabs.AdminBilling,
-          label: tSubscription('tab.adminBilling'),
-        },
+        nativeBillingEnabled &&
+          isSuperAdmin && {
+            icon: KeyIcon,
+            key: SettingsTabs.AdminBilling,
+            label: tSubscription('tab.adminBilling'),
+          },
       ].filter(Boolean) as CategoryItem[];
 
       groups.push({
@@ -256,10 +267,11 @@ export const useCategory = () => {
     t,
     tAuth,
     tSubscription,
-    enableBusinessFeatures,
-    enablePlatformBilling,
     hideDocs,
     mobile,
+    nativeBillingEnabled,
+    notificationEnabled,
+    referralEnabled,
     showApiKeyManage,
     showProvider,
     isDevMode,

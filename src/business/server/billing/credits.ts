@@ -5,9 +5,9 @@ import {
 } from '@/database/models/billing';
 import type { LobeChatDatabase, Transaction } from '@/database/type';
 
-type BillingDb = LobeChatDatabase | Transaction;
-
 import { TRIAL_CREDITS, TRIAL_VALID_DAYS } from './constants';
+
+type BillingDb = LobeChatDatabase | Transaction;
 
 export class CreditsService {
   private readonly model: CreditReservationModel;
@@ -25,6 +25,10 @@ export class CreditsService {
     return this.model.getBalance();
   }
 
+  listGrantPackages() {
+    return this.model.listGrantPackages();
+  }
+
   grantTrialCredits(params: { operationId: string; phoneNumber?: string }) {
     const expiresAt = new Date(Date.now() + TRIAL_VALID_DAYS * 24 * 60 * 60 * 1000);
 
@@ -37,7 +41,11 @@ export class CreditsService {
     });
   }
 
-  grantTopUpCredits(params: { amountCredits: number; billingOrderId: string; operationId: string }) {
+  grantTopUpCredits(params: {
+    amountCredits: number;
+    billingOrderId: string;
+    operationId: string;
+  }) {
     return this.model.grantCredits({
       amountCredits: params.amountCredits,
       metadata: { billingOrderId: params.billingOrderId },

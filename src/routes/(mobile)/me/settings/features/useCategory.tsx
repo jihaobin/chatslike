@@ -1,5 +1,6 @@
 import { SkillsIcon } from '@lobehub/ui/icons';
 import {
+  BellIcon,
   Brain,
   BrainCircuit,
   ChartColumnBigIcon,
@@ -20,7 +21,12 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { isPlatformBillingEnabled } from '@/business/shared/platformModels';
+import {
+  lobeHubCloudAdapter,
+  nativeBillingAdapter,
+  nativeNotificationAdapter,
+  nativeReferralAdapter,
+} from '@/business/shared/adapters';
 import { type CellProps } from '@/components/Cell';
 import { SettingsTabs } from '@/store/global/initialState';
 import {
@@ -52,8 +58,13 @@ export const useCategory = (): CategoryGroup[] => {
   const navigate = useNavigate();
   const { t } = useTranslation(['setting', 'auth', 'subscription']);
   const { hideDocs, showApiKeyManage, showProvider } = useServerConfigStore(featureFlagsSelectors);
-  const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
-  const enablePlatformBilling = isPlatformBillingEnabled();
+  const commercial = useServerConfigStore(serverConfigSelectors.commercial);
+  const nativeBillingEnabled = nativeBillingAdapter.getCapability(commercial).enabled;
+  const lobeHubCloudEnabled = lobeHubCloudAdapter.getCapability(commercial).enabled;
+  const nativeNotificationEnabled = nativeNotificationAdapter.getCapability(commercial).enabled;
+  const nativeReferralEnabled = nativeReferralAdapter.getCapability(commercial).enabled;
+  const notificationEnabled = nativeNotificationEnabled || lobeHubCloudEnabled;
+  const referralEnabled = nativeReferralEnabled || lobeHubCloudEnabled;
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
 
   return useMemo(() => {
@@ -73,39 +84,45 @@ export const useCategory = (): CategoryGroup[] => {
         key: SettingsTabs.Appearance,
         label: t('setting:tab.appearance'),
       }),
-    ];
+      notificationEnabled &&
+        makeItem({
+          icon: BellIcon,
+          key: SettingsTabs.Notification,
+          label: t('setting:tab.notification'),
+        }),
+    ].filter((item): item is CategoryItem => Boolean(item));
 
     const subscription: CategoryItem[] =
-      enablePlatformBilling || enableBusinessFeatures
-      ? [
-          enablePlatformBilling &&
-            makeItem({ icon: Map, key: SettingsTabs.Plans, label: t('subscription:tab.plans') }),
-          enablePlatformBilling &&
-            makeItem({
-              icon: ChartColumnBigIcon,
-              key: SettingsTabs.Usage,
-              label: t('setting:tab.usage'),
-            }),
-          enablePlatformBilling &&
-            makeItem({
-              icon: Coins,
-              key: SettingsTabs.Credits,
-              label: t('subscription:tab.credits'),
-            }),
-          enablePlatformBilling &&
-            makeItem({
-              icon: CreditCard,
-              key: SettingsTabs.Billing,
-              label: t('subscription:tab.billing'),
-            }),
-          enableBusinessFeatures &&
-            makeItem({
-              icon: Gift,
-              key: SettingsTabs.Referral,
-              label: t('subscription:tab.referral'),
-            }),
-        ].filter((item): item is CategoryItem => Boolean(item))
-      : [];
+      nativeBillingEnabled || referralEnabled
+        ? [
+            nativeBillingEnabled &&
+              makeItem({ icon: Map, key: SettingsTabs.Plans, label: t('subscription:tab.plans') }),
+            nativeBillingEnabled &&
+              makeItem({
+                icon: ChartColumnBigIcon,
+                key: SettingsTabs.Usage,
+                label: t('setting:tab.usage'),
+              }),
+            nativeBillingEnabled &&
+              makeItem({
+                icon: Coins,
+                key: SettingsTabs.Credits,
+                label: t('subscription:tab.credits'),
+              }),
+            nativeBillingEnabled &&
+              makeItem({
+                icon: CreditCard,
+                key: SettingsTabs.Billing,
+                label: t('subscription:tab.billing'),
+              }),
+            referralEnabled &&
+              makeItem({
+                icon: Gift,
+                key: SettingsTabs.Referral,
+                label: t('subscription:tab.referral'),
+              }),
+          ].filter((item): item is CategoryItem => Boolean(item))
+        : [];
 
     const agent: CategoryItem[] = [
       // Provider settings should not depend on Advanced tools: new users may need
@@ -148,9 +165,10 @@ export const useCategory = (): CategoryGroup[] => {
     ].filter((group) => group.items.length > 0);
   }, [
     t,
-    enableBusinessFeatures,
-    enablePlatformBilling,
     hideDocs,
+    nativeBillingEnabled,
+    notificationEnabled,
+    referralEnabled,
     showApiKeyManage,
     showProvider,
     isDevMode,

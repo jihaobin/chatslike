@@ -81,6 +81,11 @@ export const getAppConfig = () => {
       ALIPAY_PUBLIC_KEY: z.string().optional(),
       ALIPAY_NOTIFY_URL: z.string().optional(),
 
+      ENABLE_COMMERCIAL: z.boolean().optional(),
+      ENABLE_LOBEHUB_CLOUD_INTEGRATION: z.boolean().optional(),
+      ENABLE_NATIVE_BILLING: z.boolean().optional(),
+      ENABLE_PLATFORM_HOSTED_MODELS: z.boolean().optional(),
+
       WECHAT_PAY_MCH_ID: z.string().optional(),
       WECHAT_PAY_APP_ID: z.string().optional(),
       WECHAT_PAY_API_V3_KEY: z.string().optional(),
@@ -143,6 +148,11 @@ export const getAppConfig = () => {
       ALIPAY_PRIVATE_KEY: process.env.ALIPAY_PRIVATE_KEY,
       ALIPAY_PUBLIC_KEY: process.env.ALIPAY_PUBLIC_KEY,
       ALIPAY_NOTIFY_URL: process.env.ALIPAY_NOTIFY_URL,
+
+      ENABLE_COMMERCIAL: process.env.ENABLE_COMMERCIAL === '1',
+      ENABLE_LOBEHUB_CLOUD_INTEGRATION: process.env.ENABLE_LOBEHUB_CLOUD_INTEGRATION === '1',
+      ENABLE_NATIVE_BILLING: process.env.ENABLE_NATIVE_BILLING === '1',
+      ENABLE_PLATFORM_HOSTED_MODELS: process.env.ENABLE_PLATFORM_HOSTED_MODELS === '1',
 
       WECHAT_PAY_MCH_ID: process.env.WECHAT_PAY_MCH_ID,
       WECHAT_PAY_APP_ID: process.env.WECHAT_PAY_APP_ID,

@@ -83,6 +83,8 @@ class BillingService {
 
   getBalance = async () => lambdaClient.spend.getBalance.query();
 
+  listGrantPackages = async () => lambdaClient.spend.listGrantPackages.query();
+
   getOrder = async (orderId: string) => lambdaClient.topUp.getOrder.query({ orderId });
 
   getCurrentSubscription = async () => lambdaClient.subscription.getCurrent.query();

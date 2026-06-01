@@ -14,6 +14,7 @@ import {
   sharedOptimizeDeps,
   sharedRendererDefine,
   sharedRendererPlugins,
+  sharedResolveDedupe,
 } from './plugins/vite/sharedRendererConfig';
 import { vercelSkewProtection } from './plugins/vite/vercelSkewProtection';
 
@@ -117,17 +118,19 @@ export default defineConfig({
     bundledDev: false,
   },
   resolve: {
+    dedupe: sharedResolveDedupe,
     tsconfigPaths: true,
   },
   optimizeDeps: sharedOptimizeDeps,
   plugins: [
     vercelSkewProtection(),
     viteEnvRestartKeys(['APP_URL']),
-    enableViteDevTools && DevTools({
-      build: {
-        withApp: true,
-      },
-    }),
+    enableViteDevTools &&
+      DevTools({
+        build: {
+          withApp: true,
+        },
+      }),
     ...sharedRendererPlugins({ platform }),
 
     isDev && {

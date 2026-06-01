@@ -14,6 +14,7 @@ const {
   mockResolveBusinessModelMapping,
   mockServerDB,
   mockTransaction,
+  nativeBillingEnabled,
 } = vi.hoisted(() => {
   const mockTransaction = vi.fn();
   const mockServerDB = { transaction: mockTransaction };
@@ -22,6 +23,7 @@ const {
   const mockLoadModels = vi.fn();
   const mockProcessBackgroundVideoPolling = vi.fn().mockResolvedValue(undefined);
   const mockResolveBusinessModelMapping = vi.fn();
+  const nativeBillingEnabled = { value: true };
   return {
     mockAfter,
     mockCreateVideo,
@@ -30,6 +32,7 @@ const {
     mockResolveBusinessModelMapping,
     mockServerDB,
     mockTransaction,
+    nativeBillingEnabled,
   };
 });
 
@@ -49,6 +52,15 @@ vi.mock('@/server/modules/ModelRuntime', () => ({
 }));
 vi.mock('@/business/server/video-generation/chargeBeforeGenerate', () => ({
   chargeBeforeGenerate: vi.fn().mockResolvedValue({ errorBatch: null, prechargeResult: null }),
+}));
+vi.mock('@/business/shared/commercialRuntime', () => ({
+  commercialRuntime: {
+    nativeBilling: {
+      get enabled() {
+        return nativeBillingEnabled.value;
+      },
+    },
+  },
 }));
 vi.mock('@/business/server/video-generation/chargeAfterGenerate', () => ({
   chargeAfterGenerate: vi.fn().mockResolvedValue(undefined),
@@ -141,6 +153,7 @@ describe('videoRouter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    nativeBillingEnabled.value = true;
     mockResolveBusinessModelMapping.mockImplementation(
       async (_provider: string, model: string) => ({
         resolvedModelId: model,
@@ -280,6 +293,40 @@ describe('videoRouter', () => {
       expect(result).toEqual({ error: 'insufficient_balance' });
       // Should not proceed to createVideo
       expect(mockCreateVideo).not.toHaveBeenCalled();
+    });
+
+    it('should skip pre-charge and precharge metadata when native billing is disabled', async () => {
+      nativeBillingEnabled.value = false;
+      const { chargeBeforeGenerate } =
+        await import('@/business/server/video-generation/chargeBeforeGenerate');
+      vi.mocked(chargeBeforeGenerate).mockResolvedValueOnce({
+        errorBatch: undefined,
+        prechargeResult: {
+          estimatedCredits: 100_000,
+          operationId: 'video:test-user:topic-1:volcengine:test-model:hash',
+          reservationId: 'reservation-video-1',
+        },
+      });
+
+      setupMocks();
+      mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-disabled', useWebhook: true });
+
+      const caller = videoRouter.createCaller(mockCtx);
+      await caller.createVideo(defaultInput);
+
+      expect(chargeBeforeGenerate).not.toHaveBeenCalled();
+
+      const transactionCallback = mockTransaction.mock.calls[0][0];
+      const insert = createInsertChain();
+      await transactionCallback({ insert, update: mockDbUpdate });
+
+      expect(insert().values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.not.objectContaining({
+            precharge: expect.anything(),
+          }),
+        }),
+      );
     });
   });
 

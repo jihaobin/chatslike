@@ -159,6 +159,36 @@ describe('videoBackgroundPolling', () => {
         }),
       );
     });
+
+    it('should skip charge after generate when precharge metadata is missing', async () => {
+      mockModelRuntime.handlePollVideoStatus.mockResolvedValue({
+        status: 'success',
+        videoUrl: 'https://example.com/video.mp4',
+      });
+
+      mockVideoService.processVideoForGeneration.mockResolvedValue({
+        coverKey: 'cover-key-123',
+        duration: 10,
+        fileHash: 'hash-abc',
+        fileSize: 1024,
+        height: 1080,
+        mimeType: 'video/mp4',
+        thumbnailKey: 'thumb-key-456',
+        videoKey: 'video-key-789',
+        width: 1920,
+      });
+
+      await processBackgroundVideoPolling(mockDb, {
+        ...mockParams,
+        prechargeResult: undefined,
+      });
+
+      expect(mockAsyncTaskModel.update).toHaveBeenCalledWith('task-123', {
+        duration: expect.any(Number),
+        status: AsyncTaskStatus.Success,
+      });
+      expect(chargeAfterGenerate).not.toHaveBeenCalled();
+    });
   });
 
   describe('processBackgroundVideoPolling - polling behavior', () => {
@@ -226,6 +256,24 @@ describe('videoBackgroundPolling', () => {
       const errorCall = mockAsyncTaskModel.update.mock.calls[0][1];
       expect(errorCall.error).toBeInstanceOf(AsyncTaskError);
       expect(errorCall.error?.name).toBe('ServerError');
+    });
+
+    it('should skip charge after generate on errors when precharge metadata is missing', async () => {
+      mockModelRuntime.handlePollVideoStatus.mockResolvedValue({
+        status: 'failed',
+        error: 'Model API error',
+      });
+
+      await processBackgroundVideoPolling(mockDb, {
+        ...mockParams,
+        prechargeResult: undefined,
+      });
+
+      expect(mockAsyncTaskModel.update).toHaveBeenCalledWith('task-123', {
+        error: expect.any(AsyncTaskError),
+        status: AsyncTaskStatus.Error,
+      });
+      expect(chargeAfterGenerate).not.toHaveBeenCalled();
     });
 
     it('should handle model runtime initialization error', async () => {

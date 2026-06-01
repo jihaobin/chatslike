@@ -39,6 +39,21 @@ export interface VisualUnderstandingConfig {
   provider: string;
 }
 
+export interface CommercialRuntimeConfig {
+  commercial: {
+    enabled: boolean;
+  };
+  lobeHubCloudIntegration: {
+    enabled: boolean;
+  };
+  nativeBilling: {
+    enabled: boolean;
+  };
+  platformHostedModels: {
+    enabled: boolean;
+  };
+}
+
 export interface ServerModelProviderConfig {
   enabled?: boolean;
   enabledModels?: string[];
@@ -59,6 +74,7 @@ export interface GlobalServerConfig {
    */
   agentGatewayUrl?: string;
   aiProvider: ServerLanguageModel;
+  commercial?: CommercialRuntimeConfig;
   defaultAgent?: PartialDeep<UserDefaultAgent>;
   disableEmailPassword?: boolean;
   enableBusinessFeatures?: boolean;

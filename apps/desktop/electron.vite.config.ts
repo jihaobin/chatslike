@@ -11,6 +11,7 @@ import {
   sharedOptimizeDeps,
   sharedRendererDefine,
   sharedRendererPlugins,
+  sharedResolveDedupe,
   sharedRollupOutput,
 } from '../../plugins/vite/sharedRendererConfig';
 import { externalRuntimeModules } from './external-runtime-deps.config.mjs';
@@ -220,7 +221,7 @@ export default defineConfig({
       ...(sharedRendererPlugins({ platform: 'desktop' }) as PluginOption[]),
     ],
     resolve: {
-      dedupe: ['react', 'react-dom'],
+      dedupe: sharedResolveDedupe,
       tsconfigPaths: true,
     },
   },

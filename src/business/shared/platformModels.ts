@@ -9,6 +9,10 @@ export const PLATFORM_HOSTED_PROVIDERS = [
 
 const PLATFORM_PROVIDER_SET = new Set<string>(PLATFORM_HOSTED_PROVIDERS);
 
+/**
+ * @deprecated Use `commercialRuntime.nativeBilling.enabled` or
+ * `commercialRuntime.platformHostedModels.enabled` for new business gates.
+ */
 export function isPlatformBillingEnabled() {
   return process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING === '1';
 }

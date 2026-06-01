@@ -5,12 +5,11 @@ import { Spin } from 'antd';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { OFFICIAL_URL } from '@/const/url';
 import { useIsCloudActive } from '@/hooks/useIsCloudActive';
 import { remoteServerService } from '@/services/electron/remoteServer';
 import { electronSystemService } from '@/services/electron/system';
-import { useServerConfigStore } from '@/store/serverConfig';
-import { serverConfigSelectors } from '@/store/serverConfig/selectors';
 
 const PARTITION_ID = 'persist:subscription';
 
@@ -25,8 +24,6 @@ export const SubscriptionIframeWrapper = memo<SubscriptionIframeWrapperProps>(({
 
   const { i18n } = useTranslation();
   const isCloudActive = useIsCloudActive();
-
-  const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
 
   const iframeUrl = useMemo(() => {
     if (!isCloudActive) return null;
@@ -122,7 +119,7 @@ export const SubscriptionIframeWrapper = memo<SubscriptionIframeWrapperProps>(({
       .catch(() => setError('Failed to initialize subscription session'));
   }, []);
 
-  if (!enableBusinessFeatures || !iframeUrl) return null;
+  if (!commercialRuntime.lobeHubCloudIntegration.enabled || !iframeUrl) return null;
 
   if (error) {
     return (

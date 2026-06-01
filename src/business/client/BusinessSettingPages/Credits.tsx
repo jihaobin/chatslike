@@ -24,8 +24,8 @@ import {
   WalletCardsIcon,
   WifiIcon,
 } from 'lucide-react';
-import { memo, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { TopUpProductId } from '@/business/shared/billingProducts';
@@ -53,6 +53,12 @@ type PackageTab = 'active' | 'depleted' | 'expired';
 interface CreatedTopUpOrder {
   order: Awaited<ReturnType<typeof billingService.createTopUpOrder>>['order'];
   payment: Awaited<ReturnType<typeof billingService.createTopUpOrder>>['payment'];
+}
+
+interface TabIndicatorStyle {
+  opacity: number;
+  width: number;
+  x: number;
 }
 
 const MILLION = 1_000_000;
@@ -118,14 +124,42 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   buyProductButton: css`
     min-width: 100px;
     height: 36px;
-    border-color: transparent;
+    border: 1px solid transparent !important;
     border-radius: 8px;
 
-    background: ${token.colorFillQuaternary};
+    font-weight: 500;
 
-    &:first-of-type {
-      border-color: ${token.colorBorder};
+    background: ${token.colorFillQuaternary};
+    box-shadow: none !important;
+
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      color 160ms ease,
+      background 160ms ease;
+
+    &:hover,
+    &:focus {
+      border-color: ${token.colorBorder} !important;
+      color: ${token.colorText};
+      background: ${token.colorFillSecondary} !important;
+    }
+
+    &[data-selected='true'] {
+      border-color: ${token.colorText} !important;
+
+      font-weight: 700;
+      color: ${token.colorText};
+
       background: ${token.colorBgContainer};
+      box-shadow: inset 0 0 0 1px ${token.colorText} !important;
+    }
+
+    &[data-selected='true']:hover,
+    &[data-selected='true']:focus {
+      border-color: ${token.colorText} !important;
+      background: ${token.colorBgContainer} !important;
+      box-shadow: inset 0 0 0 1px ${token.colorText} !important;
     }
 
     @media (width <= 640px) {
@@ -134,6 +168,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   `,
   customProductButton: css`
     min-width: 108px;
+  `,
+  customProductInputRow: css`
+    width: fit-content;
   `,
   filterSelect: css`
     width: 148px;
@@ -153,6 +190,24 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   inputAffix: css`
     font-size: 14px;
     color: ${token.colorText};
+  `,
+  inlineLink: css`
+    cursor: pointer;
+
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+
+    font-weight: 600;
+    color: ${token.colorLink};
+    text-decoration: none;
+
+    transition: color 160ms ease;
+
+    &:hover {
+      color: ${token.colorLinkHover};
+      text-decoration: none;
+    }
   `,
   metricNumber: css`
     font-size: 24px;
@@ -204,21 +259,67 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     border-radius: 8px 8px 0 0;
     background: ${token.colorFillQuaternary};
   `,
+  tabBar: css`
+    position: relative;
+  `,
   tabButton: css`
-    padding-block: 0 14px;
-    padding-inline: 8px;
-    border: none;
-    border-block-end: 2px solid transparent;
-    border-radius: 0;
+    box-sizing: border-box;
+    height: 40px;
+    padding-block: 0;
+    padding-inline: 14px;
+    border-color: transparent !important;
+    border-style: solid !important;
+    border-width: 0 !important;
+    border-radius: 7px;
 
     color: ${token.colorTextSecondary};
 
-    background: transparent;
+    background: transparent !important;
+    box-shadow: none !important;
+
+    transition:
+      color 160ms ease,
+      background 160ms ease;
+
+    &:hover,
+    &:focus,
+    &:active {
+      border-color: transparent !important;
+      border-style: solid !important;
+      border-width: 0 !important;
+
+      color: ${token.colorText};
+
+      background: ${token.colorFillSecondary} !important;
+      box-shadow: none !important;
+    }
 
     &[data-active='true'] {
-      border-block-end-color: ${token.colorText};
       color: ${token.colorText};
     }
+
+    &[data-active='true']:hover,
+    &[data-active='true']:focus,
+    &[data-active='true']:active {
+      color: ${token.colorText};
+    }
+  `,
+  tabIndicator: css`
+    pointer-events: none;
+
+    position: absolute;
+    inset-block-end: 11px;
+    inset-inline-start: 0;
+
+    height: 3px;
+    border-radius: 999px;
+
+    background: ${token.colorText};
+
+    transition:
+      opacity 120ms ease,
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      width 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
   `,
   warningInput: css`
     width: 160px;
@@ -236,6 +337,8 @@ const formatMillionAmount = (credits: number) => {
 
   return Number.isInteger(value) ? `${value}M` : `${value.toFixed(2)}M`;
 };
+
+const getCreditsMillion = (credits: number) => credits / MILLION;
 
 const getProductById = (productId: TopUpProductId) =>
   TOP_UP_PRODUCTS.find((product) => product.id === productId) ?? TOP_UP_PRODUCTS[0];
@@ -264,10 +367,19 @@ const Credits = memo(() => {
   const [createOrderError, setCreateOrderError] = useState<string>();
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [productId, setProductId] = useState<TopUpProductId>(TOP_UP_PRODUCTS[0].id);
+  const [customCreditsMillion, setCustomCreditsMillion] = useState(1);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const customInputRowRef = useRef<HTMLDivElement>(null);
   const [selectedProduct, setSelectedProduct] = useState<TopUpProductId | typeof CUSTOM_PRODUCT_ID>(
     TOP_UP_PRODUCTS[0].id,
   );
   const [packageTab, setPackageTab] = useState<PackageTab>('active');
+  const packageTabBarRef = useRef<HTMLDivElement>(null);
+  const [tabIndicator, setTabIndicator] = useState<TabIndicatorStyle>({
+    opacity: 0,
+    width: 0,
+    x: 0,
+  });
   const [sourceFilter, setSourceFilter] = useState('all');
   const [sortFilter, setSortFilter] = useState('newest');
   const { data: polledOrder } = useBillingOrder(createdOrder?.order.id);
@@ -283,6 +395,10 @@ const Credits = memo(() => {
   const totalAvailableCredits = balance?.availableCredits ?? activeSummary.totalCredits;
   const selectedPricePerMillion =
     currentProduct.amountCents / 100 / (currentProduct.credits / MILLION);
+  const totalAmountCents =
+    selectedProduct === CUSTOM_PRODUCT_ID
+      ? Math.round(customCreditsMillion * selectedPricePerMillion * 100)
+      : currentProduct.amountCents;
   const currentPlanName = currentSubscription?.planId
     ? t(`billingNative.plans.planName.${currentSubscription.planId}`, currentSubscription.planId)
     : t('billingNative.plans.free.name', 'Free');
@@ -312,10 +428,59 @@ const Credits = memo(() => {
     void Promise.all([mutateBalance(), mutateGrants(), refreshBillingOrders()]);
   }, [mutateBalance, mutateGrants, polledOrder?.status]);
 
+  useEffect(() => {
+    if (!showCustomInput) return;
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-custom-product-trigger="true"]')) return;
+      if (customInputRowRef.current?.contains(target)) return;
+
+      setShowCustomInput(false);
+    };
+
+    document.addEventListener('mousedown', handleDocumentMouseDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown);
+    };
+  }, [showCustomInput]);
+
+  useLayoutEffect(() => {
+    const tabBar = packageTabBarRef.current;
+    const activeTab = tabBar?.querySelector<HTMLButtonElement>(
+      `[data-package-tab="${packageTab}"]`,
+    );
+    if (!tabBar || !activeTab) return;
+
+    const tabBarRect = tabBar.getBoundingClientRect();
+    const activeTabRect = activeTab.getBoundingClientRect();
+
+    setTabIndicator({
+      opacity: 1,
+      width: activeTabRect.width,
+      x: activeTabRect.left - tabBarRect.left,
+    });
+  }, [packageTab]);
+
   const handleProductSelect = (value: TopUpProductId | typeof CUSTOM_PRODUCT_ID) => {
     setSelectedProduct(value);
-    if (value === CUSTOM_PRODUCT_ID) return;
+    setShowCustomInput(value === CUSTOM_PRODUCT_ID);
+    if (value === CUSTOM_PRODUCT_ID) {
+      setCustomCreditsMillion(getCreditsMillion(currentProduct.credits));
+      return;
+    }
     setProductId(value);
+  };
+
+  const handleCustomCreditsChange = (value: number | null) => {
+    const nextValue = Math.max(1, Number(value ?? 1));
+    setCustomCreditsMillion(nextValue);
+
+    const credits = nextValue * MILLION;
+    const nearestProduct = TOP_UP_PRODUCTS.find((product) => product.credits === credits);
+    if (nearestProduct) setProductId(nearestProduct.id);
   };
 
   const handleCreateOrder = async () => {
@@ -375,21 +540,13 @@ const Credits = memo(() => {
             </Flexbox>
 
             <Flexbox horizontal className={styles.balanceFooter} gap={22} wrap={'wrap'}>
-              <Link to="/settings/usage">
-                <Flexbox horizontal align={'center'} gap={6}>
-                  <Icon color={cssVar.colorPrimary} icon={ReceiptTextIcon} size={14} />
-                  <Text color={cssVar.colorPrimary}>
-                    {t('billingNative.credits.balance.viewUsage', 'View Usage')}
-                  </Text>
-                </Flexbox>
+              <Link className={styles.inlineLink} to="/settings/usage">
+                <Icon color={cssVar.colorLink} icon={ReceiptTextIcon} size={14} />
+                {t('billingNative.credits.balance.viewUsage', 'View Usage')}
               </Link>
-              <Link to="/settings/billing">
-                <Flexbox horizontal align={'center'} gap={6}>
-                  <Icon color={cssVar.colorPrimary} icon={RefreshCwIcon} size={14} />
-                  <Text color={cssVar.colorPrimary}>
-                    {t('billingNative.credits.balance.topUpHistory', 'Top-up History')}
-                  </Text>
-                </Flexbox>
+              <Link className={styles.inlineLink} to="/settings/billing">
+                <Icon color={cssVar.colorLink} icon={RefreshCwIcon} size={14} />
+                {t('billingNative.credits.balance.topUpHistory', 'Top-up History')}
               </Link>
             </Flexbox>
 
@@ -429,8 +586,9 @@ const Credits = memo(() => {
             {TOP_UP_PRODUCTS.map((product) => (
               <Button
                 className={styles.buyProductButton}
+                data-selected={selectedProduct === product.id}
                 key={product.id}
-                type={selectedProduct === product.id ? 'default' : 'text'}
+                type={'text'}
                 onClick={() => handleProductSelect(product.id)}
               >
                 {product.name}
@@ -438,35 +596,34 @@ const Credits = memo(() => {
             ))}
             <Button
               className={`${styles.buyProductButton} ${styles.customProductButton}`}
+              data-custom-product-trigger="true"
+              data-selected={selectedProduct === CUSTOM_PRODUCT_ID}
               icon={<Icon icon={PencilIcon} />}
-              type={selectedProduct === CUSTOM_PRODUCT_ID ? 'default' : 'text'}
+              type={'text'}
               onClick={() => handleProductSelect(CUSTOM_PRODUCT_ID)}
             >
               {t('billingNative.credits.purchase.custom', 'Custom')}
             </Button>
           </Flexbox>
 
-          {selectedProduct === CUSTOM_PRODUCT_ID ? (
-            <Flexbox horizontal align={'center'} gap={10} wrap={'wrap'}>
-              <InputNumber
-                min={5}
-                placeholder="5"
-                suffix={<span className={styles.inputAffix}>M</span>}
-                onChange={(value) => {
-                  const credits = Number(value ?? 0) * MILLION;
-                  const nearestProduct = TOP_UP_PRODUCTS.find(
-                    (product) => product.credits === credits,
-                  );
-                  if (nearestProduct) setProductId(nearestProduct.id);
-                }}
-              />
-              <Text type={'secondary'}>
-                {t(
-                  'billingNative.credits.purchase.customHint',
-                  'Custom purchase currently uses the nearest listed package.',
-                )}
-              </Text>
-            </Flexbox>
+          {showCustomInput ? (
+            <div className={styles.customProductInputRow} ref={customInputRowRef}>
+              <Flexbox horizontal align={'center'} gap={10} wrap={'wrap'}>
+                <InputNumber
+                  min={1}
+                  placeholder="1"
+                  suffix={<span className={styles.inputAffix}>M</span>}
+                  value={customCreditsMillion}
+                  onChange={handleCustomCreditsChange}
+                />
+                <Text type={'secondary'}>
+                  {t(
+                    'billingNative.credits.purchase.customHint',
+                    'Custom purchase currently uses the nearest listed package.',
+                  )}
+                </Text>
+              </Flexbox>
+            </div>
           ) : null}
 
           <Flexbox gap={8}>
@@ -477,10 +634,17 @@ const Credits = memo(() => {
               {t('billingNative.credits.purchase.validity', '(valid for 6 months)')}
             </Text>
             <Text type={'success'}>
-              {t(
-                'billingNative.credits.purchase.upgradeSaving',
-                'Upgrade to Starter to save $1.00',
-              )}
+              <Trans
+                i18nKey={'billingNative.credits.purchase.upgradeSaving'}
+                ns={'subscription'}
+                components={{
+                  plan: <Link className={styles.inlineLink} to="/settings/plans" />,
+                }}
+                values={{
+                  amount: '$1.00',
+                  planName: t('billingNative.plans.planName.starter', 'Starter'),
+                }}
+              />
             </Text>
           </Flexbox>
 
@@ -533,7 +697,7 @@ const Credits = memo(() => {
             <Flexbox horizontal align={'baseline'} gap={8}>
               <Text weight={700}>{t('billingNative.credits.purchase.total', 'Total')}</Text>
               <Text fontSize={24} weight={800}>
-                {formatAmount(currentProduct.amountCents)}
+                {formatAmount(totalAmountCents)}
               </Text>
             </Flexbox>
             <Button
@@ -656,7 +820,15 @@ const Credits = memo(() => {
         </Flexbox>
 
         <Flexbox className={styles.sectionShell}>
-          <Flexbox horizontal align={'center'} gap={18} paddingBlock={14} paddingInline={16}>
+          <Flexbox
+            horizontal
+            align={'center'}
+            className={styles.tabBar}
+            gap={14}
+            paddingBlock={16}
+            paddingInline={22}
+            ref={packageTabBarRef}
+          >
             {(['active', 'depleted', 'expired'] as PackageTab[]).map((tab) => {
               const count =
                 grantSummary?.packages.filter((grant) => getPackageTab(grant) === tab).length ?? 0;
@@ -665,6 +837,7 @@ const Credits = memo(() => {
                 <Button
                   className={styles.tabButton}
                   data-active={packageTab === tab}
+                  data-package-tab={tab}
                   key={tab}
                   type={'text'}
                   onClick={() => setPackageTab(tab)}
@@ -673,6 +846,14 @@ const Credits = memo(() => {
                 </Button>
               );
             })}
+            <div
+              className={styles.tabIndicator}
+              style={{
+                opacity: tabIndicator.opacity,
+                transform: `translateX(${tabIndicator.x}px)`,
+                width: tabIndicator.width,
+              }}
+            />
           </Flexbox>
 
           <Flexbox className={styles.grantList}>

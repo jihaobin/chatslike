@@ -265,6 +265,20 @@ export const sharedOptimizeDeps = {
   ],
 };
 
+export const sharedResolveDedupe = [
+  '@lobehub/ui',
+  '@lobehub/ui/base-ui',
+  '@lobehub/ui/brand',
+  '@lobehub/ui/icons',
+  '@lobehub/ui/mobile',
+  '@lobehub/ui/awesome',
+  'motion',
+  'react',
+  'react-dom',
+  'react/jsx-runtime',
+];
+
 export const __testing = {
+  sharedResolveDedupe,
   sharedManualChunks,
 };
