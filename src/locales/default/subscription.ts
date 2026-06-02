@@ -130,8 +130,10 @@ export default {
   'billingNative.plans.pixel.badge.popular': 'Most Popular',
   'billingNative.plans.pixel.discount.max': 'Up to {{percent}} off',
   'billingNative.plans.pixel.discount.short': 'Save {{percent}}',
+  'billingNative.plans.pixel.buyNow': 'Buy now',
   'billingNative.plans.pixel.payOnce': 'One-time',
   'billingNative.plans.pixel.payment.alipayMark': 'Ali',
+  'billingNative.plans.pixel.payment.supports': 'Supports credit card / Alipay / WeChat Pay',
   'billingNative.plans.pixel.perMonthAmount': '{{amount}} / month',
   'billingNative.plans.pixel.period.monthly': 'Monthly',
   'billingNative.plans.pixel.period.yearly': 'Yearly',
@@ -442,6 +444,7 @@ export default {
   'modelPricing.button': 'View Pricing Documentation',
   'modelPricing.desc':
     '{{name}} uses Credits to measure AI model usage. The table below shows credits per 1M Tokens.',
+  'modelPricing.perMillionTokens': '1M Tokens',
   'modelPricing.title': 'Text Model Pricing',
   'models.input': 'Input',
   'models.intro': 'Introduction',

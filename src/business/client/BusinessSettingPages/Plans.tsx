@@ -1,5 +1,6 @@
 'use client';
 
+import { ModelIcon } from '@lobehub/icons';
 import { Button, Flexbox, Icon, Skeleton, Text } from '@lobehub/ui';
 import { createStaticStyles, cssVar } from 'antd-style';
 import {
@@ -18,12 +19,14 @@ import { useTranslation } from 'react-i18next';
 import { billingService } from '@/services/billing';
 import { formatNumber } from '@/utils/format';
 
-import { useCurrentSubscription, useSubscriptionPlans } from './hooks/useBillingData';
+import { useCurrentSubscription, useSubscriptionPlans, useTextModelPricing } from './hooks/useBillingData';
 
 const CLOUD_NAME = 'LobeHub Cloud';
 
 type PaymentChannel = 'alipay' | 'wechat';
 type PlanAction = 'availableAfterExpiry' | 'purchase' | 'renew' | 'unavailable' | 'upgrade';
+type BillingMode = 'month' | 'oneTime' | 'year';
+type OneTimeDuration = 'halfYear' | 'month' | 'quarter' | 'year';
 type SubscriptionPlanId = 'starter' | 'premium' | 'ultimate';
 type SubscriptionPeriod = 'month' | 'year';
 
@@ -49,9 +52,19 @@ interface HeroPlan {
   icon: ElementType;
   id: SubscriptionPlanId;
   monthlyEquivalent: string;
+  monthlyPrice: string;
   name: string;
+  oneTimeOptions: OneTimeOption[];
   originalYearly: string;
   yearlyDiscount: string;
+}
+
+interface OneTimeOption {
+  discount?: string;
+  labelKey: string;
+  period: SubscriptionPeriod;
+  price: string;
+  value: OneTimeDuration;
 }
 
 interface ModelAllowance {
@@ -68,6 +81,72 @@ const PLAN_RANK = {
   starter: 0,
   ultimate: 2,
 } as const satisfies Record<SubscriptionPlanId, number>;
+
+const DISPLAY_PRICE_META = {
+  premium: {
+    monthlyPrice: '$24.9',
+    oneTimeOptions: [
+      { labelKey: 'recurring.oneMonth', period: 'month', price: '$24.9', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', price: '$74.7', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', price: '$149.4', value: 'halfYear' },
+      {
+        discount: '20%',
+        labelKey: 'recurring.oneYear',
+        period: 'year',
+        price: '$238.8',
+        value: 'year',
+      },
+    ],
+    originalYearly: '$238.8',
+    yearlyDiscount: '20%',
+    yearlyMonthly: '$19.9',
+  },
+  starter: {
+    monthlyPrice: '$12.9',
+    oneTimeOptions: [
+      { labelKey: 'recurring.oneMonth', period: 'month', price: '$12.9', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', price: '$38.7', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', price: '$77.4', value: 'halfYear' },
+      {
+        discount: '23%',
+        labelKey: 'recurring.oneYear',
+        period: 'year',
+        price: '$118.8',
+        value: 'year',
+      },
+    ],
+    originalYearly: '$118.8',
+    yearlyDiscount: '23%',
+    yearlyMonthly: '$9.9',
+  },
+  ultimate: {
+    monthlyPrice: '$49.9',
+    oneTimeOptions: [
+      { labelKey: 'recurring.oneMonth', period: 'month', price: '$49.9', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', price: '$149.7', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', price: '$299.4', value: 'halfYear' },
+      {
+        discount: '20%',
+        labelKey: 'recurring.oneYear',
+        period: 'year',
+        price: '$478.8',
+        value: 'year',
+      },
+    ],
+    originalYearly: '$478.8',
+    yearlyDiscount: '20%',
+    yearlyMonthly: '$39.9',
+  },
+} as const satisfies Record<
+  SubscriptionPlanId,
+  {
+    monthlyPrice: string;
+    oneTimeOptions: OneTimeOption[];
+    originalYearly: string;
+    yearlyDiscount: string;
+    yearlyMonthly: string;
+  }
+>;
 
 const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
@@ -127,25 +206,6 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
     ultimate: '875',
   },
 ];
-
-const MODEL_PRICE_ROWS = [
-  ['DeepSeek V4 Pro', '0.435M', '0.87M'],
-  ['DeepSeek V4 Flash', '0.14M', '0.28M'],
-  ['Claude Sonnet 4.6', '3M', '15M'],
-  ['Claude Opus 4.8', '5M', '25M'],
-  ['Claude Haiku 4.5', '1M', '5M'],
-  ['Gemini 3.1 Flash', '1.5M', '9M'],
-  ['Gemini 3.1 Pro Preview', '2M', '12M'],
-  ['Nano Banana 2', '3M', '12M'],
-  ['GPT-5.5', '5M', '30M'],
-  ['GPT-5.5 Pro', '30M', '180M'],
-  ['Grok 4.3', '1.25M', '2.5M'],
-  ['Kimi K2', '0.6M', '3M'],
-  ['MiniMax M3', '0.6M', '2.4M'],
-  ['Qwen3 Max', '2.5M', '7.5M'],
-  ['GLM-4.6', '1M', '3.2M'],
-  ['MM-V2.5', '0.14M', '0.28M'],
-] as const;
 
 const COMPARE_GROUPS: { features: CompareFeature[]; title: string }[] = [
   {
@@ -221,6 +281,28 @@ const COMPARE_GROUPS: { features: CompareFeature[]; title: string }[] = [
 
 const FAQ_KEYS = ['free', 'credit', 'limit', 'highUsage', 'management', 'embeddings'] as const;
 
+const PLAN_FEATURE_GROUPS = [
+  {
+    itemKeys: ['plans.llm.customAPI', 'plans.llm.messageRequest'],
+    titleKey: 'plans.llm.title',
+    tooltip: true,
+  },
+  {
+    itemKeys: ['plans.cloud.history', 'plans.cloud.sync'],
+    titleKey: 'plans.cloud.title',
+  },
+  {
+    itemKeys: ['plans.features.agents', 'plans.features.plugins', 'plans.features.internet'],
+    titleKey: 'plans.features.title',
+  },
+] as const;
+
+const PLAN_SUPPORT_KEYS = {
+  premium: 'plans.support.premium',
+  starter: 'plans.support.starter',
+  ultimate: 'plans.support.ultimate',
+} as const satisfies Record<SubscriptionPlanId, string>;
+
 const styles = createStaticStyles(({ css, cssVar: token }) => ({
   allowanceItem: css`
     display: grid;
@@ -239,19 +321,22 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   `,
   billingToggle: css`
     display: grid;
-    grid-template-columns: 1fr 1fr 1.35fr;
+    grid-template-columns: 1.25fr 1fr 1.05fr;
     align-items: center;
 
-    width: 364px;
-    height: 40px;
-    padding: 2px;
-    border-radius: 14px;
+    width: 528px;
+    height: 60px;
+    padding: 3px;
+    border-radius: 13px;
 
-    background: ${token.colorFillQuaternary};
+    background: ${token.colorFillSecondary};
 
     @media (width <= 640px) {
       width: 100%;
     }
+  `,
+  buttonSlot: css`
+    margin-block-start: 16px;
   `,
   channelIcon: css`
     display: inline-flex;
@@ -265,6 +350,11 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     font-size: 11px;
     font-weight: 800;
     color: #fff;
+  `,
+  discountBadge: css`
+    border-radius: 5px;
+    color: #1fa23b;
+    background: #e9fbe8;
   `,
   compareCell: css`
     min-height: 42px;
@@ -331,12 +421,14 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   heroCard: css`
     position: relative;
 
-    overflow: hidden;
-    justify-content: space-between;
+    flex: 0 0 var(--plan-card-width, calc((100% - 24px) / 3));
 
+    overflow: hidden;
+
+    max-width: 100%;
     min-width: 0;
-    min-height: 525px;
-    padding: 28px;
+    min-height: 1220px;
+    padding: 22px 20px 16px;
     border: 1px solid ${token.colorBorderSecondary};
     border-radius: 8px;
 
@@ -354,19 +446,108 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     }
   `,
   heroCards: css`
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
 
-    @media (width <= 960px) {
-      grid-template-columns: 1fr;
+    @media (width <= 1140px) {
+      --plan-card-width: calc((100% - 12px) / 2);
+    }
+
+    @media (width <= 720px) {
+      --plan-card-width: 100%;
     }
   `,
   iconBadge: css`
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     border-radius: 12px;
     box-shadow: inset 0 0 0 2px rgb(255 255 255 / 65%);
+  `,
+  benefits: css`
+    margin-block-start: 32px;
+  `,
+  benefitGroup: css`
+    gap: 14px;
+    margin-block-start: 26px;
+  `,
+  benefitGroupTitle: css`
+    color: ${token.colorTextSecondary};
+    font-size: 16px;
+    font-weight: 700;
+  `,
+  benefitItem: css`
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 12px;
+    align-items: center;
+
+    font-size: 16px;
+    line-height: 1.45;
+  `,
+  supportText: css`
+    font-size: 16px;
+    line-height: 1.45;
+  `,
+  oneTimePayment: css`
+    color: ${token.colorTextTertiary};
+    font-size: 13px;
+  `,
+  oneTimeSelect: css`
+    position: relative;
+
+    display: block;
+
+    width: 100%;
+  `,
+  oneTimeSelectButton: css`
+    display: grid;
+    grid-template-columns: 1fr 18px;
+    align-items: center;
+
+    width: 100%;
+    height: 52px;
+    padding-inline: 12px;
+    border: 1px solid ${token.colorBorderSecondary};
+    border-radius: 7px;
+
+    color: ${token.colorText};
+    background: ${token.colorBgContainer};
+    box-shadow: none;
+
+    text-align: start;
+  `,
+  oneTimeSelectMenu: css`
+    position: absolute;
+    z-index: 3;
+    inset-block-start: 58px;
+    inset-inline: 0;
+
+    overflow: hidden;
+
+    border: 1px solid ${token.colorBorderSecondary};
+    border-radius: 8px;
+
+    background: ${token.colorBgElevated};
+    box-shadow: 0 16px 34px rgb(0 0 0 / 10%);
+  `,
+  oneTimeSelectOption: css`
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+    min-height: 52px;
+    padding-inline: 12px;
+    border: 0;
+
+    color: ${token.colorText};
+    background: transparent;
+
+    text-align: start;
+
+    &[data-active='true'] {
+      background: ${token.colorFillSecondary};
+    }
   `,
   modelIcon: css`
     width: 12px;
@@ -399,26 +580,37 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   `,
   page: css`
     width: 100%;
-    max-width: 1320px;
+    max-width: 1360px;
     margin-inline: auto;
-    padding-block: 28px 88px;
+    padding-block: 30px 88px;
     color: ${token.colorText};
   `,
   pageDivider: css`
     height: 1px;
-    margin-block: 28px 48px;
+    margin-block: 26px 36px;
     background: ${token.colorBorderSecondary};
   `,
   paymentBadge: css`
-    gap: 6px;
+    gap: 4px;
     align-items: center;
     color: ${token.colorTextSecondary};
     font-size: 15px;
   `,
+  planIntro: css`
+    min-height: 154px;
+  `,
+  planPurchase: css`
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+
+    min-height: 168px;
+  `,
   planButton: css`
-    height: 40px;
+    width: 100%;
+    height: 48px;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     background: #1f1f1f !important;
     box-shadow: none !important;
@@ -428,46 +620,154 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     }
   `,
   planName: css`
-    margin-block: 18px 8px;
-    font-size: 19px;
+    margin-block: 22px 8px;
+    font-size: 18px;
     font-weight: 800;
     line-height: 1.25;
   `,
   price: css`
-    margin-block-start: 26px;
-    font-size: 30px;
+    font-size: clamp(26px, 2.2vw, 31px);
     font-weight: 800;
     letter-spacing: 0;
+    white-space: nowrap;
+  `,
+  priceLine: css`
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: baseline;
+    white-space: nowrap;
   `,
   priceCaption: css`
     color: ${token.colorTextSecondary};
     font-size: 14px;
   `,
+  priceDocsButton: css`
+    width: min(100%, 300px);
+    height: 44px;
+    border-radius: 8px;
+  `,
+  priceLayout: css`
+    display: grid;
+    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+    gap: clamp(28px, 4vw, 70px);
+    align-items: flex-start;
+
+    @media (width <= 1180px) {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+  `,
+  priceSectionTitle: css`
+    font-size: 24px;
+    font-weight: 800;
+  `,
   priceTable: css`
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 
     th,
     td {
-      height: 34px;
-      padding-inline: 10px;
+      height: 62px;
+      padding-inline: clamp(12px, 1.4vw, 24px);
       border-block-end: 1px solid ${token.colorBorderSecondary};
-      font-size: 12px;
       text-align: start;
-      white-space: nowrap;
     }
 
     th {
-      color: ${token.colorTextTertiary};
-      font-weight: 500;
+      position: sticky;
+      z-index: 1;
+      inset-block-start: 0;
+
+      height: 56px;
+
+      color: ${token.colorText};
+      font-size: 16px;
+      font-weight: 800;
+
+      background: ${token.colorBgContainer};
+      box-shadow: inset 0 -1px ${token.colorBorderSecondary};
+      white-space: nowrap;
+    }
+
+    th:nth-child(2),
+    th:nth-child(3),
+    td:nth-child(2),
+    td:nth-child(3) {
+      text-align: end;
+    }
+
+    tbody tr:last-child td {
+      border-block-end: 0;
     }
   `,
   priceTablePanel: css`
-    overflow: hidden;
-    width: min(480px, 100%);
+    container: pricing-table / inline-size;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+    max-height: min(760px, 72vh);
     border: 1px solid ${token.colorBorderSecondary};
     border-radius: 8px;
     background: ${token.colorBgContainer};
+  `,
+  priceTableRate: css`
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+
+    min-width: 0;
+
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+  `,
+  priceTableUnit: css`
+    padding-block: 3px;
+    padding-inline: 8px;
+    border-radius: 5px;
+
+    color: ${token.colorTextSecondary};
+    font-size: 14px;
+    font-weight: 500;
+
+    background: ${token.colorFillQuaternary};
+  `,
+  priceTokenBadge: css`
+    margin-inline-start: 8px;
+    padding-block: 3px;
+    padding-inline: 8px;
+    border-radius: 5px;
+
+    color: ${token.colorTextSecondary};
+    font-size: 14px;
+    font-weight: 700;
+
+    background: ${token.colorFillQuaternary};
+  `,
+  pricingModelName: css`
+    min-width: 0;
+    overflow: hidden;
+
+    font-size: 17px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    @container pricing-table (width >= 760px) {
+      display: -webkit-box;
+      overflow: hidden;
+
+      text-overflow: initial;
+      white-space: normal;
+
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
   `,
   sectionTitle: css`
     font-size: 16px;
@@ -480,9 +780,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     font-size: 12px;
   `,
   toggleButton: css`
-    height: 36px;
+    height: 54px;
     border: 0 !important;
-    border-radius: 12px;
+    border-radius: 10px;
     color: ${token.colorTextSecondary};
     background: transparent !important;
     box-shadow: none !important;
@@ -503,6 +803,18 @@ const formatAmount = (amountCents: number, currency = 'CNY') =>
     minimumFractionDigits: 2,
   })}`;
 
+const formatCreditsPerMillionTokens = (credits: number) => {
+  const millions = credits / 1_000_000;
+
+  return `${Number(millions.toFixed(3))}M`;
+};
+
+const formatContextWindow = (tokens: number) => {
+  if (tokens >= 1_000_000) return `${tokens / 1_000_000}M`;
+
+  return `${Math.round(tokens / 1000)}K`;
+};
+
 const getPlanAccent = (planId: SubscriptionPlanId) => {
   if (planId === 'starter') return '#b56a32';
   if (planId === 'premium') return '#7f95a5';
@@ -515,15 +827,6 @@ const getPlanIcon = (planId: SubscriptionPlanId) => {
   if (planId === 'premium') return ZapIcon;
 
   return AtomIcon;
-};
-
-const getFallbackYearlyMeta = (planId: SubscriptionPlanId) => {
-  if (planId === 'starter')
-    return { monthlyEquivalent: '$9.9', originalYearly: '$118.8', yearlyDiscount: '23%' };
-  if (planId === 'premium')
-    return { monthlyEquivalent: '$19.9', originalYearly: '$238.8', yearlyDiscount: '20%' };
-
-  return { monthlyEquivalent: '$39.9', originalYearly: '$478.8', yearlyDiscount: '20%' };
 };
 
 const renderCompareValue = (
@@ -544,11 +847,16 @@ const Plans = memo(() => {
   const { data, isLoading } = useSubscriptionPlans();
   const { data: currentSubscription, isLoading: isCurrentSubscriptionLoading } =
     useCurrentSubscription();
+  const { data: textModelPricing = [] } = useTextModelPricing();
   const [channel, setChannel] = useState<PaymentChannel>('alipay');
   const [createdOrder, setCreatedOrder] = useState<CreatedSubscriptionOrder>();
   const [createOrderError, setCreateOrderError] = useState<string>();
   const [isCreatingOrder, setIsCreatingOrder] = useState<string>();
-  const [period, setPeriod] = useState<SubscriptionPeriod>('year');
+  const [mode, setMode] = useState<BillingMode>('year');
+  const [openOneTimePlanId, setOpenOneTimePlanId] = useState<SubscriptionPlanId>();
+  const [oneTimeDurations, setOneTimeDurations] = useState<
+    Partial<Record<SubscriptionPlanId, OneTimeDuration>>
+  >({});
 
   if ((isLoading && !data) || (isCurrentSubscriptionLoading && currentSubscription === undefined))
     return <Skeleton active paragraph={{ rows: 6 }} title={false} />;
@@ -568,13 +876,13 @@ const Plans = memo(() => {
     const planId = plan.id;
     if (!isSubscriptionPlanId(planId)) return [];
 
-    const yearlyMeta = getFallbackYearlyMeta(planId);
+    const priceMeta = DISPLAY_PRICE_META[planId];
 
     return [
       {
         accent: getPlanAccent(planId),
         action: getPlanAction(planId, Boolean(plan.purchasable)),
-        amountCents: plan.amountCents?.[period] ?? 0,
+        amountCents: plan.amountCents?.[mode === 'month' ? 'month' : 'year'] ?? 0,
         badge:
           planId === 'premium'
             ? t('billingNative.plans.pixel.badge.popular', 'Most Popular')
@@ -586,21 +894,36 @@ const Plans = memo(() => {
         ),
         icon: getPlanIcon(planId),
         id: planId,
-        monthlyEquivalent: yearlyMeta.monthlyEquivalent,
+        monthlyEquivalent: priceMeta.yearlyMonthly,
+        monthlyPrice: priceMeta.monthlyPrice,
         name: t(`plans.plan.${planId}.title`, plan.name),
-        originalYearly: yearlyMeta.originalYearly,
-        yearlyDiscount: yearlyMeta.yearlyDiscount,
+        oneTimeOptions: [...priceMeta.oneTimeOptions],
+        originalYearly: priceMeta.originalYearly,
+        yearlyDiscount: priceMeta.yearlyDiscount,
       },
     ];
   });
 
-  const handleCreateOrder = async (planId: SubscriptionPlanId, action: PlanAction) => {
+  const getSelectedOneTimeOption = (plan: HeroPlan) =>
+    plan.oneTimeOptions.find((option) => option.value === (oneTimeDurations[plan.id] ?? 'year')) ??
+    plan.oneTimeOptions.at(-1)!;
+
+  const getOrderPeriod = (plan: HeroPlan): SubscriptionPeriod => {
+    if (mode === 'month') return 'month';
+    if (mode === 'oneTime') return getSelectedOneTimeOption(plan).period;
+
+    return 'year';
+  };
+
+  const handleCreateOrder = async (plan: HeroPlan) => {
+    const { action, id: planId } = plan;
     if (action === 'availableAfterExpiry' || action === 'unavailable') return;
 
     setIsCreatingOrder(`${action}:${planId}`);
     setCreateOrderError(undefined);
 
     try {
+      const period = getOrderPeriod(plan);
       const result =
         action === 'purchase'
           ? await billingService.createSubscriptionOrder({ channel, period, planId })
@@ -628,6 +951,13 @@ const Plans = memo(() => {
     return t('billingNative.plans.purchaseUnavailable', 'Purchase unavailable');
   };
 
+  const getPrimaryActionLabel = (action: PlanAction) => {
+    if (mode === 'oneTime' && action === 'purchase')
+      return t('billingNative.plans.pixel.buyNow', 'Buy now');
+
+    return getActionLabel(action);
+  };
+
   const formatAllowance = (item: ModelAllowance, planId: SubscriptionPlanId) => {
     const amount =
       planId === 'starter' ? item.starter : planId === 'premium' ? item.premium : item.ultimate;
@@ -650,17 +980,15 @@ const Plans = memo(() => {
           <div className={styles.billingToggle}>
             <Button
               className={styles.toggleButton}
-              data-active={period === 'year'}
+              data-active={mode === 'year'}
               type={'text'}
-              onClick={() => setPeriod('year')}
+              onClick={() => setMode('year')}
             >
               {t('billingNative.plans.pixel.period.yearly', 'Yearly')}
               <Text
                 as={'span'}
+                className={styles.discountBadge}
                 style={{
-                  background: 'rgb(236 253 236)',
-                  borderRadius: 5,
-                  color: '#28a745',
                   marginInlineStart: 8,
                   paddingBlock: 2,
                   paddingInline: 6,
@@ -671,151 +999,292 @@ const Plans = memo(() => {
             </Button>
             <Button
               className={styles.toggleButton}
-              data-active={period === 'month'}
+              data-active={mode === 'month'}
               type={'text'}
-              onClick={() => setPeriod('month')}
+              onClick={() => setMode('month')}
             >
               {t('billingNative.plans.pixel.period.monthly', 'Monthly')}
             </Button>
-            <Flexbox horizontal className={styles.paymentBadge}>
-              <span>{t('billingNative.plans.pixel.payOnce', 'One-time')}</span>
-              <button
-                aria-label={t('billingNative.paymentChannel.alipay', 'Alipay')}
-                className={styles.channelIcon}
-                style={{ background: '#14a8f5' }}
-                type="button"
-                onClick={() => setChannel('alipay')}
-              >
-                {t('billingNative.plans.pixel.payment.alipayMark', 'Ali')}
-              </button>
-              <button
-                aria-label={t('billingNative.paymentChannel.wechat', 'WeChat Pay')}
-                className={styles.channelIcon}
-                style={{ background: '#08bf22' }}
-                type="button"
-                onClick={() => setChannel('wechat')}
-              >
-                ✓
-              </button>
+            <Flexbox
+              horizontal
+              className={styles.toggleButton}
+              data-active={mode === 'oneTime'}
+              role="button"
+              tabIndex={0}
+              onClick={() => setMode('oneTime')}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') setMode('oneTime');
+              }}
+            >
+              <Flexbox horizontal className={styles.paymentBadge}>
+                <span>{t('billingNative.plans.pixel.payOnce', 'One-time')}</span>
+                <button
+                  aria-label={t('billingNative.paymentChannel.alipay', 'Alipay')}
+                  className={styles.channelIcon}
+                  style={{ background: '#14a8f5' }}
+                  type="button"
+                  onClick={() => setChannel('alipay')}
+                >
+                  {t('billingNative.plans.pixel.payment.alipayMark', 'Ali')}
+                </button>
+                <button
+                  aria-label={t('billingNative.paymentChannel.wechat', 'WeChat Pay')}
+                  className={styles.channelIcon}
+                  style={{ background: '#08bf22' }}
+                  type="button"
+                  onClick={() => setChannel('wechat')}
+                >
+                  ✓
+                </button>
+              </Flexbox>
             </Flexbox>
           </div>
         </Flexbox>
       </Flexbox>
 
       <div className={styles.heroCards}>
-        {planCards.map((plan) => (
-          <Flexbox className={styles.heroCard} gap={22} key={plan.id}>
-            <Flexbox gap={14}>
-              <Flexbox horizontal align={'center'} justify={'space-between'}>
-                <Flexbox
-                  align={'center'}
-                  className={styles.iconBadge}
-                  justify={'center'}
-                  style={{ background: plan.accent, color: '#fff' }}
-                >
-                  <Icon icon={plan.icon} size={22} />
-                </Flexbox>
-                {plan.badge ? (
-                  <Text
-                    as={'span'}
-                    style={{
-                      border: '1px solid rgb(255 231 186 / 72%)',
-                      borderRadius: 999,
-                      color: '#fa8c16',
-                      paddingBlock: 4,
-                      paddingInline: 12,
-                    }}
+        {planCards.map((plan) => {
+          const selectedOneTimeOption = getSelectedOneTimeOption(plan);
+          const isOneTimeMenuOpen = openOneTimePlanId === plan.id;
+
+          return (
+            <Flexbox className={styles.heroCard} gap={0} key={plan.id}>
+              <Flexbox className={styles.planIntro} gap={0}>
+                <Flexbox horizontal align={'center'} justify={'space-between'}>
+                  <Flexbox
+                    align={'center'}
+                    className={styles.iconBadge}
+                    justify={'center'}
+                    style={{ background: plan.accent, color: '#fff' }}
                   >
-                    {plan.badge}
-                  </Text>
-                ) : null}
-              </Flexbox>
-              <Flexbox>
-                <Text className={styles.planName}>{plan.name}</Text>
-                <Text color={cssVar.colorTextSecondary} fontSize={15}>
-                  {plan.desc}
-                </Text>
-              </Flexbox>
-              <Flexbox>
-                <Text className={styles.price}>
-                  {period === 'year'
-                    ? plan.monthlyEquivalent
-                    : formatAmount(plan.amountCents).replace('CNY ', '¥')}
-                  <Text as={'span'} fontSize={15} weight={600}>
-                    {' '}
-                    {t(
-                      period === 'year'
-                        ? 'billingNative.plans.pixel.price.perMonthYearly'
-                        : 'billingNative.plans.pixel.price.perMonth',
-                    )}
-                  </Text>
-                </Text>
-                {period === 'year' ? (
-                  <Flexbox horizontal align={'center'} gap={8}>
-                    <Text className={styles.priceCaption}>
-                      {t('billingNative.plans.pixel.price.perYear', {
-                        price: plan.originalYearly,
-                      })}
-                    </Text>
+                    <Icon icon={plan.icon} size={22} />
+                  </Flexbox>
+                  {plan.badge ? (
                     <Text
                       as={'span'}
                       style={{
-                        background: 'rgb(236 253 236)',
-                        borderRadius: 5,
-                        color: '#28a745',
-                        paddingBlock: 2,
-                        paddingInline: 7,
+                        border: '1px solid rgb(255 231 186 / 72%)',
+                        borderRadius: 999,
+                        color: '#fa8c16',
+                        paddingBlock: 4,
+                        paddingInline: 12,
                       }}
                     >
-                      {t('billingNative.plans.pixel.discount.short', {
-                        percent: plan.yearlyDiscount,
-                      })}
+                      {plan.badge}
                     </Text>
-                  </Flexbox>
-                ) : null}
-              </Flexbox>
-              <Button
-                className={styles.planButton}
-                disabled={plan.action === 'availableAfterExpiry' || plan.action === 'unavailable'}
-                loading={isCreatingOrder === `${plan.action}:${plan.id}`}
-                type={'primary'}
-                onClick={() => void handleCreateOrder(plan.id, plan.action)}
-              >
-                {getActionLabel(plan.action)}
-              </Button>
-            </Flexbox>
-
-            <Flexbox gap={16}>
-              <Flexbox gap={4}>
-                <Flexbox horizontal align={'center'} gap={5}>
-                  <Text color={cssVar.colorTextSecondary} fontSize={15}>
-                    {t('plans.credit.title', 'Credits')}
-                  </Text>
-                  <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={14} />
+                  ) : null}
                 </Flexbox>
-                <Text fontSize={16}>
-                  {t('billingNative.plans.pixel.perMonthAmount', {
-                    amount: formatNumber(plan.credits),
-                  })}
-                </Text>
+                <Flexbox>
+                  <Text className={styles.planName}>{plan.name}</Text>
+                  <Text color={cssVar.colorTextSecondary} fontSize={15}>
+                    {plan.desc}
+                  </Text>
+                </Flexbox>
               </Flexbox>
-              {MODEL_ALLOWANCES.slice(0, 4).map((item) => (
-                <div className={styles.allowanceItem} key={`${plan.id}-${item.name}`}>
-                  <Icon color="#2ba84a" icon={CheckIcon} size={14} />
-                  <Flexbox gap={4}>
-                    <Flexbox horizontal align={'center'} gap={5}>
-                      <Text color={cssVar.colorTextSecondary} fontSize={15}>
-                        {item.name}
-                      </Text>
-                      <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={13} />
+
+              <Flexbox className={styles.planPurchase}>
+                {mode === 'oneTime' ? (
+                  <Flexbox gap={14}>
+                    <div className={styles.oneTimeSelect}>
+                      <button
+                        aria-expanded={isOneTimeMenuOpen}
+                        className={styles.oneTimeSelectButton}
+                        type="button"
+                        onBlur={(event) => {
+                          if (!event.currentTarget.parentElement?.contains(event.relatedTarget)) {
+                            setOpenOneTimePlanId(undefined);
+                          }
+                        }}
+                        onClick={() =>
+                          setOpenOneTimePlanId(isOneTimeMenuOpen ? undefined : plan.id)
+                        }
+                      >
+                        <span className={styles.priceLine}>
+                          <Text as={'span'} fontSize={17} weight={800}>
+                            {selectedOneTimeOption.price}
+                          </Text>
+                          <Text as={'span'} fontSize={14} weight={600}>
+                            / {t(selectedOneTimeOption.labelKey)}
+                          </Text>
+                          {selectedOneTimeOption.discount ? (
+                            <Text
+                              as={'span'}
+                              className={styles.discountBadge}
+                              fontSize={12}
+                              style={{ paddingBlock: 2, paddingInline: 6 }}
+                            >
+                              {t('billingNative.plans.pixel.discount.short', {
+                                percent: selectedOneTimeOption.discount,
+                              })}
+                            </Text>
+                          ) : null}
+                        </span>
+                        <Icon color={cssVar.colorTextTertiary} icon={ChevronDownIcon} size={14} />
+                      </button>
+                      {isOneTimeMenuOpen ? (
+                        <div className={styles.oneTimeSelectMenu}>
+                          {plan.oneTimeOptions.map((option) => (
+                            <button
+                              className={styles.oneTimeSelectOption}
+                              data-active={option.value === selectedOneTimeOption.value}
+                              key={option.value}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                setOneTimeDurations((prev) => ({
+                                  ...prev,
+                                  [plan.id]: option.value,
+                                }));
+                                setOpenOneTimePlanId(undefined);
+                              }}
+                            >
+                              <span className={styles.priceLine}>
+                                <Text as={'span'} fontSize={17} weight={800}>
+                                  {option.price}
+                                </Text>
+                                <Text as={'span'} fontSize={14} weight={600}>
+                                  / {t(option.labelKey)}
+                                </Text>
+                                {option.discount ? (
+                                  <Text
+                                    as={'span'}
+                                    className={styles.discountBadge}
+                                    fontSize={12}
+                                    style={{ paddingBlock: 2, paddingInline: 6 }}
+                                  >
+                                    {t('billingNative.plans.pixel.discount.short', {
+                                      percent: option.discount,
+                                    })}
+                                  </Text>
+                                ) : null}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <Flexbox horizontal align={'center'} className={styles.oneTimePayment} gap={4}>
+                      {t(
+                        'billingNative.plans.pixel.payment.supports',
+                        'Supports credit card / Alipay / WeChat Pay',
+                      )}
+                      <span className={styles.channelIcon} style={{ background: '#14a8f5' }}>
+                        {t('billingNative.plans.pixel.payment.alipayMark', 'Ali')}
+                      </span>
+                      <span className={styles.channelIcon} style={{ background: '#08bf22' }}>
+                        ✓
+                      </span>
                     </Flexbox>
-                    <Text fontSize={15}>{formatAllowance(item, plan.id)}</Text>
                   </Flexbox>
+                ) : (
+                  <Flexbox>
+                    <Text className={styles.price}>
+                      {mode === 'year' ? plan.monthlyEquivalent : plan.monthlyPrice}
+                      <Text as={'span'} fontSize={14} weight={600}>
+                        {' '}
+                        {t(
+                          mode === 'year'
+                            ? 'billingNative.plans.pixel.price.perMonthYearly'
+                            : 'billingNative.plans.pixel.price.perMonth',
+                        )}
+                      </Text>
+                    </Text>
+                    {mode === 'year' ? (
+                      <Flexbox horizontal align={'center'} gap={8}>
+                        <Text className={styles.priceCaption}>
+                          {t('billingNative.plans.pixel.price.perYear', {
+                            price: plan.originalYearly,
+                          })}
+                        </Text>
+                        <Text
+                          as={'span'}
+                          className={styles.discountBadge}
+                          style={{
+                            paddingBlock: 2,
+                            paddingInline: 7,
+                          }}
+                        >
+                          {t('billingNative.plans.pixel.discount.short', {
+                            percent: plan.yearlyDiscount,
+                          })}
+                        </Text>
+                      </Flexbox>
+                    ) : null}
+                  </Flexbox>
+                )}
+                <div className={styles.buttonSlot}>
+                  <Button
+                    className={styles.planButton}
+                    loading={isCreatingOrder === `${plan.action}:${plan.id}`}
+                    type={'primary'}
+                    disabled={
+                      plan.action === 'availableAfterExpiry' || plan.action === 'unavailable'
+                    }
+                    onClick={() => void handleCreateOrder(plan)}
+                  >
+                    {getPrimaryActionLabel(plan.action)}
+                  </Button>
                 </div>
-              ))}
+              </Flexbox>
+
+              <Flexbox className={styles.benefits} gap={15}>
+                <Flexbox gap={4}>
+                  <Flexbox horizontal align={'center'} gap={5}>
+                    <Text color={cssVar.colorTextSecondary} fontSize={15}>
+                      {t('plans.credit.title', 'Credits')}
+                    </Text>
+                    <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={14} />
+                  </Flexbox>
+                  <Text fontSize={16}>
+                    {t('billingNative.plans.pixel.perMonthAmount', {
+                      amount: formatNumber(plan.credits),
+                    })}
+                  </Text>
+                </Flexbox>
+                {MODEL_ALLOWANCES.slice(0, 4).map((item) => (
+                  <div className={styles.allowanceItem} key={`${plan.id}-${item.name}`}>
+                    <Icon color="#2ba84a" icon={CheckIcon} size={14} />
+                    <Flexbox gap={4}>
+                      <Flexbox horizontal align={'center'} gap={5}>
+                        <Text color={cssVar.colorTextSecondary} fontSize={15}>
+                          {item.name}
+                        </Text>
+                        <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={13} />
+                      </Flexbox>
+                      <Text fontSize={15}>{formatAllowance(item, plan.id)}</Text>
+                    </Flexbox>
+                  </div>
+                ))}
+                <div className={styles.allowanceItem}>
+                  <Icon color="#2ba84a" icon={CheckIcon} size={14} />
+                  <Text color={cssVar.colorTextSecondary} fontSize={15}>
+                    {t('plans.message.more', 'More models in plan comparison')}
+                  </Text>
+                </div>
+                {PLAN_FEATURE_GROUPS.map((group) => (
+                  <Flexbox className={styles.benefitGroup} key={group.titleKey}>
+                    <Flexbox horizontal align={'center'} gap={5}>
+                      <Text className={styles.benefitGroupTitle}>{t(group.titleKey)}</Text>
+                      {group.tooltip ? (
+                        <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={14} />
+                      ) : null}
+                    </Flexbox>
+                    {group.itemKeys.map((itemKey) => (
+                      <div className={styles.benefitItem} key={itemKey}>
+                        <Icon color="#2ba84a" icon={CheckIcon} size={14} />
+                        <Text>{t(itemKey)}</Text>
+                      </div>
+                    ))}
+                  </Flexbox>
+                ))}
+                <Flexbox className={styles.benefitGroup}>
+                  <Text className={styles.benefitGroupTitle}>{t('plans.support.title')}</Text>
+                  <Text className={styles.supportText}>{t(PLAN_SUPPORT_KEYS[plan.id])}</Text>
+                </Flexbox>
+              </Flexbox>
             </Flexbox>
-          </Flexbox>
-        ))}
+          );
+        })}
       </div>
 
       {createOrderError ? (
@@ -853,55 +1322,63 @@ const Plans = memo(() => {
         </Flexbox>
       ) : null}
 
-      <Flexbox horizontal align={'flex-start'} gap={44} wrap={'wrap'}>
+      <div className={styles.priceLayout}>
         <Flexbox flex={1} gap={12} style={{ minWidth: 280 }}>
-          <Text className={styles.sectionTitle}>{t('modelPricing.title')}</Text>
-          <Text color={cssVar.colorTextSecondary} fontSize={12}>
+          <Text className={styles.priceSectionTitle}>{t('modelPricing.title')}</Text>
+          <Text color={cssVar.colorTextSecondary} fontSize={18} style={{ lineHeight: 1.6 }}>
             {t('modelPricing.desc', { name: CLOUD_NAME })}
           </Text>
-          <Button className={styles.supportButton}>{t('modelPricing.button')}</Button>
+          <Button className={styles.priceDocsButton}>{t('modelPricing.button')}</Button>
         </Flexbox>
         <div className={styles.priceTablePanel}>
           <table className={styles.priceTable}>
+            <colgroup>
+              <col style={{ width: '52%' }} />
+              <col style={{ width: '24%' }} />
+              <col style={{ width: '24%' }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>{t('models.title')}</th>
-                <th>{t('models.input')}</th>
-                <th>{t('models.output')}</th>
+                <th>
+                  {t('models.input')}
+                  <span className={styles.priceTokenBadge}>{t('modelPricing.perMillionTokens')}</span>
+                </th>
+                <th>
+                  {t('models.output')}
+                  <span className={styles.priceTokenBadge}>{t('modelPricing.perMillionTokens')}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {MODEL_PRICE_ROWS.map(([name, input, output], index) => (
-                <tr key={name}>
+              {textModelPricing.map((item) => (
+                <tr key={item.id}>
                   <td>
-                    <Flexbox horizontal align={'center'} gap={8}>
-                      <span
-                        className={styles.modelIcon}
-                        data-kind={
-                          index < 2
-                            ? 'deepseek'
-                            : name.includes('Claude')
-                              ? 'claude'
-                              : name.includes('GPT')
-                                ? 'gpt'
-                                : name.includes('Gemini')
-                                  ? 'gemini'
-                                  : name.includes('Nano')
-                                    ? 'nano'
-                                    : 'seedream'
-                        }
-                      />
-                      {name}
+                    <Flexbox horizontal align={'center'} gap={16}>
+                      <ModelIcon model={item.model} size={28} type={'avatar'} />
+                      <Text className={styles.pricingModelName}>
+                        {item.displayName} ({formatContextWindow(item.contextWindowTokens)})
+                      </Text>
                     </Flexbox>
                   </td>
-                  <td>{input}</td>
-                  <td>{output}</td>
+                  <td>
+                    <span className={styles.priceTableRate}>
+                      {formatCreditsPerMillionTokens(item.inputCreditsPerMillionTokens)}
+                      <span className={styles.priceTableUnit}>{t('billingNative.billing.creditsUnit')}</span>
+                    </span>
+                  </td>
+                  <td>
+                    <span className={styles.priceTableRate}>
+                      {formatCreditsPerMillionTokens(item.outputCreditsPerMillionTokens)}
+                      <span className={styles.priceTableUnit}>{t('billingNative.billing.creditsUnit')}</span>
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </Flexbox>
+      </div>
 
       <Flexbox gap={18}>
         <Text className={styles.sectionTitle}>{t('compare.title')}</Text>
@@ -935,7 +1412,7 @@ const Plans = memo(() => {
                   disabled={plan.action === 'availableAfterExpiry' || plan.action === 'unavailable'}
                   size={'small'}
                   type={'primary'}
-                  onClick={() => void handleCreateOrder(plan.id, plan.action)}
+                  onClick={() => void handleCreateOrder(plan)}
                 >
                   {getActionLabel(plan.action)}
                 </Button>

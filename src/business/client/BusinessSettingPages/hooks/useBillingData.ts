@@ -31,6 +31,9 @@ export const useBillingOrder = (orderId?: string) =>
 export const useSubscriptionPlans = () =>
   useSWR('billing.subscription.plans', () => billingService.listSubscriptionPlans());
 
+export const useTextModelPricing = () =>
+  useSWR('billing.subscription.textModelPricing', () => billingService.listTextModelPricing());
+
 export const useCurrentSubscription = () =>
   useSWR('billing.subscription.current', () => billingService.getCurrentSubscription(), {
     refreshInterval: 30_000,

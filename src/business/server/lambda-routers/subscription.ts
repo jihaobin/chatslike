@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { BillingOrderService } from '@/business/server/billing/orders';
+import { listPublicTextModelPricingRows } from '@/business/server/billing/pricing';
 import {
   getCurrentSubscription,
   listSubscriptionPlans,
@@ -57,4 +58,6 @@ export const subscriptionRouter = router({
   ),
 
   listPlans: authedProcedure.query(() => listSubscriptionPlans()),
+
+  listTextModelPricing: authedProcedure.query(() => listPublicTextModelPricingRows()),
 });

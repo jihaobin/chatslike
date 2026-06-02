@@ -8,6 +8,7 @@ const {
   createSubscriptionOrder,
   createUpgradeOrder,
   getCurrentSubscription,
+  listPublicTextModelPricingRows,
   listSubscriptionPlans,
   mockDb,
 } = vi.hoisted(() => ({
@@ -15,6 +16,7 @@ const {
   createSubscriptionOrder: vi.fn(),
   createUpgradeOrder: vi.fn(),
   getCurrentSubscription: vi.fn(),
+  listPublicTextModelPricingRows: vi.fn(),
   listSubscriptionPlans: vi.fn(),
   mockDb: {},
 }));
@@ -26,6 +28,10 @@ vi.mock('@/database/core/db-adaptor', () => ({
 vi.mock('@/business/server/billing/subscriptions', () => ({
   getCurrentSubscription,
   listSubscriptionPlans,
+}));
+
+vi.mock('@/business/server/billing/pricing', () => ({
+  listPublicTextModelPricingRows,
 }));
 
 vi.mock('@/business/server/billing/orders', () => ({
@@ -42,6 +48,7 @@ describe('subscriptionRouter', () => {
     createSubscriptionOrder.mockReset();
     createUpgradeOrder.mockReset();
     getCurrentSubscription.mockReset();
+    listPublicTextModelPricingRows.mockReset();
     listSubscriptionPlans.mockReset();
   });
 
@@ -62,6 +69,33 @@ describe('subscriptionRouter', () => {
         id: 'starter',
         priceSource: 'temporary_test',
         purchasable: true,
+      },
+    ]);
+  });
+
+  it('lists text model pricing rows', async () => {
+    listPublicTextModelPricingRows.mockReturnValue([
+      {
+        contextWindowTokens: 1_000_000,
+        displayName: 'DeepSeek V4 Pro',
+        id: 'text:deepseek-v4-pro',
+        inputCreditsPerMillionTokens: 435_000,
+        model: 'deepseek-v4-pro',
+        outputCreditsPerMillionTokens: 870_000,
+        provider: 'deepseek',
+      },
+    ]);
+    const caller = subscriptionRouter.createCaller({ userId: 'user-1' });
+
+    await expect(caller.listTextModelPricing()).resolves.toEqual([
+      {
+        contextWindowTokens: 1_000_000,
+        displayName: 'DeepSeek V4 Pro',
+        id: 'text:deepseek-v4-pro',
+        inputCreditsPerMillionTokens: 435_000,
+        model: 'deepseek-v4-pro',
+        outputCreditsPerMillionTokens: 870_000,
+        provider: 'deepseek',
       },
     ]);
   });

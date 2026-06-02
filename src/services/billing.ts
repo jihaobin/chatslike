@@ -93,6 +93,8 @@ class BillingService {
 
   listSubscriptionPlans = async () => lambdaClient.subscription.listPlans.query();
 
+  listTextModelPricing = async () => lambdaClient.subscription.listTextModelPricing.query();
+
   listUsageRecords = async (params?: BillingListParams) =>
     lambdaClient.spend.listUsageRecords.query(params);
 }
