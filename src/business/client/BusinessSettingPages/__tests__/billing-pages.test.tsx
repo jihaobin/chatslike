@@ -6,7 +6,12 @@ vi.mock('@lobechat/const', () => ({
   isDesktop: true,
 }));
 
+vi.mock('@lobehub/icons', () => ({
+  ModelIcon: ({ model }: { model?: string }) => <span data-testid={`model-icon-${model}`} />,
+}));
+
 const translationFallbacks: Record<string, string> = {
+  'billingNative.billing.creditsUnit': 'Credits',
   'billingNative.plans.pixel.discount.max': 'Up to {{percent}} off',
   'billingNative.plans.pixel.discount.short': 'Save {{percent}}',
   'billingNative.plans.pixel.perMonthAmount': '{{amount}} / month',
@@ -15,6 +20,7 @@ const translationFallbacks: Record<string, string> = {
   'billingNative.plans.pixel.price.perYear': '{{price}} / year',
   'billingNative.admin.tabs.platform-models': 'Platform Models',
   'compare.title': 'Plan Comparison',
+  'modelPricing.perMillionTokens': '1M Tokens',
   'modelPricing.title': 'Text Model Pricing',
 };
 
@@ -415,6 +421,20 @@ vi.mock('../hooks/useBillingData', () => ({
     ],
     isLoading: false,
   }),
+  useTextModelPricing: () => ({
+    data: [
+      {
+        contextWindowTokens: 1_000_000,
+        displayName: 'DeepSeek V4 Pro',
+        id: 'text:deepseek-v4-pro',
+        inputCreditsPerMillionTokens: 435_000,
+        model: 'deepseek-v4-pro',
+        outputCreditsPerMillionTokens: 870_000,
+        provider: 'deepseek',
+      },
+    ],
+    isLoading: false,
+  }),
   useBillingUsageRecords: () => ({
     data: { items: [] },
     isLoading: false,
@@ -586,6 +606,9 @@ describe('Business billing pages', () => {
     expect(screen.getAllByText('Ultimate').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/5,000,000/).length).toBeGreaterThan(0);
     expect(screen.getByText('Text Model Pricing')).toBeInTheDocument();
+    expect(screen.getByText('DeepSeek V4 Pro (1M)')).toBeInTheDocument();
+    expect(screen.getByText('0.435M')).toBeInTheDocument();
+    expect(screen.getByText('0.87M')).toBeInTheDocument();
     expect(screen.getByText('Plan Comparison')).toBeInTheDocument();
     expect(screen.getByText('FAQ')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Purchase' })[0]).toBeEnabled();
