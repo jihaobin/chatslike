@@ -12,6 +12,7 @@ import {
   nativeReferralAdapter,
   nativeShareAdapter,
   platformModelRuntimeAdapter,
+  userModelProviderSettingsAdapter,
 } from '..';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -90,6 +91,39 @@ describe('commercial adapter capabilities', () => {
         platformHostedModels: { enabled: false },
       }),
     ).toEqual({ enabled: false, reason: 'platform_hosted_models_disabled' });
+  });
+
+  it('disables user model provider settings in platform model only mode', () => {
+    const config = {
+      commercial: { enabled: true },
+      lobeHubCloudIntegration: { enabled: false },
+      nativeBilling: { enabled: true },
+      platformHostedModels: { enabled: true },
+    };
+
+    expect(userModelProviderSettingsAdapter.getCapability(config)).toEqual({
+      enabled: false,
+      reason: 'platform_model_only',
+    });
+    expect(userModelProviderSettingsAdapter.canUseUserProviderSettings(config)).toBe(false);
+    expect(userModelProviderSettingsAdapter.canWriteModelProviderKeyVaults(config)).toBe(false);
+    expect(userModelProviderSettingsAdapter.canUseCustomModelProviders(config)).toBe(false);
+    expect(userModelProviderSettingsAdapter.isPlatformModelOnly(config)).toBe(true);
+  });
+
+  it('keeps user model provider settings available outside platform model only mode', () => {
+    const config = {
+      commercial: { enabled: false },
+      lobeHubCloudIntegration: { enabled: false },
+      nativeBilling: { enabled: false },
+      platformHostedModels: { enabled: false },
+    };
+
+    expect(userModelProviderSettingsAdapter.getCapability(config)).toEqual({ enabled: true });
+    expect(userModelProviderSettingsAdapter.canUseUserProviderSettings(config)).toBe(true);
+    expect(userModelProviderSettingsAdapter.canWriteModelProviderKeyVaults(config)).toBe(true);
+    expect(userModelProviderSettingsAdapter.canUseCustomModelProviders(config)).toBe(true);
+    expect(userModelProviderSettingsAdapter.isPlatformModelOnly(config)).toBe(false);
   });
 
   it('types adapter capability as a discriminated union', () => {

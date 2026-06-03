@@ -71,6 +71,23 @@ describe('createCommonSlice', () => {
     });
   });
 
+  describe('verifyPhoneForTrial', () => {
+    it('should verify phone and refresh user state', async () => {
+      const { result } = renderHook(() => useUserStore());
+      const spyOn = vi.spyOn(result.current, 'refreshUserState');
+      const verifyPhoneSpy = vi
+        .spyOn(userService, 'verifyPhoneForTrial')
+        .mockResolvedValue({ phoneNumberVerified: true } as any);
+
+      await act(async () => {
+        await result.current.verifyPhoneForTrial('+8613800000000');
+      });
+
+      expect(verifyPhoneSpy).toHaveBeenCalledWith('+8613800000000');
+      expect(spyOn).toHaveBeenCalled();
+    });
+  });
+
   describe('useInitUserState', () => {
     const mockServerConfig = {
       defaultAgent: 'agent1',
@@ -112,6 +129,8 @@ describe('createCommonSlice', () => {
           general: { fontSize: 14, timezone: 'America/New_York' },
         },
         email: 'test@example.com',
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
       };
 
       vi.spyOn(userService, 'getUserState').mockResolvedValueOnce(mockUserState);
@@ -140,6 +159,10 @@ describe('createCommonSlice', () => {
         }),
       );
       expect(useUserStore.getState().user?.email).toEqual(mockUserState.email);
+      expect(useUserStore.getState().user?.phone).toEqual(mockUserState.phone);
+      expect(useUserStore.getState().user?.phoneNumberVerified).toEqual(
+        mockUserState.phoneNumberVerified,
+      );
       expect(successCallback).toHaveBeenCalledWith(mockUserState);
     });
 

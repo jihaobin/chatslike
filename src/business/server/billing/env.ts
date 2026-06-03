@@ -3,12 +3,13 @@ export interface BillingRuntimeEnv extends Record<string, number | string | unde
   ALIPAY_NOTIFY_URL?: string;
   ALIPAY_PRIVATE_KEY?: string;
   ALIPAY_PUBLIC_KEY?: string;
-  BILLING_FREE_DAILY_LIMIT?: number | string;
   BILLING_ALLOW_MOCK_PAYMENTS?: string;
+  BILLING_FREE_DAILY_LIMIT?: number | string;
   BILLING_PAID_DAILY_LIMIT?: number | string;
   BILLING_TRIAL_CREDITS?: number | string;
   BILLING_TRIAL_VALID_DAYS?: number | string;
   NEXT_PUBLIC_ENABLE_PLATFORM_BILLING?: string;
+  NODE_ENV?: string;
   WECHAT_PAY_API_V3_KEY?: string;
   WECHAT_PAY_APP_ID?: string;
   WECHAT_PAY_MCH_ID?: string;
@@ -37,6 +38,7 @@ export const getBillingEnv = (env: BillingRuntimeEnv = process.env) => ({
     privateKey: env.ALIPAY_PRIVATE_KEY,
     publicKey: env.ALIPAY_PUBLIC_KEY,
   },
+  allowMockPayments: env.NODE_ENV !== 'production' && env.BILLING_ALLOW_MOCK_PAYMENTS === '1',
   enabled: env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING === '1',
   limits: {
     freeDailyCredits: parsePositiveInteger(env.BILLING_FREE_DAILY_LIMIT, DEFAULT_FREE_DAILY_LIMIT),

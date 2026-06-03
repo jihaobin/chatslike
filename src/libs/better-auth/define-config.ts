@@ -9,6 +9,7 @@ import { verifyPassword as defaultVerifyPassword } from 'better-auth/crypto';
 import { type BetterAuthOptions } from 'better-auth/minimal';
 import { betterAuth } from 'better-auth/minimal';
 import { admin, emailOTP, genericOAuth, magicLink } from 'better-auth/plugins';
+import { defaultRoles } from 'better-auth/plugins/admin/access';
 import { type BetterAuthPlugin } from 'better-auth/types';
 import { emailHarmony } from 'better-auth-harmony';
 import { validateEmail } from 'better-auth-harmony/email';
@@ -16,6 +17,7 @@ import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 import { businessEmailValidator } from '@/business/server/better-auth';
 import { onBusinessUserPhoneVerified } from '@/business/server/user';
+import { SUPER_ADMIN_ROLE } from '@/const/authRoles';
 import { appEnv } from '@/envs/app';
 import { authEnv } from '@/envs/auth';
 import {
@@ -279,7 +281,13 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
       emailWhitelist(),
       expo(),
       emailHarmony({ allowNormalizedSignin: false, validator: customEmailValidator }),
-      admin(),
+      admin({
+        adminRoles: [SUPER_ADMIN_ROLE],
+        roles: {
+          [SUPER_ADMIN_ROLE]: defaultRoles.admin,
+          user: defaultRoles.user,
+        },
+      }),
       // Email OTP plugin for mobile verification
       emailOTP({
         expiresIn: OTP_EXPIRES_IN,

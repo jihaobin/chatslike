@@ -20,6 +20,7 @@ import { ModelProvider } from 'model-bank';
 
 import { assertPlatformHostedProviderConfigured } from '@/business/server/billing/platformModels';
 import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
+import { NEWAPI_PROVIDER_ID } from '@/business/server/platformCatalog/constants';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AiProviderModel } from '@/database/models/aiProvider';
 import { type LobeChatDatabase } from '@/database/type';
@@ -410,17 +411,17 @@ export const initModelRuntimeFromDB = async (
   // Commercial cloud mode uses platform-hosted model credentials only.
   // OSS/self-hosted mode keeps the existing user keyVault path below.
   if (commercialRuntime.platformHostedModels.enabled) {
-    assertPlatformHostedProviderConfigured(provider, getLLMConfig());
+    assertPlatformHostedProviderConfigured(NEWAPI_PROVIDER_ID, getLLMConfig());
 
     const businessHooks = commercialRuntime.nativeBilling.enabled
-      ? getBusinessModelRuntimeHooks(userId, provider)
+      ? getBusinessModelRuntimeHooks(userId, NEWAPI_PROVIDER_ID)
       : undefined;
-    const tracingHooks = createLLMGenerationTracingHook(userId, provider);
+    const tracingHooks = createLLMGenerationTracingHook(userId, NEWAPI_PROVIDER_ID);
     const hooks = mergeModelRuntimeHooks(businessHooks, tracingHooks);
 
     return initModelRuntimeWithUserPayload(
-      provider,
-      { runtimeProvider: provider },
+      NEWAPI_PROVIDER_ID,
+      { runtimeProvider: NEWAPI_PROVIDER_ID },
       { userId },
       hooks,
     );

@@ -130,10 +130,9 @@ describe('getBusinessModelRuntimeHooks', () => {
     const hooks = getBusinessModelRuntimeHooks('user-1', 'openai');
 
     await hooks?.beforeChat?.(payload);
-    await hooks?.onChatError?.(
-      { message: 'provider failed' } as ChatCompletionErrorPayload,
-      { payload },
-    );
+    await hooks?.onChatError?.({ message: 'provider failed' } as ChatCompletionErrorPayload, {
+      payload,
+    });
 
     expect(releaseUsageCredits).toHaveBeenCalledWith(
       expect.objectContaining({

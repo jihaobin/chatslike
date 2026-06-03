@@ -2,6 +2,7 @@
 
 import { Button, Flexbox, Icon, Skeleton, Text } from '@lobehub/ui';
 import { createStaticStyles, cssVar } from 'antd-style';
+import type { LucideIcon } from 'lucide-react';
 import {
   AtomIcon,
   CheckIcon,
@@ -11,7 +12,7 @@ import {
   SparklesIcon,
   ZapIcon,
 } from 'lucide-react';
-import type { ElementType } from 'react';
+import type { ReactNode } from 'react';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -46,7 +47,7 @@ interface HeroPlan {
   badge?: string;
   credits: number;
   desc: string;
-  icon: ElementType;
+  icon: LucideIcon;
   id: SubscriptionPlanId;
   monthlyEquivalent: string;
   name: string;
@@ -61,6 +62,11 @@ interface ModelAllowance {
   premium: string;
   starter: string;
   ultimate: string;
+}
+
+interface TranslateString {
+  (key: string, fallback: string): unknown;
+  (key: string, fallback: string, values: Record<string, string>): unknown;
 }
 
 const PLAN_RANK = {
@@ -233,9 +239,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   `,
   answer: css`
     max-width: 640px;
-    color: ${token.colorTextSecondary};
     font-size: 12px;
     line-height: 1.7;
+    color: ${token.colorTextSecondary};
   `,
   billingToggle: css`
     display: grid;
@@ -291,6 +297,7 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     inset-block-start: 0;
 
     padding-block: 0 12px;
+
     background: ${token.colorBgLayout};
   `,
   compareHeaderCard: css`
@@ -402,6 +409,7 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     max-width: 1320px;
     margin-inline: auto;
     padding-block: 28px 88px;
+
     color: ${token.colorText};
   `,
   pageDivider: css`
@@ -412,14 +420,16 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   paymentBadge: css`
     gap: 6px;
     align-items: center;
-    color: ${token.colorTextSecondary};
     font-size: 15px;
+    color: ${token.colorTextSecondary};
   `,
   planButton: css`
     height: 40px;
     border-radius: 8px;
+
     font-size: 15px;
     font-weight: 700;
+
     background: #1f1f1f !important;
     box-shadow: none !important;
 
@@ -440,33 +450,36 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     letter-spacing: 0;
   `,
   priceCaption: css`
-    color: ${token.colorTextSecondary};
     font-size: 14px;
+    color: ${token.colorTextSecondary};
   `,
   priceTable: css`
-    width: 100%;
     border-collapse: collapse;
+    width: 100%;
 
     th,
     td {
       height: 34px;
       padding-inline: 10px;
       border-block-end: 1px solid ${token.colorBorderSecondary};
+
       font-size: 12px;
       text-align: start;
       white-space: nowrap;
     }
 
     th {
-      color: ${token.colorTextTertiary};
       font-weight: 500;
+      color: ${token.colorTextTertiary};
     }
   `,
   priceTablePanel: css`
     overflow: hidden;
+
     width: min(480px, 100%);
     border: 1px solid ${token.colorBorderSecondary};
     border-radius: 8px;
+
     background: ${token.colorBgContainer};
   `,
   sectionTitle: css`
@@ -483,7 +496,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     height: 36px;
     border: 0 !important;
     border-radius: 12px;
+
     color: ${token.colorTextSecondary};
+
     background: transparent !important;
     box-shadow: none !important;
 
@@ -526,15 +541,26 @@ const getFallbackYearlyMeta = (planId: SubscriptionPlanId) => {
   return { monthlyEquivalent: '$39.9', originalYearly: '$478.8', yearlyDiscount: '20%' };
 };
 
+const translateString = (
+  t: TranslateString,
+  key: string,
+  fallback: string,
+  values?: Record<string, string>,
+) => {
+  const result = values ? t(key, fallback, values) : t(key, fallback);
+
+  return typeof result === 'string' ? result : fallback;
+};
+
 const renderCompareValue = (
   value: string | true,
-  t: ReturnType<typeof useTranslation>['t'],
+  t: TranslateString,
   unitKey?: string,
-) =>
+): ReactNode =>
   value === true ? (
     <Icon color="#29a34a" icon={CheckIcon} size={14} />
   ) : unitKey ? (
-    t(unitKey, { amount: value })
+    translateString(t, unitKey, value, { amount: value })
   ) : (
     value
   );
@@ -1012,11 +1038,11 @@ const getCompareValueUnitKey = (titleKey: string) => {
 
 const MemoCompareGroup = memo<{
   group: (typeof COMPARE_GROUPS)[number];
-  t: ReturnType<typeof useTranslation>['t'];
+  t: TranslateString;
 }>(({ group, t }) => (
   <>
     <Flexbox className={styles.featureSection} paddingBlock={16}>
-      {t(group.title)}
+      {translateString(t, group.title, group.title)}
     </Flexbox>
     <div />
     <div />
@@ -1036,11 +1062,13 @@ MemoCompareGroup.displayName = 'MemoCompareGroup';
 
 const MemoCompareFeature = memo<{
   feature: CompareFeature;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: TranslateString;
   unitKey?: string;
 }>(({ feature, t, unitKey }) => (
   <>
-    <Flexbox className={styles.compareTitleCell}>{t(feature.titleKey)}</Flexbox>
+    <Flexbox className={styles.compareTitleCell}>
+      {translateString(t, feature.titleKey, feature.titleKey)}
+    </Flexbox>
     <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
       {renderCompareValue(feature.starter, t, unitKey)}
     </Flexbox>
@@ -1057,7 +1085,7 @@ MemoCompareFeature.displayName = 'MemoCompareFeature';
 
 const MemoCompareAllowance = memo<{
   item: ModelAllowance;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: TranslateString;
 }>(({ item, t }) => {
   const key =
     item.kind === 'image'
@@ -1073,13 +1101,13 @@ const MemoCompareAllowance = memo<{
         </Flexbox>
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {t(key, { amount: item.starter })}
+        {translateString(t, key, item.starter, { amount: item.starter })}
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {t(key, { amount: item.premium })}
+        {translateString(t, key, item.premium, { amount: item.premium })}
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {t(key, { amount: item.ultimate })}
+        {translateString(t, key, item.ultimate, { amount: item.ultimate })}
       </Flexbox>
     </>
   );

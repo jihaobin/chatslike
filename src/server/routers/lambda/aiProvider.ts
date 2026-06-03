@@ -1,6 +1,8 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
+import { userModelProviderSettingsAdapter } from '@/business/shared/adapters';
+import { isPlatformHostedProvider } from '@/business/shared/platformModels';
 import { AiProviderModel } from '@/database/models/aiProvider';
 import { UserModel } from '@/database/models/user';
 import { AiInfraRepos } from '@/database/repositories/aiInfra';
@@ -20,7 +22,7 @@ import { type ProviderConfig } from '@/types/user/settings';
 const aiProviderProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
   const { ctx } = opts;
 
-  const { aiProvider } = await getServerGlobalConfig();
+  const { aiProvider, commercial } = await getServerGlobalConfig();
 
   const gateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
   return opts.next({
@@ -29,12 +31,51 @@ const aiProviderProcedure = authedProcedure.use(serverDatabase).use(async (opts)
         ctx.serverDB,
         ctx.userId,
         aiProvider as Record<string, ProviderConfig>,
+        { platformHostedModelsEnabled: commercial?.platformHostedModels.enabled },
       ),
       aiProviderModel: new AiProviderModel(ctx.serverDB, ctx.userId),
+      commercial,
       gateKeeper,
       userModel: new UserModel(ctx.serverDB, ctx.userId),
     },
   });
+});
+
+const USER_PROVIDER_SETTINGS_DISABLED = 'USER_PROVIDER_SETTINGS_DISABLED';
+
+const isUserProviderSettingsDisabled = (
+  commercial: Awaited<ReturnType<typeof getServerGlobalConfig>>['commercial'],
+) =>
+  commercial ? !userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial) : false;
+
+const assertUserProviderSettingsWritable = (
+  commercial: Awaited<ReturnType<typeof getServerGlobalConfig>>['commercial'],
+) => {
+  if (!commercial || userModelProviderSettingsAdapter.canWriteModelProviderKeyVaults(commercial)) {
+    return;
+  }
+
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: USER_PROVIDER_SETTINGS_DISABLED,
+  });
+};
+
+const stripKeyVaults = <T extends { keyVaults?: unknown } | undefined>(value: T): T => {
+  if (!value) return value;
+  const { keyVaults: _keyVaults, ...rest } = value;
+
+  return rest as T;
+};
+
+const stripRuntimeKeyVaults = (runtimeState: AiProviderRuntimeState): AiProviderRuntimeState => ({
+  ...runtimeState,
+  runtimeConfig: Object.fromEntries(
+    Object.entries(runtimeState.runtimeConfig || {}).map(([provider, config]) => [
+      provider,
+      { ...config, keyVaults: {} },
+    ]),
+  ),
 });
 
 export const aiProviderRouter = router({
@@ -46,6 +87,14 @@ export const aiProviderRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      if (isUserProviderSettingsDisabled(ctx.commercial) && !isPlatformHostedProvider(input.id)) {
+        return {
+          error: 'PLATFORM_MODEL_ONLY',
+          model: input.model,
+          ok: false,
+        };
+      }
+
       // Get the provider detail to find checkModel
       const detail = await ctx.aiInfraRepos.getAiProviderDetail(
         input.id,
@@ -76,11 +125,11 @@ export const aiProviderRouter = router({
         return { error: errorBody, model, ok: false, status: response.status };
       } catch (error: any) {
         const errorType = error.errorType || error.type;
-        const msg = errorType
-          ? errorType
-          : typeof error === 'string'
+        const msg =
+          errorType ||
+          (typeof error === 'string'
             ? error
-            : error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+            : error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error)));
         return { error: msg, model, ok: false };
       }
     }),
@@ -88,6 +137,8 @@ export const aiProviderRouter = router({
   createAiProvider: aiProviderProcedure
     .input(CreateAiProviderSchema)
     .mutation(async ({ input, ctx }) => {
+      assertUserProviderSettingsWritable(ctx.commercial);
+
       try {
         const data = await ctx.aiProviderModel.create(input, ctx.gateKeeper.encrypt);
         return data?.id;
@@ -107,7 +158,12 @@ export const aiProviderRouter = router({
     .input(z.object({ id: z.string() }))
 
     .query(async ({ input, ctx }): Promise<AiProviderDetailItem | undefined> => {
-      return ctx.aiInfraRepos.getAiProviderDetail(input.id, KeyVaultsGateKeeper.getUserKeyVaults);
+      const detail = await ctx.aiInfraRepos.getAiProviderDetail(
+        input.id,
+        KeyVaultsGateKeeper.getUserKeyVaults,
+      );
+
+      return isUserProviderSettingsDisabled(ctx.commercial) ? stripKeyVaults(detail) : detail;
     }),
 
   getAiProviderList: aiProviderProcedure.query(async ({ ctx }) => {
@@ -117,12 +173,20 @@ export const aiProviderRouter = router({
   getAiProviderRuntimeState: aiProviderProcedure
     .input(z.object({ isLogin: z.boolean().optional() }))
     .query(async ({ ctx }): Promise<AiProviderRuntimeState> => {
-      return ctx.aiInfraRepos.getAiProviderRuntimeState(KeyVaultsGateKeeper.getUserKeyVaults);
+      const runtimeState = await ctx.aiInfraRepos.getAiProviderRuntimeState(
+        KeyVaultsGateKeeper.getUserKeyVaults,
+      );
+
+      return isUserProviderSettingsDisabled(ctx.commercial)
+        ? stripRuntimeKeyVaults(runtimeState)
+        : runtimeState;
     }),
 
   removeAiProvider: aiProviderProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      assertUserProviderSettingsWritable(ctx.commercial);
+
       return ctx.aiProviderModel.delete(input.id);
     }),
 
@@ -134,6 +198,8 @@ export const aiProviderRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      assertUserProviderSettingsWritable(ctx.commercial);
+
       return ctx.aiProviderModel.toggleProviderEnabled(input.id, input.enabled);
     }),
 
@@ -145,6 +211,8 @@ export const aiProviderRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      assertUserProviderSettingsWritable(ctx.commercial);
+
       return ctx.aiProviderModel.update(input.id, input.value);
     }),
 
@@ -156,6 +224,8 @@ export const aiProviderRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      assertUserProviderSettingsWritable(ctx.commercial);
+
       return ctx.aiProviderModel.updateConfig(
         input.id,
         input.value,
@@ -176,6 +246,8 @@ export const aiProviderRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      assertUserProviderSettingsWritable(ctx.commercial);
+
       return ctx.aiProviderModel.updateOrder(input.sortMap);
     }),
 });

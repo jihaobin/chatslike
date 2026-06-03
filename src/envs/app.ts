@@ -93,6 +93,7 @@ export const getAppConfig = () => {
       WECHAT_PAY_SERIAL_NO: z.string().optional(),
       WECHAT_PAY_NOTIFY_URL: z.string().optional(),
 
+      BILLING_ALLOW_MOCK_PAYMENTS: z.boolean().optional(),
       BILLING_TRIAL_CREDITS: z.coerce.number().int().positive().optional(),
       BILLING_TRIAL_VALID_DAYS: z.coerce.number().int().positive().optional(),
       BILLING_FREE_DAILY_LIMIT: z.coerce.number().int().positive().optional(),
@@ -161,6 +162,7 @@ export const getAppConfig = () => {
       WECHAT_PAY_SERIAL_NO: process.env.WECHAT_PAY_SERIAL_NO,
       WECHAT_PAY_NOTIFY_URL: process.env.WECHAT_PAY_NOTIFY_URL,
 
+      BILLING_ALLOW_MOCK_PAYMENTS: process.env.BILLING_ALLOW_MOCK_PAYMENTS === '1',
       BILLING_TRIAL_CREDITS: process.env.BILLING_TRIAL_CREDITS,
       BILLING_TRIAL_VALID_DAYS: process.env.BILLING_TRIAL_VALID_DAYS,
       BILLING_FREE_DAILY_LIMIT: process.env.BILLING_FREE_DAILY_LIMIT,

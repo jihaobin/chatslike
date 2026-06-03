@@ -1,8 +1,6 @@
 import type { ChatStreamPayload, ModelRuntimeHooks, OnFinishData } from '@lobechat/model-runtime';
 import debug from 'debug';
 
-import { getServerDB } from '@/database/core/db-adaptor';
-
 import { CreditsService } from '@/business/server/billing/credits';
 import {
   calculateTextCredits,
@@ -10,6 +8,10 @@ import {
   getTextPricing,
 } from '@/business/server/billing/pricing';
 import { assertPrechargeRisk } from '@/business/server/billing/risk';
+import { NEWAPI_PROVIDER_ID } from '@/business/server/platformCatalog/constants';
+import { assertNewApiPlatformModelAvailable } from '@/business/server/platformCatalog/runtimeGuard';
+import { commercialRuntime } from '@/business/shared/commercialRuntime';
+import { getServerDB } from '@/database/core/db-adaptor';
 
 const ESTIMATED_CHARS_PER_TOKEN = 4;
 const log = debug('lobe-server:billing:model-runtime');
@@ -24,8 +26,7 @@ interface RuntimeBillingState {
 
 const createOperationId = (userId: string, provider: string, model: string) => {
   const now = Date.now();
-  const suffix =
-    globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  const suffix = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
   return `chat:${userId}:${provider}:${model}:${now}:${suffix}`;
 };
@@ -35,7 +36,10 @@ const estimatePromptTokens = (payload: ChatStreamPayload) =>
 
 const getActualTextCredits = (
   data: OnFinishData,
-  pricing: Pick<RuntimeBillingState, 'inputCreditsPerMillionTokens' | 'outputCreditsPerMillionTokens'>,
+  pricing: Pick<
+    RuntimeBillingState,
+    'inputCreditsPerMillionTokens' | 'outputCreditsPerMillionTokens'
+  >,
 ) => {
   const { inputTokens, outputTokens } = getTextUsageTokens(data);
 
@@ -67,6 +71,16 @@ export function getBusinessModelRuntimeHooks(
   return {
     async beforeChat(payload) {
       const db = await getServerDB();
+      if (commercialRuntime.platformHostedModels.enabled && provider === NEWAPI_PROVIDER_ID) {
+        await assertNewApiPlatformModelAvailable({
+          db,
+          modality: 'text',
+          model: payload.model,
+          requirePricing: true,
+          userId,
+        });
+      }
+
       const service = new CreditsService(db, userId);
       const operationId = createOperationId(userId, provider, payload.model);
       const pricing = await getTextPricing({ model: payload.model, provider });

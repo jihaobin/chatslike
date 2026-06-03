@@ -26,13 +26,16 @@ import { z } from 'zod';
 import {
   getReferralStatus,
   getSubscriptionPlan,
+  onBusinessUserPhoneVerified,
   onUserActivityForBusiness,
 } from '@/business/server/user';
+import { userModelProviderSettingsAdapter } from '@/business/shared/adapters';
 import { MessageModel } from '@/database/models/message';
 import { SessionModel } from '@/database/models/session';
 import { UserModel } from '@/database/models/user';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { getServerGlobalConfig } from '@/server/globalConfig';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { FileS3 } from '@/server/modules/S3';
 import { AgentDocumentsService } from '@/server/services/agentDocuments';
@@ -46,7 +49,15 @@ const usernameSchema = z
   .max(64, { message: 'USERNAME_TOO_LONG' })
   .regex(/^\w+$/, { message: 'USERNAME_INVALID' });
 
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(6, { message: 'PHONE_REQUIRED' })
+  .max(32, { message: 'PHONE_TOO_LONG' })
+  .regex(/^\+?[\d\s\-()]+$/, { message: 'PHONE_INVALID' });
+
 const AVATAR_WEBAPI_PREFIX = '/webapi/';
+const USER_PROVIDER_SETTINGS_DISABLED = 'USER_PROVIDER_SETTINGS_DISABLED';
 
 // Accept only: base64 data URL, absolute http(s) URL, empty string,
 // or an internal /webapi/user/avatar/<userId>/... path scoped to the caller.
@@ -152,6 +163,8 @@ export const userRouter = router({
       isOnboard: state.isOnboarded ?? true,
       lastName: state.lastName,
       onboarding: state.onboarding,
+      phone: state.phone,
+      phoneNumberVerified: state.phoneNumberVerified,
       preference: state.preference as UserPreference,
       role: state.role,
       settings: state.settings,
@@ -248,6 +261,24 @@ export const userRouter = router({
 
   updateInterests: userProcedure.input(z.array(z.string())).mutation(async ({ ctx, input }) => {
     return ctx.userModel.updateUser({ interests: input });
+  }),
+
+  verifyPhoneForTrial: userProcedure.input(phoneSchema).mutation(async ({ ctx, input }) => {
+    const phoneNumber = input.trim();
+
+    await ctx.userModel.updateUser({ phone: phoneNumber, phoneNumberVerified: true });
+
+    const trial = await onBusinessUserPhoneVerified({
+      db: ctx.serverDB,
+      phoneNumber,
+      userId: ctx.userId,
+    });
+
+    return {
+      phone: phoneNumber,
+      phoneNumberVerified: true,
+      trial,
+    };
   }),
 
   getOrCreateOnboardingState: userProcedure.query(async ({ ctx }) => {
@@ -476,19 +507,36 @@ export const userRouter = router({
 
   updateSettings: userProcedure.input(UserSettingsSchema).mutation(async ({ ctx, input }) => {
     const { keyVaults, ...res } = input as Partial<UserSettings>;
+    const hasKeyVaults = Object.hasOwn(input, 'keyVaults');
+
+    if (hasKeyVaults) {
+      const { commercial } = await getServerGlobalConfig();
+
+      if (
+        commercial &&
+        !userModelProviderSettingsAdapter.canWriteModelProviderKeyVaults(commercial)
+      ) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: USER_PROVIDER_SETTINGS_DISABLED,
+        });
+      }
+    }
 
     // Encrypt keyVaults
-    let encryptedKeyVaults: string | null = null;
+    let encryptedKeyVaults: string | null | undefined;
 
-    if (keyVaults) {
+    if (hasKeyVaults && keyVaults) {
       // TODO: better to add a validation
       const data = JSON.stringify(keyVaults);
       const gateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
 
       encryptedKeyVaults = await gateKeeper.encrypt(data);
+    } else if (hasKeyVaults) {
+      encryptedKeyVaults = null;
     }
 
-    const nextValue = { ...res, keyVaults: encryptedKeyVaults };
+    const nextValue = { ...res, ...(hasKeyVaults ? { keyVaults: encryptedKeyVaults } : {}) };
 
     return ctx.userModel.updateSetting(nextValue);
   }),

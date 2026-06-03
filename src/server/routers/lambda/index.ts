@@ -3,6 +3,7 @@
  */
 import { accountDeletionRouter } from '@/business/server/lambda-routers/accountDeletion';
 import { adminBillingRouter } from '@/business/server/lambda-routers/adminBilling';
+import { platformCatalogRouter } from '@/business/server/lambda-routers/platformCatalog';
 import { referralRouter } from '@/business/server/lambda-routers/referral';
 import { spendRouter } from '@/business/server/lambda-routers/spend';
 import { subscriptionRouter } from '@/business/server/lambda-routers/subscription';
@@ -113,6 +114,7 @@ export const lambdaRouter = router({
   notebook: notebookRouter,
   notification: notificationRouter,
   oauthDeviceFlow: oauthDeviceFlowRouter,
+  platformCatalog: platformCatalogRouter,
   plugin: pluginRouter,
   ragEval: ragEvalRouter,
   recent: recentRouter,

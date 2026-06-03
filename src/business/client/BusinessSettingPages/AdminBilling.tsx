@@ -25,11 +25,20 @@ import {
   useAdminBillingOrders,
   useAdminBillingUsers,
 } from './hooks/useBillingData';
+import PlatformCatalog from './PlatformCatalog';
 import { billingPageStyles as styles } from './styles';
 
-const ADMIN_BILLING_TABS = ['users', 'orders', 'ledger', 'audit'] as const;
+const ADMIN_BILLING_TABS = ['users', 'orders', 'ledger', 'audit', 'platform-models'] as const;
 
 type AdminBillingTab = (typeof ADMIN_BILLING_TABS)[number];
+
+const ADMIN_BILLING_TAB_LABEL_FALLBACKS = {
+  'audit': 'Audit',
+  'ledger': 'Ledger',
+  'orders': 'Orders',
+  'platform-models': 'Platform Models',
+  'users': 'Users',
+} as const satisfies Record<AdminBillingTab, string>;
 
 const formatAmount = (amountCents?: number | null, currency?: string | null) => {
   if (typeof amountCents !== 'number') return '-';
@@ -80,25 +89,26 @@ const AdminActions = memo(() => {
       </Flexbox>
       <Flexbox horizontal gap={8} wrap={'wrap'}>
         <Input
-          onChange={(event) => setTargetUserId(event.target.value)}
           placeholder={t('billingNative.admin.actions.targetUserId', 'Target user ID')}
           value={targetUserId}
+          onChange={(event) => setTargetUserId(event.target.value)}
         />
         <Input
-          onChange={(event) => setAmountCredits(event.target.value)}
           placeholder={t('billingNative.admin.actions.amountCredits', 'Credits amount')}
           value={amountCredits}
+          onChange={(event) => setAmountCredits(event.target.value)}
         />
         <Input
-          onChange={(event) => setReason(event.target.value)}
           placeholder={t('billingNative.admin.actions.reason', 'Reason')}
           value={reason}
+          onChange={(event) => setReason(event.target.value)}
         />
       </Flexbox>
       <Flexbox horizontal gap={8} wrap={'wrap'}>
         <Button
           disabled={!canSubmitCreditAction || submittingAction === 'grant'}
           icon={<Icon icon={GiftIcon} />}
+          type={'primary'}
           onClick={() =>
             void runAction('grant', () =>
               billingService.adminGrantCredits({
@@ -108,7 +118,6 @@ const AdminActions = memo(() => {
               }),
             )
           }
-          type={'primary'}
         >
           {t('billingNative.admin.actions.grantCredits', 'Grant Credits')}
         </Button>
@@ -383,28 +392,22 @@ const AdminBilling = memo(() => {
       loading: usersData.isLoading,
       locale: { emptyText: t('billingNative.admin.users.empty', 'No users yet') },
     },
-  } satisfies Record<AdminBillingTab, Pick<TableProps, 'columns' | 'dataSource' | 'loading' | 'locale'>>;
+  } satisfies Record<
+    Exclude<AdminBillingTab, 'platform-models'>,
+    Pick<TableProps, 'columns' | 'dataSource' | 'loading' | 'locale'>
+  >;
 
-  const activeTableProps = tableProps[activeTab];
-
-  if (
-    usersData.isLoading &&
-    ordersData.isLoading &&
-    ledgerData.isLoading &&
-    auditData.isLoading
-  ) {
+  if (usersData.isLoading && ordersData.isLoading && ledgerData.isLoading && auditData.isLoading) {
     return <Skeleton active paragraph={{ rows: 6 }} title={false} />;
   }
 
   return (
     <Flexbox className={styles.page} gap={16}>
-      <Flexbox horizontal align={'center'} justify={'space-between'} wrap={'wrap'} gap={12}>
+      <Flexbox horizontal align={'center'} gap={12} justify={'space-between'} wrap={'wrap'}>
         <Flexbox gap={4}>
           <Flexbox horizontal align={'center'} gap={8}>
             <Icon icon={CircleDollarSignIcon} />
-            <Text className={styles.header}>
-              {t('billingNative.admin.title', 'Admin Billing')}
-            </Text>
+            <Text className={styles.header}>{t('billingNative.admin.title', 'Admin Billing')}</Text>
           </Flexbox>
           <Text className={styles.subtitle}>
             {t(
@@ -423,18 +426,28 @@ const AdminBilling = memo(() => {
             activeKey={activeTab}
             items={ADMIN_BILLING_TABS.map((key) => ({
               key,
-              label: t(`billingNative.admin.tabs.${key}`, key),
+              label: t(`billingNative.admin.tabs.${key}`, ADMIN_BILLING_TAB_LABEL_FALLBACKS[key]),
             }))}
             onChange={(key) => setActiveTab(key as AdminBillingTab)}
           />
         </Flexbox>
-        <InlineTable
-          columns={activeTableProps.columns}
-          dataSource={activeTableProps.dataSource}
-          loading={activeTableProps.loading}
-          locale={activeTableProps.locale}
-          rowKey={'id'}
-        />
+        {activeTab === 'platform-models' ? (
+          <PlatformCatalog />
+        ) : (
+          (() => {
+            const activeTableProps = tableProps[activeTab];
+
+            return (
+              <InlineTable
+                columns={activeTableProps.columns}
+                dataSource={activeTableProps.dataSource}
+                loading={activeTableProps.loading}
+                locale={activeTableProps.locale}
+                rowKey={'id'}
+              />
+            );
+          })()
+        )}
       </Flexbox>
     </Flexbox>
   );

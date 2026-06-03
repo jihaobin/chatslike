@@ -11,10 +11,12 @@ const {
   mockCreateVideo,
   mockLoadModels,
   mockProcessBackgroundVideoPolling,
+  mockAssertNewApiPlatformModelAvailable,
   mockResolveBusinessModelMapping,
   mockServerDB,
   mockTransaction,
   nativeBillingEnabled,
+  platformHostedModelsEnabled,
 } = vi.hoisted(() => {
   const mockTransaction = vi.fn();
   const mockServerDB = { transaction: mockTransaction };
@@ -22,17 +24,21 @@ const {
   const mockAfter = vi.fn((cb: () => void) => cb());
   const mockLoadModels = vi.fn();
   const mockProcessBackgroundVideoPolling = vi.fn().mockResolvedValue(undefined);
+  const mockAssertNewApiPlatformModelAvailable = vi.fn();
   const mockResolveBusinessModelMapping = vi.fn();
   const nativeBillingEnabled = { value: true };
+  const platformHostedModelsEnabled = { value: false };
   return {
     mockAfter,
     mockCreateVideo,
     mockLoadModels,
     mockProcessBackgroundVideoPolling,
+    mockAssertNewApiPlatformModelAvailable,
     mockResolveBusinessModelMapping,
     mockServerDB,
     mockTransaction,
     nativeBillingEnabled,
+    platformHostedModelsEnabled,
   };
 });
 
@@ -53,11 +59,20 @@ vi.mock('@/server/modules/ModelRuntime', () => ({
 vi.mock('@/business/server/video-generation/chargeBeforeGenerate', () => ({
   chargeBeforeGenerate: vi.fn().mockResolvedValue({ errorBatch: null, prechargeResult: null }),
 }));
+vi.mock('@/business/server/platformCatalog/runtimeGuard', () => ({
+  assertNewApiPlatformModelAvailable: (params: any) =>
+    mockAssertNewApiPlatformModelAvailable(params),
+}));
 vi.mock('@/business/shared/commercialRuntime', () => ({
   commercialRuntime: {
     nativeBilling: {
       get enabled() {
         return nativeBillingEnabled.value;
+      },
+    },
+    platformHostedModels: {
+      get enabled() {
+        return platformHostedModelsEnabled.value;
       },
     },
   },
@@ -154,11 +169,13 @@ describe('videoRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     nativeBillingEnabled.value = true;
+    platformHostedModelsEnabled.value = false;
     mockResolveBusinessModelMapping.mockImplementation(
       async (_provider: string, model: string) => ({
         resolvedModelId: model,
       }),
     );
+    mockAssertNewApiPlatformModelAvailable.mockResolvedValue(undefined);
     mockLoadModels.mockResolvedValue([
       {
         abilities: {},
@@ -171,6 +188,27 @@ describe('videoRouter', () => {
   });
 
   describe('createVideo - async strategy routing', () => {
+    it('validates resolved New API catalog model when platform hosted models are enabled', async () => {
+      platformHostedModelsEnabled.value = true;
+      setupMocks();
+
+      const caller = videoRouter.createCaller(mockCtx);
+
+      await expect(
+        caller.createVideo({ ...defaultInput, provider: 'custom-openai' }),
+      ).resolves.toMatchObject({
+        success: true,
+      });
+      expect(mockAssertNewApiPlatformModelAvailable).toHaveBeenCalledWith({
+        db: mockServerDB,
+        modality: 'video',
+        model: 'test-model',
+        requirePricing: true,
+        userId: 'test-user',
+      });
+      expect(mockTransaction).toHaveBeenCalled();
+    });
+
     it('should use webhook path when response contains useWebhook: true', async () => {
       const { mockUpdate } = setupMocks();
       mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-1', useWebhook: true });

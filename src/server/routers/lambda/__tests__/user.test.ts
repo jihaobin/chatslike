@@ -2,6 +2,8 @@
 import { Plans } from '@lobechat/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type * as BusinessUserModule from '@/business/server/user';
+import * as businessUser from '@/business/server/user';
 import {
   getReferralStatus,
   getSubscriptionPlan,
@@ -11,6 +13,7 @@ import { MessageModel } from '@/database/models/message';
 import { SessionModel } from '@/database/models/session';
 import { UserModel } from '@/database/models/user';
 import { serverDB } from '@/database/server';
+import { getServerGlobalConfig } from '@/server/globalConfig';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 
 import { userRouter } from '../user';
@@ -24,11 +27,16 @@ vi.mock('next/server', () => ({
   },
 }));
 
-vi.mock('@/business/server/user', () => ({
-  getReferralStatus: vi.fn(),
-  getSubscriptionPlan: vi.fn(),
-  onUserActivityForBusiness: vi.fn(),
-}));
+vi.mock('@/business/server/user', async (importOriginal) => {
+  const actual = await importOriginal<typeof BusinessUserModule>();
+
+  return {
+    ...actual,
+    getReferralStatus: vi.fn(),
+    getSubscriptionPlan: vi.fn(),
+    onUserActivityForBusiness: vi.fn(),
+  };
+});
 
 vi.mock('@/database/server', () => ({
   serverDB: {},
@@ -37,6 +45,7 @@ vi.mock('@/database/server', () => ({
 vi.mock('@/database/models/message');
 vi.mock('@/database/models/session');
 vi.mock('@/database/models/user');
+vi.mock('@/server/globalConfig');
 vi.mock('@/server/modules/KeyVaultsEncrypt');
 vi.mock('@/server/modules/S3');
 vi.mock('@/server/services/user');
@@ -46,6 +55,12 @@ describe('userRouter', () => {
   const mockCtx = {
     userId: mockUserId,
   };
+  const createCommercialConfig = (platformHostedModels = false) => ({
+    commercial: { enabled: platformHostedModels },
+    lobeHubCloudIntegration: { enabled: false },
+    nativeBilling: { enabled: false },
+    platformHostedModels: { enabled: platformHostedModels },
+  });
 
   const flushAfterTasks = async () => {
     await Promise.all(mockAfterTasks.splice(0));
@@ -57,6 +72,10 @@ describe('userRouter', () => {
     vi.mocked(getReferralStatus).mockResolvedValue(undefined);
     vi.mocked(getSubscriptionPlan).mockResolvedValue(Plans.Free);
     vi.mocked(onUserActivityForBusiness).mockResolvedValue(undefined);
+    vi.mocked(getServerGlobalConfig).mockResolvedValue({
+      aiProvider: {},
+      commercial: createCommercialConfig(false),
+    } as any);
   });
 
   describe('getUserRegistrationDuration', () => {
@@ -105,6 +124,8 @@ describe('userRouter', () => {
       const mockState = {
         isOnboarded: true,
         preference: { telemetry: true },
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
         settings: {},
         userId: mockUserId,
       };
@@ -139,6 +160,8 @@ describe('userRouter', () => {
         preference: { telemetry: true },
         settings: {},
         hasConversation: true,
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
         canEnablePWAGuide: true,
         canEnableTrace: true,
         userId: mockUserId,
@@ -243,6 +266,39 @@ describe('userRouter', () => {
     });
   });
 
+  describe('verifyPhoneForTrial', () => {
+    it('should update phone verification and return the verification state', async () => {
+      const updateUser = vi.fn().mockResolvedValue({ rowCount: 1 });
+      const onBusinessUserPhoneVerifiedSpy = vi
+        .spyOn(businessUser, 'onBusinessUserPhoneVerified')
+        .mockResolvedValue({ granted: true });
+      vi.mocked(UserModel).mockImplementation(
+        () =>
+          ({
+            updateUser,
+          }) as any,
+      );
+
+      const result = await userRouter
+        .createCaller({ ...mockCtx })
+        .verifyPhoneForTrial('+8613800000000');
+
+      expect(updateUser).toHaveBeenCalledWith({
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+      });
+      expect(onBusinessUserPhoneVerifiedSpy).toHaveBeenCalledWith({
+        db: serverDB,
+        phoneNumber: '+8613800000000',
+        userId: mockUserId,
+      });
+      expect(result).toMatchObject({
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+      });
+    });
+  });
+
   describe('updateSettings', () => {
     it('should update settings with encrypted key vaults', async () => {
       const mockSettings = {
@@ -268,21 +324,83 @@ describe('userRouter', () => {
       expect(mockGateKeeper.encrypt).toHaveBeenCalledWith(JSON.stringify(mockSettings.keyVaults));
     });
 
+    it('rejects key vault updates when platform hosted models are enabled', async () => {
+      vi.mocked(getServerGlobalConfig).mockResolvedValue({
+        aiProvider: {},
+        commercial: createCommercialConfig(true),
+      } as any);
+      const updateSetting = vi.fn().mockResolvedValue({ rowCount: 1 });
+      vi.mocked(UserModel).mockImplementation(
+        () =>
+          ({
+            updateSetting,
+          }) as any,
+      );
+
+      await expect(
+        userRouter.createCaller({ ...mockCtx }).updateSettings({
+          keyVaults: { openai: { key: 'test-key' } },
+        }),
+      ).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+        message: 'USER_PROVIDER_SETTINGS_DISABLED',
+      });
+
+      expect(KeyVaultsGateKeeper.initWithEnvKey).not.toHaveBeenCalled();
+      expect(updateSetting).not.toHaveBeenCalled();
+    });
+
     it('should update settings without key vaults', async () => {
       const mockSettings = {
         general: { language: 'en-US' },
       };
+      const updateSetting = vi.fn().mockResolvedValue({ rowCount: 1 });
 
       vi.mocked(UserModel).mockImplementation(
         () =>
           ({
-            updateSetting: vi.fn().mockResolvedValue({ rowCount: 1 }),
+            updateSetting,
           }) as any,
       );
 
       await userRouter.createCaller({ ...mockCtx }).updateSettings(mockSettings);
 
       expect(UserModel).toHaveBeenCalledWith(serverDB, mockUserId);
+      expect(updateSetting).toHaveBeenCalledWith({
+        general: { language: 'en-US' },
+      });
+      expect(updateSetting).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          keyVaults: expect.anything(),
+        }),
+      );
+    });
+
+    it('allows non-key-vault settings updates in platform model only mode without touching keyVaults', async () => {
+      vi.mocked(getServerGlobalConfig).mockResolvedValue({
+        aiProvider: {},
+        commercial: createCommercialConfig(true),
+      } as any);
+      const updateSetting = vi.fn().mockResolvedValue({ rowCount: 1 });
+      vi.mocked(UserModel).mockImplementation(
+        () =>
+          ({
+            updateSetting,
+          }) as any,
+      );
+
+      await userRouter.createCaller({ ...mockCtx }).updateSettings({
+        general: { language: 'en-US' },
+      });
+
+      expect(updateSetting).toHaveBeenCalledWith({
+        general: { language: 'en-US' },
+      });
+      expect(updateSetting).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          keyVaults: expect.anything(),
+        }),
+      );
     });
 
     it('should allow legacy system agent model-only fields', async () => {

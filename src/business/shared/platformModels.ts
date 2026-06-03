@@ -1,11 +1,6 @@
 import { ModelProvider } from 'model-bank';
 
-export const PLATFORM_HOSTED_PROVIDERS = [
-  ModelProvider.OpenAI,
-  ModelProvider.Anthropic,
-  ModelProvider.DeepSeek,
-  ModelProvider.LobeHub,
-] as const;
+export const PLATFORM_HOSTED_PROVIDERS = [ModelProvider.NewAPI] as const;
 
 const PLATFORM_PROVIDER_SET = new Set<string>(PLATFORM_HOSTED_PROVIDERS);
 

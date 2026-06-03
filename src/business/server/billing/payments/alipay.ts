@@ -7,9 +7,6 @@ import type {
   PaymentCallbackResult,
 } from './types';
 
-const isMockPaymentEnabled = () =>
-  process.env.NODE_ENV !== 'production' && process.env.BILLING_ALLOW_MOCK_PAYMENTS === '1';
-
 const hasAlipaySigningConfig = () =>
   Boolean(billingEnv.alipay.appId && billingEnv.alipay.publicKey);
 
@@ -20,8 +17,7 @@ const verifyAlipayCallbackSignature = () => {
 
 export class AlipayAdapter implements PaymentAdapter {
   async createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
-    if (!billingEnv.alipay.appId) throw new PaymentNotConfiguredError('alipay');
-    if (!hasAlipaySigningConfig() && !isMockPaymentEnabled()) {
+    if (!hasAlipaySigningConfig() && !billingEnv.allowMockPayments) {
       throw new PaymentNotConfiguredError('alipay');
     }
     if (!hasAlipaySigningConfig()) {

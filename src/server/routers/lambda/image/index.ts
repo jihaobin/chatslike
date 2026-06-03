@@ -9,6 +9,7 @@ import { isProviderModelAvailable } from 'model-bank';
 import { z } from 'zod';
 
 import { chargeBeforeGenerate } from '@/business/server/image-generation/chargeBeforeGenerate';
+import { assertNewApiPlatformModelAvailable } from '@/business/server/platformCatalog/runtimeGuard';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { type NewGeneration, type NewGenerationBatch } from '@/database/schemas';
@@ -73,6 +74,16 @@ export const imageRouter = router({
     log('Starting image creation process, input: %O', input);
 
     const { resolvedModelId } = await resolveBusinessModelMapping(provider, model);
+
+    if (commercialRuntime.platformHostedModels.enabled) {
+      await assertNewApiPlatformModelAvailable({
+        db: serverDB,
+        modality: 'image',
+        model: resolvedModelId,
+        requirePricing: commercialRuntime.nativeBilling.enabled,
+        userId,
+      });
+    }
 
     // Reject lobehub model ids that are no longer in the model bank so callers get a
     // clear error instead of an opaque downstream failure when the underlying channel

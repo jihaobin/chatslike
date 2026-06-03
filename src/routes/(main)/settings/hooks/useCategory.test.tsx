@@ -140,6 +140,14 @@ describe('settings useCategory', () => {
     expect(keys).not.toContain(SettingsTabs.Provider);
   });
 
+  it('hides Provider and Creds when platform hosted models are enabled', () => {
+    const keys = getItemKeys(createCommercialConfig({ platformHostedModels: true }));
+
+    expect(keys).not.toContain(SettingsTabs.Provider);
+    expect(keys).not.toContain(SettingsTabs.Creds);
+    expect(keys).toContain(SettingsTabs.ServiceModel);
+  });
+
   it('shows Admin Billing only for super-admin users', () => {
     act(() => {
       useUserStore.setState({ user: { id: 'admin-user', role: 'admin' } });

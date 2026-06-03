@@ -112,6 +112,10 @@ export class UserService {
     return lambdaClient.user.updateInterests.mutate(interests);
   };
 
+  verifyPhoneForTrial = async (phoneNumber: string) => {
+    return lambdaClient.user.verifyPhoneForTrial.mutate(phoneNumber);
+  };
+
   updateFullName = async (fullName: string) => {
     return lambdaClient.user.updateFullName.mutate(fullName);
   };

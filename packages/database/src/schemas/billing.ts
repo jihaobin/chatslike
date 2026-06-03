@@ -73,7 +73,12 @@ export type AdminAuditAction =
   | 'unfreeze_account'
   | 'refund_compensation'
   | 'mark_order_exception'
-  | 'enterprise_grant';
+  | 'enterprise_grant'
+  | 'platform_catalog_update_provider'
+  | 'platform_catalog_update_model'
+  | 'platform_catalog_toggle_model'
+  | 'platform_catalog_create_pricing'
+  | 'platform_catalog_retire_pricing';
 
 export const creditAccounts = pgTable(
   'credit_accounts',
@@ -94,7 +99,10 @@ export const creditAccounts = pgTable(
       .notNull()
       .default(0),
     riskReason: text('risk_reason'),
-    status: varchar('status', { length: 32 }).$type<CreditAccountStatus>().notNull().default('active'),
+    status: varchar('status', { length: 32 })
+      .$type<CreditAccountStatus>()
+      .notNull()
+      .default('active'),
     ...timestamps,
   },
   (t) => [
@@ -118,13 +126,18 @@ export const creditGrants = pgTable(
     remainingCredits: bigint('remaining_credits', { mode: 'number' }).notNull(),
     startsAt: timestamptz('starts_at'),
     expiresAt: timestamptz('expires_at'),
-    billingOrderId: text('billing_order_id').references(() => billingOrders.id, { onDelete: 'set null' }),
+    billingOrderId: text('billing_order_id').references(() => billingOrders.id, {
+      onDelete: 'set null',
+    }),
     adminAuditLogId: text('admin_audit_log_id').references(() => adminAuditLogs.id, {
       onDelete: 'set null',
     }),
     operationId: text('operation_id').notNull(),
     metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
-    status: varchar('status', { length: 32 }).$type<CreditGrantStatus>().notNull().default('active'),
+    status: varchar('status', { length: 32 })
+      .$type<CreditGrantStatus>()
+      .notNull()
+      .default('active'),
     ...timestamps,
   },
   (t) => [
@@ -187,7 +200,9 @@ export const creditLedgerEntries = pgTable(
     billingOrderId: text('billing_order_id').references(() => billingOrders.id, {
       onDelete: 'set null',
     }),
-    usageRecordId: text('usage_record_id').references(() => usageRecords.id, { onDelete: 'set null' }),
+    usageRecordId: text('usage_record_id').references(() => usageRecords.id, {
+      onDelete: 'set null',
+    }),
     operationId: text('operation_id').notNull(),
     reason: text('reason'),
     metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
@@ -249,7 +264,10 @@ export const billingOrders = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     orderType: varchar('order_type', { length: 32 }).$type<BillingOrderType>().notNull(),
-    status: varchar('status', { length: 32 }).$type<BillingOrderStatus>().notNull().default('pending'),
+    status: varchar('status', { length: 32 })
+      .$type<BillingOrderStatus>()
+      .notNull()
+      .default('pending'),
     amountCents: integer('amount_cents').notNull(),
     currency: varchar('currency', { length: 8 }).notNull().default('CNY'),
     credits: bigint('credits', { mode: 'number' }).notNull().default(0),
@@ -316,7 +334,9 @@ export const usageRecords = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     modality: varchar('modality', { length: 32 }).$type<UsageModality>().notNull(),
     businessId: text('business_id'),
-    reservationId: text('reservation_id').references(() => creditReservations.id, { onDelete: 'set null' }),
+    reservationId: text('reservation_id').references(() => creditReservations.id, {
+      onDelete: 'set null',
+    }),
     provider: text('provider').notNull(),
     model: text('model').notNull(),
     inputTokens: integer('input_tokens'),
@@ -351,7 +371,9 @@ export const adminAuditLogs = pgTable(
     targetUserId: text('target_user_id').references(() => users.id, { onDelete: 'set null' }),
     action: varchar('action', { length: 64 }).$type<AdminAuditAction>().notNull(),
     amountCredits: bigint('amount_credits', { mode: 'number' }),
-    billingOrderId: text('billing_order_id').references(() => billingOrders.id, { onDelete: 'set null' }),
+    billingOrderId: text('billing_order_id').references(() => billingOrders.id, {
+      onDelete: 'set null',
+    }),
     reason: text('reason').notNull(),
     metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
     createdAt: timestamptz('created_at').notNull().defaultNow(),

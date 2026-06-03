@@ -14,4 +14,6 @@ export type {
   PlatformModelRuntimeAdapter,
   ReferralAdapter,
   ShareAdapter,
+  UserModelProviderSettingsAdapter,
 } from './types';
+export { userModelProviderSettingsAdapter } from './userModelProviderSettingsAdapter';

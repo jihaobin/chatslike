@@ -35,6 +35,7 @@ vi.mock('./componentMap', () => {
       [SettingsTabs.Appearance]: createComponent(SettingsTabs.Appearance),
       [SettingsTabs.About]: createComponent(SettingsTabs.About),
       [SettingsTabs.Billing]: createComponent(SettingsTabs.Billing),
+      [SettingsTabs.Creds]: createComponent(SettingsTabs.Creds),
       [SettingsTabs.Credits]: createComponent(SettingsTabs.Credits),
       [SettingsTabs.Notification]: createComponent(SettingsTabs.Notification),
       [SettingsTabs.Plans]: createComponent(SettingsTabs.Plans),
@@ -190,6 +191,25 @@ describe('SettingsContent', () => {
     });
 
     expect(screen.queryByTestId(`settings-${SettingsTabs.Provider}`)).not.toBeInTheDocument();
+  });
+
+  it('does not render Provider from direct navigation in platform model only mode', () => {
+    renderSettingsContent({
+      activeTab: SettingsTabs.Provider,
+      commercial: createCommercialConfig({ platformHostedModels: true }),
+      featureFlags: { showProvider: true },
+    });
+
+    expect(screen.queryByTestId(`settings-${SettingsTabs.Provider}`)).not.toBeInTheDocument();
+  });
+
+  it('does not render Creds from direct navigation in platform model only mode', () => {
+    renderSettingsContent({
+      activeTab: SettingsTabs.Creds,
+      commercial: createCommercialConfig({ platformHostedModels: true }),
+    });
+
+    expect(screen.queryByTestId(`settings-${SettingsTabs.Creds}`)).not.toBeInTheDocument();
   });
 
   it('gates APIKey by API key management flag or dev mode', () => {

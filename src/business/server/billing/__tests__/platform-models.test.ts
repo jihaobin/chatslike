@@ -5,8 +5,8 @@ import { assertPlatformHostedProvider, isPlatformHostedProvider } from '../platf
 
 describe('platform hosted models', () => {
   it('allows configured platform providers', () => {
-    expect(() => assertPlatformHostedProvider('openai')).not.toThrow();
-    expect(isPlatformHostedProvider('lobehub')).toBe(true);
+    expect(() => assertPlatformHostedProvider('newapi')).not.toThrow();
+    expect(isPlatformHostedProvider('newapi')).toBe(true);
   });
 
   it('blocks user custom provider', () => {

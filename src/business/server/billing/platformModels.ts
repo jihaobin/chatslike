@@ -3,14 +3,9 @@ import {
   isPlatformHostedProvider,
   PLATFORM_HOSTED_PROVIDERS,
 } from '@/business/shared/platformModels';
+import { getPlatformProviderCredentialKey } from '@/business/shared/platformProviderStatus';
 
 import { BillingError } from './errors';
-
-const PLATFORM_PROVIDER_API_KEY_FIELDS: Partial<Record<string, string>> = {
-  anthropic: 'ANTHROPIC_API_KEY',
-  deepseek: 'DEEPSEEK_API_KEY',
-  openai: 'OPENAI_API_KEY',
-};
 
 export function assertPlatformHostedProvider(provider: string) {
   if (!isPlatformHostedProvider(provider)) {
@@ -26,7 +21,7 @@ export function assertPlatformHostedProviderConfigured(
 ) {
   assertPlatformHostedProvider(provider);
 
-  const apiKeyField = PLATFORM_PROVIDER_API_KEY_FIELDS[provider];
+  const apiKeyField = getPlatformProviderCredentialKey(provider);
   if (!apiKeyField) return;
 
   if (typeof llmConfig[apiKeyField] !== 'string' || llmConfig[apiKeyField].trim().length === 0) {

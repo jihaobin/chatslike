@@ -16,7 +16,7 @@ const {
   getBusinessModelRuntimeHooks: vi.fn(),
   getUserKeyVaults: vi.fn(),
   llmConfig: {
-    OPENAI_API_KEY: 'platform-openai-key',
+    NEWAPI_API_KEY: 'platform-newapi-key',
   } as Record<string, string | undefined>,
   initializeWithProvider: vi.fn(),
   mergeModelRuntimeHooks: vi.fn((businessHooks, tracingHooks) => ({
@@ -91,7 +91,7 @@ describe('initModelRuntimeFromDB platform billing', () => {
     for (const key of Object.keys(llmConfig)) {
       delete llmConfig[key];
     }
-    llmConfig.OPENAI_API_KEY = 'platform-openai-key';
+    llmConfig.NEWAPI_API_KEY = 'platform-newapi-key';
     initializeWithProvider.mockReturnValue({ runtime: true });
     runtimeState.nativeBillingEnabled = false;
     runtimeState.platformHostedModelsEnabled = false;
@@ -108,12 +108,31 @@ describe('initModelRuntimeFromDB platform billing', () => {
     expect(runtime).toEqual({ runtime: true });
     expect(getAiProviderById).not.toHaveBeenCalled();
     expect(getUserKeyVaults).not.toHaveBeenCalled();
-    expect(getBusinessModelRuntimeHooks).toHaveBeenCalledWith('user-1', 'openai');
+    expect(getBusinessModelRuntimeHooks).toHaveBeenCalledWith('user-1', 'newapi');
     expect(mergeModelRuntimeHooks).toHaveBeenCalledWith(businessHooks, { tracing: true });
     expect(initializeWithProvider).toHaveBeenCalledWith(
-      'openai',
-      { apiKey: 'platform-openai-key', userId: 'user-1' },
+      'newapi',
+      { apiKey: 'platform-newapi-key', userId: 'user-1' },
       { businessHooks, tracingHooks: { tracing: true } },
+    );
+  });
+
+  it('ignores user provider config even when a matching user keyVault exists in platform mode', async () => {
+    runtimeState.nativeBillingEnabled = true;
+    runtimeState.platformHostedModelsEnabled = true;
+    getAiProviderById.mockResolvedValue({
+      keyVaults: { apiKey: 'user-openai-key', baseURL: 'https://user.example.com/v1' },
+      settings: {},
+    });
+
+    await initModelRuntimeFromDB({} as never, 'user-1', 'openai');
+
+    expect(getAiProviderById).not.toHaveBeenCalled();
+    expect(getUserKeyVaults).not.toHaveBeenCalled();
+    expect(initializeWithProvider).toHaveBeenCalledWith(
+      'newapi',
+      { apiKey: 'platform-newapi-key', userId: 'user-1' },
+      expect.any(Object),
     );
   });
 
@@ -127,29 +146,32 @@ describe('initModelRuntimeFromDB platform billing', () => {
     expect(getUserKeyVaults).not.toHaveBeenCalled();
     expect(getBusinessModelRuntimeHooks).not.toHaveBeenCalled();
     expect(initializeWithProvider).toHaveBeenCalledWith(
-      'openai',
-      { apiKey: 'platform-openai-key', userId: 'user-1' },
+      'newapi',
+      { apiKey: 'platform-newapi-key', userId: 'user-1' },
       expect.any(Object),
     );
   });
 
-  it('blocks custom providers when platform billing is enabled', async () => {
+  it('initializes New API even when caller passes a custom provider in platform mode', async () => {
     runtimeState.nativeBillingEnabled = true;
     runtimeState.platformHostedModelsEnabled = true;
 
-    await expect(
-      initModelRuntimeFromDB({} as never, 'user-1', 'custom-openai'),
-    ).rejects.toMatchObject({
-      code: 'PLATFORM_MODEL_ONLY',
-    });
+    await initModelRuntimeFromDB({} as never, 'user-1', 'custom-openai');
+
+    expect(initializeWithProvider).toHaveBeenCalledWith(
+      'newapi',
+      { apiKey: 'platform-newapi-key', userId: 'user-1' },
+      expect.any(Object),
+    );
     expect(getAiProviderById).not.toHaveBeenCalled();
   });
 
-  it('blocks hosted providers without their own platform credential', async () => {
+  it('blocks platform mode without New API credential', async () => {
     runtimeState.nativeBillingEnabled = true;
     runtimeState.platformHostedModelsEnabled = true;
+    delete llmConfig.NEWAPI_API_KEY;
 
-    await expect(initModelRuntimeFromDB({} as never, 'user-1', 'anthropic')).rejects.toMatchObject({
+    await expect(initModelRuntimeFromDB({} as never, 'user-1', 'openai')).rejects.toMatchObject({
       code: 'PLATFORM_MODEL_CREDENTIAL_MISSING',
     });
     expect(initializeWithProvider).not.toHaveBeenCalled();

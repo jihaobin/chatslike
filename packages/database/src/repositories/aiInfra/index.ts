@@ -7,9 +7,10 @@ import type {
   EnabledProvider,
   ProviderConfig,
 } from '@lobechat/types';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { isEmpty } from 'es-toolkit/compat';
 import type { AIChatModelCard, AiProviderModelListItem, EnabledAiModel } from 'model-bank';
-import { AiModelSourceEnum, isAiModelVisible } from 'model-bank';
+import { AiModelSourceEnum, isAiModelVisible, ModelProvider } from 'model-bank';
 import { DEFAULT_MODEL_PROVIDER_LIST } from 'model-bank/modelProviders';
 import pMap from 'p-map';
 
@@ -17,11 +18,13 @@ import { merge, mergeArrayById } from '@/utils/merge';
 
 import { AiModelModel } from '../../models/aiModel';
 import { AiProviderModel } from '../../models/aiProvider';
+import { aiModels, aiProviders } from '../../schemas';
 import type { LobeChatDatabase } from '../../type';
 
 type DecryptUserKeyVaults = (encryptKeyVaultsStr: string | null) => Promise<any>;
 
 const normalizeProvider = (provider: string) => provider.toLowerCase();
+const PLATFORM_CATALOG_USER_ID = 'platform-catalog';
 
 /**
  * Provider-level search defaults (only used when built-in models don't provide settings.searchImpl and settings.searchProvider)
@@ -126,6 +129,7 @@ export class AiInfraRepos {
   private db: LobeChatDatabase;
   aiProviderModel: AiProviderModel;
   private readonly providerConfigs: Record<string, ProviderConfig>;
+  private readonly platformHostedModelsEnabled: boolean;
   aiModelModel: AiModelModel;
   private modelBankModelsPromise?: ReturnType<typeof loadModels>;
 
@@ -133,12 +137,14 @@ export class AiInfraRepos {
     db: LobeChatDatabase,
     userId: string,
     providerConfigs: Record<string, ProviderConfig>,
+    options: { platformHostedModelsEnabled?: boolean } = {},
   ) {
     this.userId = userId;
     this.db = db;
     this.aiProviderModel = new AiProviderModel(db, userId);
     this.aiModelModel = new AiModelModel(db, userId);
     this.providerConfigs = providerConfigs;
+    this.platformHostedModelsEnabled = options.platformHostedModelsEnabled ?? false;
   }
 
   /**
@@ -192,6 +198,10 @@ export class AiInfraRepos {
    * used in the chat page. to show the enabled models
    */
   getEnabledModels = async (filterEnabled: boolean = true) => {
+    if (this.platformHostedModelsEnabled) {
+      return this.getPlatformCatalogEnabledModels();
+    }
+
     const [providers, allModels] = await Promise.all([
       this.getAiProviderList(),
       this.aiModelModel.getAllModels(),
@@ -256,6 +266,49 @@ export class AiInfraRepos {
     return [...builtinModels, ...appendedUserModels].sort(
       (a, b) => (a?.sort ?? Infinity) - (b?.sort ?? Infinity),
     ) as EnabledAiModel[];
+  };
+
+  private getPlatformCatalogEnabledModels = async (): Promise<EnabledAiModel[]> => {
+    const [provider] = await this.db
+      .select({ enabled: aiProviders.enabled })
+      .from(aiProviders)
+      .where(
+        and(
+          eq(aiProviders.id, ModelProvider.NewAPI),
+          eq(aiProviders.userId, PLATFORM_CATALOG_USER_ID),
+        ),
+      )
+      .limit(1);
+
+    if (provider?.enabled === false) return [];
+
+    const rows = await this.db
+      .select({
+        abilities: aiModels.abilities,
+        config: aiModels.config,
+        contextWindowTokens: aiModels.contextWindowTokens,
+        displayName: aiModels.displayName,
+        enabled: aiModels.enabled,
+        id: aiModels.id,
+        parameters: aiModels.parameters,
+        providerId: aiModels.providerId,
+        releasedAt: aiModels.releasedAt,
+        settings: aiModels.settings,
+        sort: aiModels.sort,
+        source: aiModels.source,
+        type: aiModels.type,
+      })
+      .from(aiModels)
+      .where(
+        and(
+          eq(aiModels.providerId, ModelProvider.NewAPI),
+          eq(aiModels.userId, PLATFORM_CATALOG_USER_ID),
+          eq(aiModels.enabled, true),
+        ),
+      )
+      .orderBy(asc(aiModels.sort), desc(aiModels.releasedAt), desc(aiModels.updatedAt));
+
+    return rows.map((item) => injectSearchSettings(ModelProvider.NewAPI, item)) as EnabledAiModel[];
   };
 
   getAiProviderRuntimeState = async (

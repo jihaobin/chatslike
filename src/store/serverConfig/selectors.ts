@@ -31,6 +31,7 @@ export const serverConfigSelectors = {
   nativeBillingEnabled: (s: ServerConfigStore) =>
     serverConfigSelectors.commercial(s).nativeBilling.enabled,
   oAuthSSOProviders: (s: ServerConfigStore) => s.serverConfig.oAuthSSOProviders,
+  platformProviderStatus: (s: ServerConfigStore) => s.serverConfig.platformProviderStatus ?? [],
   platformHostedModelsEnabled: (s: ServerConfigStore) =>
     serverConfigSelectors.commercial(s).platformHostedModels.enabled,
   visualUnderstanding: (s: ServerConfigStore) => s.serverConfig.visualUnderstanding,

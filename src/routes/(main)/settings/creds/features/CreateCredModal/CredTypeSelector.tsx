@@ -46,6 +46,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 }));
 
 interface CredTypeSelectorProps {
+  allowKV?: boolean;
   onSelect: (type: CredType) => void;
 }
 
@@ -76,12 +77,15 @@ const typeConfigs: Array<{
   },
 ];
 
-const CredTypeSelector: FC<CredTypeSelectorProps> = ({ onSelect }) => {
+const CredTypeSelector: FC<CredTypeSelectorProps> = ({ allowKV = true, onSelect }) => {
   const { t } = useTranslation('setting');
+  const visibleTypeConfigs = allowKV
+    ? typeConfigs
+    : typeConfigs.filter(({ type }) => type !== 'kv-env' && type !== 'kv-header');
 
   return (
     <div className={styles.grid}>
-      {typeConfigs.map(({ type, icon, description }) => (
+      {visibleTypeConfigs.map(({ type, icon, description }) => (
         <Card className={styles.card} key={type} size="small" onClick={() => onSelect(type)}>
           <Flexbox align="center">
             <div className={styles.icon}>{icon}</div>

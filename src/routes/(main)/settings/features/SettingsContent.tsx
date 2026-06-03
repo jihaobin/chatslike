@@ -9,7 +9,9 @@ import {
   nativeBillingAdapter,
   nativeNotificationAdapter,
   nativeReferralAdapter,
+  userModelProviderSettingsAdapter,
 } from '@/business/shared/adapters';
+import { isSuperAdminRole } from '@/const/authRoles';
 import NavHeader from '@/features/NavHeader';
 import SettingContainer from '@/features/Setting/SettingContainer';
 import { SettingsTabs } from '@/store/global/initialState';
@@ -32,8 +34,6 @@ const REDIRECT_MAP: Record<string, string> = {
   [SettingsTabs.Image]: SettingsTabs.ServiceModel,
 };
 
-const SUPER_ADMIN_ROLE = 'super-admin';
-
 interface SettingsContentProps {
   activeTab?: string;
   mobile?: boolean;
@@ -46,10 +46,12 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
   const cloudBusinessEnabled = lobeHubCloudAdapter.getCapability(commercial).enabled;
   const nativeNotificationEnabled = nativeNotificationAdapter.getCapability(commercial).enabled;
   const nativeReferralEnabled = nativeReferralAdapter.getCapability(commercial).enabled;
+  const userProviderSettingsEnabled =
+    userModelProviderSettingsAdapter.getCapability(commercial).enabled;
   const notificationEnabled = nativeNotificationEnabled || cloudBusinessEnabled;
   const referralEnabled = nativeReferralEnabled || cloudBusinessEnabled;
-  const isSuperAdmin = useUserStore(
-    (s) => userProfileSelectors.userProfile(s)?.role === SUPER_ADMIN_ROLE,
+  const isSuperAdmin = useUserStore((s) =>
+    isSuperAdminRole(userProfileSelectors.userProfile(s)?.role),
   );
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
   const apiKeyEnabled = showApiKeyManage || isDevMode;
@@ -65,7 +67,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
     const allowedTabs = [
       SettingsTabs.Advanced,
       SettingsTabs.Appearance,
-      SettingsTabs.Creds,
+      ...(userProviderSettingsEnabled ? [SettingsTabs.Creds] : []),
       SettingsTabs.Hotkey,
       SettingsTabs.Memory,
       SettingsTabs.Messenger,
@@ -77,7 +79,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
       SettingsTabs.Storage,
       ...(!hideDocs ? [SettingsTabs.About] : []),
       ...(apiKeyEnabled ? [SettingsTabs.APIKey] : []),
-      ...(showProvider ? [SettingsTabs.Provider] : []),
+      ...(showProvider && userProviderSettingsEnabled ? [SettingsTabs.Provider] : []),
       ...(isDesktop ? [SettingsTabs.Proxy, SettingsTabs.SystemTools] : []),
       ...(nativeBillingEnabled
         ? [SettingsTabs.Plans, SettingsTabs.Usage, SettingsTabs.Credits, SettingsTabs.Billing]
@@ -98,7 +100,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
         SettingsTabs.About,
         ...(apiKeyEnabled ? [SettingsTabs.APIKey] : []),
         SettingsTabs.ServiceModel,
-        ...(showProvider ? [SettingsTabs.Provider] : []),
+        ...(showProvider && userProviderSettingsEnabled ? [SettingsTabs.Provider] : []),
         SettingsTabs.Profile,
         SettingsTabs.Stats,
         SettingsTabs.Security,
