@@ -7,6 +7,7 @@ export const ChatErrorType = {
   FreePlanLimit: 'FreePlanLimit', // Free plan usage limit
   SubscriptionPlanLimit: 'SubscriptionPlanLimit', // Subscription user limit exceeded
   InsufficientBudgetForModel: 'InsufficientBudgetForModel', // Has credits but not enough for estimated model cost
+  PhoneVerificationRequired: 'PHONE_VERIFICATION_REQUIRED', // Phone verification is required before granting trial credits
   SubscriptionKeyMismatch: 'SubscriptionKeyMismatch', // Subscription key mismatch
 
   SupervisorDecisionFailed: 'SupervisorDecisionFailed', // Supervisor decision failed

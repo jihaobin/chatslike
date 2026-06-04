@@ -18,7 +18,6 @@ import { useConversationStore } from '@/features/Conversation/store';
 import HeterogeneousAgentStatusGuide from '@/features/Electron/HeterogeneousAgent/StatusGuide';
 import { useProviderName } from '@/hooks/useProviderName';
 import dynamic from '@/libs/next/dynamic';
-import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 import ChatInvalidAPIKey from './ChatInvalidApiKey';
 
@@ -180,7 +179,14 @@ const ErrorMessageExtra = memo<ErrorExtraProps>(({ error: alertError, data, onRe
   const error = data.error;
   const navigate = useNavigate();
   const businessChatErrorMessageExtra = useRenderBusinessChatErrorMessageExtra(error, data.id);
-  const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
+  const hasLaterUserMessage = useConversationStore((s) => {
+    const currentIndex = s.displayMessages.findIndex((message) => message.id === data.id);
+    if (currentIndex < 0) return false;
+
+    return s.displayMessages
+      .slice(currentIndex + 1)
+      .some((message) => message.role === 'user');
+  });
   const sessionErrorBody = error?.body;
   const rawErrorMessage = getRawErrorMessage(error) || alertError?.message;
 
@@ -206,7 +212,7 @@ const ErrorMessageExtra = memo<ErrorExtraProps>(({ error: alertError, data, onRe
     );
   }
 
-  if (enableBusinessFeatures && businessChatErrorMessageExtra) return businessChatErrorMessageExtra;
+  if (businessChatErrorMessageExtra) return hasLaterUserMessage ? null : businessChatErrorMessageExtra;
 
   switch (error?.type) {
     case AgentRuntimeErrorType.OllamaServiceUnavailable: {

@@ -1,13 +1,13 @@
 import { type ChatMessageError } from '@lobechat/types';
-import { Button, Flexbox } from '@lobehub/ui';
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import {
   type InsufficientCreditsParams,
   isInsufficientCreditsError,
+  isPhoneVerificationRequiredError,
   renderInsufficientCreditsContent,
+  renderPhoneVerificationRequiredContent,
 } from './useBusinessErrorContent';
 
 const toNumber = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
@@ -26,23 +26,20 @@ export default function useRenderBusinessChatErrorMessageExtra(
   messageId?: string,
 ) {
   const navigate = useNavigate();
-  const { t } = useTranslation('error');
 
   return useMemo(() => {
+    if (isPhoneVerificationRequiredError(error?.type)) {
+      return renderPhoneVerificationRequiredContent({
+        onVerifyPhone: () => navigate('/settings/profile'),
+      });
+    }
+
     if (!isInsufficientCreditsError(error?.type)) return null;
 
-    return (
-      <Flexbox gap={12}>
-        {renderInsufficientCreditsContent(getInsufficientCreditsParams(error))}
-        <Flexbox horizontal gap={8} wrap={'wrap'}>
-          <Button onClick={() => navigate('/settings/credits')} type={'primary'}>
-            {t('billingError.actions.topUp', 'Top up Credits')}
-          </Button>
-          <Button onClick={() => navigate('/settings/plans')}>
-            {t('billingError.actions.upgrade', 'Upgrade Plan')}
-          </Button>
-        </Flexbox>
-      </Flexbox>
-    );
-  }, [error, navigate, t]);
+    return renderInsufficientCreditsContent(getInsufficientCreditsParams(error), {
+      onInviteFriends: () => navigate('/settings/referral'),
+      onTopUpCredits: () => navigate('/settings/credits'),
+      onUpgradePlan: () => navigate('/settings/plans'),
+    });
+  }, [error, navigate]);
 }
