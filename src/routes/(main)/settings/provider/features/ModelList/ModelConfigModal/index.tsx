@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 import { aiModelSelectors, useAiInfraStore } from '@/store/aiInfra';
 
+import ProviderPricing from '../../ProviderPricing';
 import ModelConfigForm from '../CreateNewModelModal/Form';
 import { ProviderSettingsContext } from '../ProviderSettingsContext';
 
@@ -23,6 +24,7 @@ const ModelConfigModal = memo<ModelConfigModalProps>(({ id, open, setOpen }) => 
     s.activeAiProvider!,
     s.updateAiModelsConfig,
   ]);
+  const activeProviderConfigScope = useAiInfraStore((s) => s.activeProviderConfigScope);
   const model = useAiInfraStore(aiModelSelectors.getAiModelById(id), isEqual);
 
   const closeModal = () => {
@@ -76,6 +78,14 @@ const ModelConfigModal = memo<ModelConfigModalProps>(({ id, open, setOpen }) => 
         type={model?.type}
         onFormInstanceReady={setFormInstance}
       />
+      {editingProvider && (
+        <ProviderPricing
+          model={id}
+          provider={editingProvider}
+          readonly={activeProviderConfigScope !== 'global'}
+          scope={activeProviderConfigScope}
+        />
+      )}
     </Modal>
   );
 });

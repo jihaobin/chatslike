@@ -18,7 +18,9 @@ import {
 import { safeParseJSON } from '@lobechat/utils';
 import { ModelProvider } from 'model-bank';
 
-import { assertPlatformHostedProviderConfigured } from '@/business/server/billing/platformModels';
+import { BillingError } from '@/business/server/billing/errors';
+import { GLOBAL_PROVIDER_CONFIG_USER_ID } from '@/business/server/globalProviderScope/constants';
+import { hasGlobalProviderCredential } from '@/business/server/globalProviderScope/runtimeGuard';
 import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AiProviderModel } from '@/database/models/aiProvider';
@@ -410,20 +412,39 @@ export const initModelRuntimeFromDB = async (
   // Commercial cloud mode uses platform-hosted model credentials only.
   // OSS/self-hosted mode keeps the existing user keyVault path below.
   if (commercialRuntime.platformHostedModels.enabled) {
-    assertPlatformHostedProviderConfigured(provider, getLLMConfig());
+    const aiProviderModel = new AiProviderModel(db, GLOBAL_PROVIDER_CONFIG_USER_ID);
+    const providerConfig = await aiProviderModel.getAiProviderById(
+      provider,
+      KeyVaultsGateKeeper.getUserKeyVaults,
+    );
 
-    const businessHooks = commercialRuntime.nativeBilling.enabled
-      ? getBusinessModelRuntimeHooks(userId, provider)
-      : undefined;
+    if (!providerConfig || providerConfig.enabled === false) {
+      throw new BillingError('PLATFORM_PROVIDER_DISABLED', 'Platform provider is disabled', {
+        provider,
+      });
+    }
+
+    const sdkType = providerConfig.settings?.sdkType;
+    const runtimeProvider = resolveRuntimeProvider(provider, sdkType);
+    const keyVaults = (providerConfig.keyVaults || {}) as ProviderKeyVaults;
+    const payload = buildPayloadFromKeyVaults(keyVaults, runtimeProvider);
+
+    if (!hasGlobalProviderCredential(runtimeProvider, keyVaults)) {
+      throw new BillingError(
+        'PLATFORM_MODEL_CREDENTIAL_MISSING',
+        'Platform hosted model credential is missing',
+        { provider },
+      );
+    }
+
+    const businessHooks = getBusinessModelRuntimeHooks(userId, provider, {
+      enforceGlobalProviderScope: true,
+      requireTextPricing: commercialRuntime.nativeBilling.enabled,
+    });
     const tracingHooks = createLLMGenerationTracingHook(userId, provider);
     const hooks = mergeModelRuntimeHooks(businessHooks, tracingHooks);
 
-    return initModelRuntimeWithUserPayload(
-      provider,
-      { runtimeProvider: provider },
-      { userId },
-      hooks,
-    );
+    return initModelRuntimeWithUserPayload(provider, payload, { userId }, hooks);
   }
 
   // 1. Get user's provider configuration from database

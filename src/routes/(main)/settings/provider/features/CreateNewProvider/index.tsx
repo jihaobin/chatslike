@@ -7,7 +7,7 @@ import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { useAiInfraStore } from '@/store/aiInfra/store';
+import { aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
 import { type CreateAiProviderParams } from '@/types/aiProvider';
 
 import { KeyVaultsConfigKey, LLMProviderApiTokenKey, LLMProviderBaseUrlKey } from '../../const';
@@ -22,6 +22,7 @@ interface CreateNewProviderProps {
 const CreateNewProvider = memo<CreateNewProviderProps>(({ onClose, open }) => {
   const { t } = useTranslation('modelProvider');
   const [loading, setLoading] = useState(false);
+  const activeScope = useAiInfraStore(aiProviderSelectors.activeProviderConfigScope);
   const createNewAiProvider = useAiInfraStore((s) => s.createNewAiProvider);
   const { message } = App.useApp();
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ const CreateNewProvider = memo<CreateNewProviderProps>(({ onClose, open }) => {
 
       await createNewAiProvider(finalValues);
       setLoading(false);
-      navigate(`/settings/provider/${values.id}`);
+      navigate(`/settings/provider/${activeScope === 'global' ? 'global/' : ''}${values.id}`);
       message.success(t('createNewAiProvider.createSuccess'));
       onClose?.();
     } catch (e) {

@@ -10,6 +10,7 @@ import {
   ShapesIcon,
 } from 'lucide-react';
 import type { RouteObject } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 
 import {
   BusinessDesktopRoutesWithMainLayout,
@@ -88,7 +89,11 @@ import ResourceLibrarySlugPage from '@/routes/(main)/resource/library/[slug]';
 import SettingsTabPage from '@/routes/(main)/settings';
 import SettingsLayout from '@/routes/(main)/settings/_layout';
 import { settingsRouteMeta } from '@/routes/(main)/settings/features/routeMeta';
-import { ProviderDetailPage, ProviderLayout } from '@/routes/(main)/settings/provider';
+import {
+  ProviderDetailPage,
+  ProviderGlobalLayout,
+  ProviderLayout,
+} from '@/routes/(main)/settings/provider';
 import TaskDetailRoute from '@/routes/(main)/task/[taskId]';
 import AllTasksPage from '@/routes/(main)/tasks';
 import ShareTopicPage from '@/routes/share/t/[id]';
@@ -349,18 +354,46 @@ export const desktopRoutes: RouteObject[] = [
           {
             children: [
               {
-                element: redirectElement('/settings/provider/all'),
-                index: true,
-              },
-              {
-                element: <ProviderDetailPage />,
+                children: [
+                  {
+                    element: redirectElement('/settings/provider/all'),
+                    index: true,
+                  },
+                  {
+                    element: <ProviderDetailPage />,
+                    handle: {
+                      meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
+                    },
+                    path: ':providerId',
+                  },
+                ],
+                element: <ProviderLayout />,
                 handle: {
                   meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
                 },
-                path: ':providerId',
+              },
+              {
+                children: [
+                  {
+                    element: redirectElement('/settings/provider/global/all'),
+                    index: true,
+                  },
+                  {
+                    element: <ProviderDetailPage />,
+                    handle: {
+                      meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
+                    },
+                    path: ':providerId',
+                  },
+                ],
+                element: <ProviderGlobalLayout />,
+                handle: {
+                  meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
+                },
+                path: 'global',
               },
             ],
-            element: <ProviderLayout />,
+            element: <Outlet />,
             handle: {
               meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
             },

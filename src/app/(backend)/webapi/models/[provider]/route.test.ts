@@ -5,9 +5,14 @@ import { ChatErrorType } from '@lobechat/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { auth } from '@/auth';
+import { GLOBAL_PROVIDER_CONFIG_USER_ID } from '@/business/server/globalProviderScope/constants';
+import { GLOBAL_PROVIDER_SCOPE_FORBIDDEN } from '@/business/server/globalProviderScope/permissions';
+import { getServerDB } from '@/database/core/db-adaptor';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 
 import { GET } from './route';
+
+type TestSession = Awaited<ReturnType<typeof auth.api.getSession>>;
 
 vi.mock('@/app/(backend)/middleware/auth/utils', () => ({
   checkAuthMethod: vi.fn(),
@@ -21,11 +26,28 @@ vi.mock('@/auth', () => ({
   },
 }));
 
+vi.mock('@/database/core/db-adaptor', () => ({
+  getServerDB: vi.fn(),
+}));
+
 vi.mock('@/server/modules/ModelRuntime', () => ({
   initModelRuntimeFromDB: vi.fn(),
 }));
 
 let request: Request;
+
+const mockDb = {
+  select: vi.fn(),
+};
+
+const mockRoleLookup = (role?: string) => {
+  const query = {
+    from: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue(role ? [{ role }] : []),
+    where: vi.fn().mockReturnThis(),
+  };
+  mockDb.select.mockReturnValue(query);
+};
 
 beforeEach(() => {
   request = new Request(new URL('https://test.com'), {
@@ -33,10 +55,13 @@ beforeEach(() => {
   });
 
   // Default: valid session
-  vi.mocked(auth.api.getSession).mockResolvedValue({
-    session: {} as any,
-    user: { id: 'test-user-id' } as any,
-  });
+  const testSession = {
+    session: {},
+    user: { id: 'test-user-id' },
+  } as unknown as TestSession;
+  vi.mocked(auth.api.getSession).mockResolvedValue(testSession);
+  vi.mocked(getServerDB).mockResolvedValue(mockDb as never);
+  mockRoleLookup('user');
 });
 
 afterEach(() => {
@@ -174,6 +199,41 @@ describe('GET handler', () => {
 
       expect(response.status).toBe(200);
       expect(responseBody).toEqual(mockModelList);
+    });
+
+    it('uses the global provider config user when a super admin requests global scope', async () => {
+      const mockParams = Promise.resolve({ provider: 'openai' });
+      request = new Request(new URL('https://test.com?scope=global'), { method: 'GET' });
+      mockRoleLookup('super-admin');
+
+      const mockRuntime: LobeRuntimeAI = {
+        baseURL: 'abc',
+        chat: vi.fn(),
+        models: vi.fn().mockResolvedValue([]),
+      };
+      vi.mocked(initModelRuntimeFromDB).mockResolvedValue(new ModelRuntime(mockRuntime));
+
+      const response = await GET(request, { params: mockParams });
+
+      expect(response.status).toBe(200);
+      expect(initModelRuntimeFromDB).toHaveBeenCalledWith(
+        mockDb,
+        GLOBAL_PROVIDER_CONFIG_USER_ID,
+        'openai',
+      );
+    });
+
+    it('rejects global scope model fetches for ordinary users before runtime initialization', async () => {
+      const mockParams = Promise.resolve({ provider: 'openai' });
+      request = new Request(new URL('https://test.com?scope=global'), { method: 'GET' });
+      mockRoleLookup('user');
+
+      const response = await GET(request, { params: mockParams });
+      const responseBody = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(JSON.stringify(responseBody)).toContain(GLOBAL_PROVIDER_SCOPE_FORBIDDEN);
+      expect(initModelRuntimeFromDB).not.toHaveBeenCalled();
     });
   });
 });

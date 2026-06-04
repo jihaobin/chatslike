@@ -92,6 +92,7 @@ const ModelItem = memo<ModelItemProps>(
 
     const [checked, setChecked] = useState(enabled);
     const [showConfig, setShowConfig] = useState(false);
+    const hasPricing = Boolean(pricing);
 
     const formatPricing = (): string[] => {
       if (!pricing) return [];
@@ -248,6 +249,7 @@ const ModelItem = memo<ModelItemProps>(
             <div>
               {ModelIdTag}
               {NewTag}
+              {!hasPricing && <Tag>{t('providerPricing.gap')}</Tag>}
             </div>
           </Flexbox>
         </Flexbox>
@@ -273,6 +275,7 @@ const ModelItem = memo<ModelItemProps>(
               {displayName || id}
               {ModelIdTag}
               {NewTag}
+              {!hasPricing && <Tag>{t('providerPricing.gap')}</Tag>}
               {Actions && Actions()}
             </Flexbox>
             <Flexbox horizontal align={'baseline'} gap={8}>

@@ -10,6 +10,7 @@ import {
   getTextPricing,
 } from '@/business/server/billing/pricing';
 import { assertPrechargeRisk } from '@/business/server/billing/risk';
+import { assertGlobalProviderModelAvailable } from '@/business/server/globalProviderScope/runtimeGuard';
 
 const ESTIMATED_CHARS_PER_TOKEN = 4;
 const log = debug('lobe-server:billing:model-runtime');
@@ -20,6 +21,11 @@ interface RuntimeBillingState {
   operationId: string;
   outputCreditsPerMillionTokens: number;
   reservationId: string;
+}
+
+interface BusinessModelRuntimeHookOptions {
+  enforceGlobalProviderScope?: boolean;
+  requireTextPricing?: boolean;
 }
 
 const createOperationId = (userId: string, provider: string, model: string) => {
@@ -59,14 +65,29 @@ const getTextUsageTokens = (data: OnFinishData) => {
 export function getBusinessModelRuntimeHooks(
   userId: string,
   provider: string,
+  options: BusinessModelRuntimeHookOptions = {},
 ): ModelRuntimeHooks | undefined {
   if (!userId || !provider) return undefined;
 
   const billingState = new WeakMap<ChatStreamPayload, RuntimeBillingState>();
+  const { enforceGlobalProviderScope = false, requireTextPricing = true } = options;
 
   return {
     async beforeChat(payload) {
       const db = await getServerDB();
+
+      if (enforceGlobalProviderScope) {
+        await assertGlobalProviderModelAvailable({
+          db,
+          modality: 'text',
+          model: payload.model,
+          provider,
+          requirePricing: requireTextPricing,
+        });
+      }
+
+      if (!requireTextPricing) return;
+
       const service = new CreditsService(db, userId);
       const operationId = createOperationId(userId, provider, payload.model);
       const pricing = await getTextPricing({ model: payload.model, provider });
@@ -94,6 +115,30 @@ export function getBusinessModelRuntimeHooks(
         operationId,
         outputCreditsPerMillionTokens: pricing.outputCreditsPerMillionTokens,
         reservationId: reservation.id,
+      });
+    },
+
+    async beforeEmbeddings(payload) {
+      if (!enforceGlobalProviderScope) return;
+
+      const db = await getServerDB();
+      await assertGlobalProviderModelAvailable({
+        db,
+        model: payload.model,
+        provider,
+      });
+    },
+
+    async beforeGenerateObject(payload) {
+      if (!enforceGlobalProviderScope) return;
+
+      const db = await getServerDB();
+      await assertGlobalProviderModelAvailable({
+        db,
+        modality: 'text',
+        model: payload.model,
+        provider,
+        requirePricing: requireTextPricing,
       });
     },
 

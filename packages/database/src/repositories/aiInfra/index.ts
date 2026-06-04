@@ -8,7 +8,14 @@ import type {
   ProviderConfig,
 } from '@lobechat/types';
 import { isEmpty } from 'es-toolkit/compat';
-import type { AIChatModelCard, AiProviderModelListItem, EnabledAiModel } from 'model-bank';
+import { and, asc, desc, eq } from 'drizzle-orm';
+import type {
+  AIChatModelCard,
+  AiModelSettings,
+  AiProviderModelListItem,
+  EnabledAiModel,
+  ModelAbilities,
+} from 'model-bank';
 import { AiModelSourceEnum, isAiModelVisible } from 'model-bank';
 import { DEFAULT_MODEL_PROVIDER_LIST } from 'model-bank/modelProviders';
 import pMap from 'p-map';
@@ -17,9 +24,15 @@ import { merge, mergeArrayById } from '@/utils/merge';
 
 import { AiModelModel } from '../../models/aiModel';
 import { AiProviderModel } from '../../models/aiProvider';
+import { aiModels, aiProviders } from '../../schemas';
 import type { LobeChatDatabase } from '../../type';
+import { GLOBAL_PROVIDER_CONFIG_USER_ID } from './constants';
 
-type DecryptUserKeyVaults = (encryptKeyVaultsStr: string | null) => Promise<any>;
+type DecryptUserKeyVaults = (encryptKeyVaultsStr: string | null) => Promise<unknown>;
+
+interface AiInfraReposOptions {
+  platformHostedModelsEnabled?: boolean;
+}
 
 const normalizeProvider = (provider: string) => provider.toLowerCase();
 
@@ -82,20 +95,45 @@ const inferProviderSearchDefaults = (
   return (providerId && PROVIDER_SEARCH_DEFAULTS[providerId]) || PROVIDER_SEARCH_DEFAULTS.default;
 };
 
+const normalizeModelAbilities = (abilities: unknown): ModelAbilities => {
+  if (!abilities || typeof abilities !== 'object') return {};
+
+  const record = abilities as Partial<Record<keyof ModelAbilities, unknown>>;
+
+  return {
+    files: typeof record.files === 'boolean' ? record.files : undefined,
+    functionCall: typeof record.functionCall === 'boolean' ? record.functionCall : undefined,
+    imageOutput: typeof record.imageOutput === 'boolean' ? record.imageOutput : undefined,
+    reasoning: typeof record.reasoning === 'boolean' ? record.reasoning : undefined,
+    search: typeof record.search === 'boolean' ? record.search : undefined,
+    structuredOutput:
+      typeof record.structuredOutput === 'boolean' ? record.structuredOutput : undefined,
+    video: typeof record.video === 'boolean' ? record.video : undefined,
+    vision: typeof record.vision === 'boolean' ? record.vision : undefined,
+  };
+};
+
+interface SearchSettingsModel {
+  abilities?: ModelAbilities | null;
+  id: string;
+  settings?: AiModelSettings | null;
+}
+
 // Only inject settings during read; add or remove search-related fields in settings based on abilities.search
-const injectSearchSettings = (providerId: string, item: any) => {
-  const abilities = item?.abilities || {};
+const injectSearchSettings = <T extends SearchSettingsModel>(providerId: string, item: T): T => {
+  const abilities = item.abilities || {};
 
   // Model explicitly disables search capability: remove search-related fields from settings to prevent UI from showing built-in search
   if (abilities.search === false) {
-    if (item?.settings?.searchImpl || item?.settings?.searchProvider) {
-      const next = { ...item } as any;
-      if (next.settings) {
-        // eslint-disable-next-line unused-imports/no-unused-vars
-        const { searchImpl, searchProvider, ...restSettings } = next.settings;
-        next.settings = Object.keys(restSettings).length > 0 ? restSettings : undefined;
-      }
-      return next;
+    if (item.settings?.searchImpl || item.settings?.searchProvider) {
+      const { searchImpl, searchProvider, ...restSettings } = item.settings;
+      void searchImpl;
+      void searchProvider;
+
+      return {
+        ...item,
+        settings: Object.keys(restSettings).length > 0 ? restSettings : undefined,
+      };
     }
     return item;
   }
@@ -103,7 +141,7 @@ const injectSearchSettings = (providerId: string, item: any) => {
   // Model explicitly enables search capability: add search-related fields to settings
   else if (abilities.search === true) {
     // If built-in (local) model already has either field, preserve it without overriding
-    if (item?.settings?.searchImpl || item?.settings?.searchProvider) return item;
+    if (item.settings?.searchImpl || item.settings?.searchProvider) return item;
 
     // Otherwise use providerId + modelId
     const searchSettings = inferProviderSearchDefaults(providerId, item.id);
@@ -126,6 +164,7 @@ export class AiInfraRepos {
   private db: LobeChatDatabase;
   aiProviderModel: AiProviderModel;
   private readonly providerConfigs: Record<string, ProviderConfig>;
+  private readonly options: AiInfraReposOptions;
   aiModelModel: AiModelModel;
   private modelBankModelsPromise?: ReturnType<typeof loadModels>;
 
@@ -133,12 +172,14 @@ export class AiInfraRepos {
     db: LobeChatDatabase,
     userId: string,
     providerConfigs: Record<string, ProviderConfig>,
+    options: AiInfraReposOptions = {},
   ) {
     this.userId = userId;
     this.db = db;
     this.aiProviderModel = new AiProviderModel(db, userId);
     this.aiModelModel = new AiModelModel(db, userId);
     this.providerConfigs = providerConfigs;
+    this.options = options;
   }
 
   /**
@@ -192,6 +233,10 @@ export class AiInfraRepos {
    * used in the chat page. to show the enabled models
    */
   getEnabledModels = async (filterEnabled: boolean = true) => {
+    if (this.options.platformHostedModelsEnabled) {
+      return this.getGlobalPlatformEnabledModels();
+    }
+
     const [providers, allModels] = await Promise.all([
       this.getAiProviderList(),
       this.aiModelModel.getAllModels(),
@@ -261,9 +306,15 @@ export class AiInfraRepos {
   getAiProviderRuntimeState = async (
     decryptor?: DecryptUserKeyVaults,
   ): Promise<AiProviderRuntimeState> => {
+    const runtimeProviderModel = this.options.platformHostedModelsEnabled
+      ? new AiProviderModel(this.db, GLOBAL_PROVIDER_CONFIG_USER_ID)
+      : this.aiProviderModel;
+
     const [result, enabledAiProviders, allModels] = await Promise.all([
-      this.aiProviderModel.getAiProviderRuntimeConfig(decryptor),
-      this.getUserEnabledProviderList(),
+      runtimeProviderModel.getAiProviderRuntimeConfig(decryptor),
+      this.options.platformHostedModelsEnabled
+        ? this.getGlobalPlatformEnabledProviderList()
+        : this.getUserEnabledProviderList(),
       this.getEnabledModels(false),
     ]);
 
@@ -290,6 +341,72 @@ export class AiInfraRepos {
       enabledVideoAiProviders,
       runtimeConfig,
     };
+  };
+
+  private getGlobalPlatformEnabledProviderList = async (): Promise<EnabledProvider[]> => {
+    const providers = await this.db
+      .select({
+        enabled: aiProviders.enabled,
+        id: aiProviders.id,
+        logo: aiProviders.logo,
+        name: aiProviders.name,
+        source: aiProviders.source,
+      })
+      .from(aiProviders)
+      .where(eq(aiProviders.userId, GLOBAL_PROVIDER_CONFIG_USER_ID))
+      .orderBy(asc(aiProviders.sort), asc(aiProviders.id));
+
+    return providers.filter((provider) => provider.enabled !== false).map(
+      (provider): EnabledProvider => ({
+        id: provider.id,
+        logo: provider.logo ?? undefined,
+        name: provider.name ?? undefined,
+        source: provider.source ?? 'custom',
+      }),
+    );
+  };
+
+  private getGlobalPlatformEnabledModels = async (): Promise<EnabledAiModel[]> => {
+    const providers = await this.db
+      .select({ enabled: aiProviders.enabled, id: aiProviders.id })
+      .from(aiProviders)
+      .where(eq(aiProviders.userId, GLOBAL_PROVIDER_CONFIG_USER_ID))
+      .orderBy(asc(aiProviders.sort), asc(aiProviders.id));
+
+    const enabledProviderIds = new Set(
+      providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id),
+    );
+
+    if (enabledProviderIds.size === 0) return [];
+
+    const rows = await this.db
+      .select({
+        abilities: aiModels.abilities,
+        config: aiModels.config,
+        contextWindowTokens: aiModels.contextWindowTokens,
+        displayName: aiModels.displayName,
+        enabled: aiModels.enabled,
+        id: aiModels.id,
+        parameters: aiModels.parameters,
+        providerId: aiModels.providerId,
+        releasedAt: aiModels.releasedAt,
+        settings: aiModels.settings,
+        sort: aiModels.sort,
+        source: aiModels.source,
+        type: aiModels.type,
+      })
+      .from(aiModels)
+      .where(and(eq(aiModels.userId, GLOBAL_PROVIDER_CONFIG_USER_ID), eq(aiModels.enabled, true)))
+      .orderBy(asc(aiModels.sort), desc(aiModels.releasedAt), desc(aiModels.updatedAt));
+
+    return rows
+      .filter((item) => enabledProviderIds.has(item.providerId))
+      .map((item) =>
+        injectSearchSettings(item.providerId, {
+          ...item,
+          abilities: normalizeModelAbilities(item.abilities),
+        }),
+      ) as EnabledAiModel[];
   };
 
   /**

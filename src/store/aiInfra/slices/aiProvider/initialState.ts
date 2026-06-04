@@ -11,6 +11,7 @@ import {
 export interface AIProviderState {
   activeAiProvider?: string;
   activeProviderModelList: any[];
+  activeProviderConfigScope: 'user' | 'global';
   aiProviderConfigUpdatingIds: string[];
   /**
    * Map of provider id to provider detail, used for caching provider details
@@ -33,6 +34,7 @@ export interface AIProviderState {
 
 export const initialAIProviderState: AIProviderState = {
   activeProviderModelList: [],
+  activeProviderConfigScope: 'user',
   aiProviderConfigUpdatingIds: [],
   aiProviderDetailMap: {},
   aiProviderList: [],

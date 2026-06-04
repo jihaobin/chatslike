@@ -30,6 +30,7 @@ import {
   nativeBillingAdapter,
   nativeNotificationAdapter,
   nativeReferralAdapter,
+  userModelProviderSettingsAdapter,
 } from '@/business/shared/adapters';
 import { useElectronStore } from '@/store/electron';
 import { electronSyncSelectors } from '@/store/electron/selectors';
@@ -56,6 +57,7 @@ export interface CategoryItem {
   icon: any;
   key: SettingsTabs;
   label: string;
+  url?: string;
 }
 
 export interface CategoryGroup {
@@ -94,6 +96,13 @@ export const useCategory = () => {
   const nativeReferralEnabled = nativeReferralAdapter.getCapability(commercial).enabled;
   const notificationEnabled = nativeNotificationEnabled || lobeHubCloudEnabled;
   const referralEnabled = nativeReferralEnabled || lobeHubCloudEnabled;
+  const canUseUserProviderSettings = userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial);
+  const providerSettingsVisible =
+    showProvider && (isSuperAdmin || canUseUserProviderSettings);
+  const providerSettingsUrl =
+    isSuperAdmin && !canUseUserProviderSettings
+      ? '/settings/provider/global/all'
+      : '/settings/provider/all';
   const categoryGroups: CategoryGroup[] = useMemo(() => {
     const groups: CategoryGroup[] = [];
 
@@ -179,10 +188,11 @@ export const useCategory = () => {
     const agentItems: CategoryItem[] = [
       // Provider settings should not depend on Advanced tools: new users may need
       // non-LobeHub providers, and desktop users often bring their own API keys.
-      showProvider && {
+      providerSettingsVisible && {
         icon: Brain,
         key: SettingsTabs.Provider,
         label: t('tab.provider'),
+        url: providerSettingsUrl,
       },
       {
         icon: Sparkles,
@@ -273,7 +283,8 @@ export const useCategory = () => {
     notificationEnabled,
     referralEnabled,
     showApiKeyManage,
-    showProvider,
+    providerSettingsVisible,
+    providerSettingsUrl,
     isDevMode,
     isSuperAdmin,
     avatarUrl,

@@ -249,13 +249,19 @@ export class AiProviderActionImpl {
     this.#get = get;
   }
 
+  #scopeParams = () => ({ scope: this.#get().activeProviderConfigScope });
+
   createNewAiProvider = async (params: CreateAiProviderParams): Promise<void> => {
-    await aiProviderService.createAiProvider({ ...params, source: AiProviderSourceEnum.Custom });
+    await aiProviderService.createAiProvider({
+      ...params,
+      ...this.#scopeParams(),
+      source: AiProviderSourceEnum.Custom,
+    });
     await this.#get().refreshAiProviderList();
   };
 
   deleteAiProvider = async (id: string): Promise<void> => {
-    await aiProviderService.deleteAiProvider(id);
+    await aiProviderService.deleteAiProvider(id, this.#scopeParams());
 
     await this.#get().refreshAiProviderList();
   };
@@ -288,30 +294,62 @@ export class AiProviderActionImpl {
   };
 
   refreshAiProviderDetail = async (): Promise<void> => {
-    await mutate([AiProviderSwrKey.fetchAiProviderItem, this.#get().activeAiProvider]);
+    await mutate([
+      AiProviderSwrKey.fetchAiProviderItem,
+      this.#get().activeProviderConfigScope,
+      this.#get().activeAiProvider,
+    ]);
     await this.#get().refreshAiProviderRuntimeState();
   };
 
   refreshAiProviderList = async (): Promise<void> => {
-    await mutate(AiProviderSwrKey.fetchAiProviderList);
+    await mutate([AiProviderSwrKey.fetchAiProviderList, this.#get().activeProviderConfigScope]);
     await this.#get().refreshAiProviderRuntimeState();
   };
 
   refreshAiProviderRuntimeState = async (): Promise<void> => {
+    const { activeProviderConfigScope } = this.#get();
     await Promise.all([
-      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, true]),
-      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, false]),
+      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, activeProviderConfigScope, true]),
+      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, activeProviderConfigScope, false]),
     ]);
   };
 
   removeAiProvider = async (id: string): Promise<void> => {
-    await aiProviderService.deleteAiProvider(id);
+    await aiProviderService.deleteAiProvider(id, this.#scopeParams());
     await this.#get().refreshAiProviderList();
+  };
+
+  setActiveProviderConfigScope = (scope: 'user' | 'global'): void => {
+    if (this.#get().activeProviderConfigScope === scope) return;
+
+    this.#set(
+      {
+        activeAiProvider: undefined,
+        activeProviderModelList: [],
+        activeProviderConfigScope: scope,
+        aiModelLoadingIds: [],
+        aiProviderDetailMap: {},
+        aiProviderList: [],
+        aiProviderModelList: [],
+        aiProviderRuntimeConfig: {},
+        enabledAiModels: undefined,
+        enabledAiProviders: undefined,
+        enabledChatModelList: undefined,
+        enabledImageModelList: undefined,
+        enabledVideoModelList: undefined,
+        initAiProviderList: false,
+        isAiModelListInit: false,
+        isInitAiProviderRuntimeState: false,
+      },
+      false,
+      'setActiveProviderConfigScope',
+    );
   };
 
   toggleProviderEnabled = async (id: string, enabled: boolean): Promise<void> => {
     this.#get().internal_toggleAiProviderLoading(id, true);
-    await aiProviderService.toggleProviderEnabled(id, enabled);
+    await aiProviderService.toggleProviderEnabled(id, enabled, this.#scopeParams());
 
     // Immediately update local aiProviderList to reflect the change
     // This ensures the switch displays correctly without waiting for SWR refresh
@@ -332,7 +370,7 @@ export class AiProviderActionImpl {
 
   updateAiProvider = async (id: string, value: UpdateAiProviderParams): Promise<void> => {
     this.#get().internal_toggleAiProviderLoading(id, true);
-    await aiProviderService.updateAiProvider(id, value);
+    await aiProviderService.updateAiProvider(id, value, this.#scopeParams());
     await this.#get().refreshAiProviderList();
     await this.#get().refreshAiProviderDetail();
 
@@ -344,7 +382,7 @@ export class AiProviderActionImpl {
     value: UpdateAiProviderConfigParams,
   ): Promise<void> => {
     this.#get().internal_toggleAiProviderConfigUpdating(id, true);
-    await aiProviderService.updateAiProviderConfig(id, value);
+    await aiProviderService.updateAiProviderConfig(id, value, this.#scopeParams());
 
     // Immediately update local state for instant UI feedback
     this.#set(
@@ -406,14 +444,16 @@ export class AiProviderActionImpl {
   };
 
   updateAiProviderSort = async (items: AiProviderSortMap[]): Promise<void> => {
-    await aiProviderService.updateAiProviderOrder(items);
+    await aiProviderService.updateAiProviderOrder(items, this.#scopeParams());
     await this.#get().refreshAiProviderList();
   };
 
   useFetchAiProviderItem = (id: string): SWRResponse<AiProviderDetailItem | undefined> => {
+    const { activeProviderConfigScope } = this.#get();
+
     return useClientDataSWR<AiProviderDetailItem | undefined>(
-      [AiProviderSwrKey.fetchAiProviderItem, id],
-      () => aiProviderService.getAiProviderById(id),
+      [AiProviderSwrKey.fetchAiProviderItem, activeProviderConfigScope, id],
+      () => aiProviderService.getAiProviderById(id, { scope: activeProviderConfigScope }),
       {
         onSuccess: (data) => {
           if (!data) return;
@@ -435,9 +475,11 @@ export class AiProviderActionImpl {
     enabled?: boolean;
     suspense?: boolean;
   }): SWRResponse<AiProviderListItem[]> => {
+    const { activeProviderConfigScope } = this.#get();
+
     return useClientDataSWR<AiProviderListItem[]>(
-      opts?.enabled === false ? null : AiProviderSwrKey.fetchAiProviderList,
-      () => aiProviderService.getAiProviderList(),
+      opts?.enabled === false ? null : [AiProviderSwrKey.fetchAiProviderList, activeProviderConfigScope],
+      () => aiProviderService.getAiProviderList({ scope: activeProviderConfigScope }),
       {
         fallbackData: [],
         onSuccess: (data) => {
@@ -463,13 +505,14 @@ export class AiProviderActionImpl {
     void isSyncActive;
     const isLogin = isLoginOnInit;
     const isAuthLoaded = useUserStore(authSelectors.isLoaded);
+    const { activeProviderConfigScope } = this.#get();
     // Only fetch when auth is loaded and login status is explicitly defined (true or false)
     // Prevents unnecessary requests when login state is null/undefined
     const shouldFetch = isAuthLoaded && isLogin !== null && isLogin !== undefined;
 
     return useClientDataSWR<AiProviderRuntimeStateWithBuiltinModels | undefined>(
-      shouldFetch ? [AiProviderSwrKey.fetchAiProviderRuntimeState, isLogin] : null,
-      async ([, isLogin]) => {
+      shouldFetch ? [AiProviderSwrKey.fetchAiProviderRuntimeState, activeProviderConfigScope, isLogin] : null,
+      async ([, , isLogin]) => {
         const [{ loadModels }, { DEFAULT_MODEL_PROVIDER_LIST }] = await Promise.all([
           import('@/business/client/model-bank/loadModels'),
           import('model-bank/modelProviders'),
@@ -477,7 +520,9 @@ export class AiProviderActionImpl {
         const builtinAiModelList = await loadModels();
 
         if (isLogin) {
-          const data = await aiProviderService.getAiProviderRuntimeState();
+          const data = await aiProviderService.getAiProviderRuntimeState(undefined, {
+            scope: activeProviderConfigScope,
+          });
 
           // Build model lists with proper async handling
           const [enabledChatModelList, enabledImageModelList, enabledVideoModelList] =

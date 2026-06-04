@@ -205,6 +205,14 @@ export const mobileRoutes: RouteObject[] = [
                 element: dynamicElement(
                   () =>
                     import('@/routes/(main)/settings/provider').then((m) => m.ProviderDetailPage),
+                  'Mobile > Settings > Provider > Global Detail',
+                ),
+                path: 'global/:providerId',
+              },
+              {
+                element: dynamicElement(
+                  () =>
+                    import('@/routes/(main)/settings/provider').then((m) => m.ProviderDetailPage),
                   'Mobile > Settings > Provider > Detail',
                 ),
                 path: ':providerId',

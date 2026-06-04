@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initModelRuntimeFromDB } from './index';
 
 const {
+  AiProviderModel,
   getAiProviderById,
   getBusinessModelRuntimeHooks,
   getUserKeyVaults,
@@ -12,6 +13,9 @@ const {
   mergeModelRuntimeHooks,
   runtimeState,
 } = vi.hoisted(() => ({
+  AiProviderModel: vi.fn().mockImplementation(() => ({
+    getAiProviderById: vi.fn(),
+  })),
   getAiProviderById: vi.fn(),
   getBusinessModelRuntimeHooks: vi.fn(),
   getUserKeyVaults: vi.fn(),
@@ -62,9 +66,7 @@ vi.mock('@/business/shared/commercialRuntime', () => ({
 }));
 
 vi.mock('@/database/models/aiProvider', () => ({
-  AiProviderModel: vi.fn().mockImplementation(() => ({
-    getAiProviderById,
-  })),
+  AiProviderModel,
 }));
 
 vi.mock('@/envs/llm', () => ({
@@ -84,6 +86,8 @@ vi.mock('@/server/services/llmGenerationTracing/hook', () => ({
 describe('initModelRuntimeFromDB platform billing', () => {
   beforeEach(() => {
     getAiProviderById.mockReset();
+    AiProviderModel.mockClear();
+    AiProviderModel.mockImplementation(() => ({ getAiProviderById }));
     getBusinessModelRuntimeHooks.mockReset();
     getUserKeyVaults.mockReset();
     initializeWithProvider.mockReset();
@@ -97,63 +101,122 @@ describe('initModelRuntimeFromDB platform billing', () => {
     runtimeState.platformHostedModelsEnabled = false;
   });
 
-  it('uses platform environment credentials without reading user keyVaults when enabled', async () => {
+  it('uses global provider instance credentials and billing hooks when platform mode is enabled', async () => {
     runtimeState.nativeBillingEnabled = true;
     runtimeState.platformHostedModelsEnabled = true;
     const businessHooks = { billing: true };
     getBusinessModelRuntimeHooks.mockReturnValue(businessHooks);
+    getAiProviderById.mockResolvedValue({
+      enabled: true,
+      keyVaults: { apiKey: 'relay-openai-key', baseURL: 'https://relay.example.com/v1' },
+      settings: { sdkType: 'openai' },
+    });
 
     const runtime = await initModelRuntimeFromDB({} as never, 'user-1', 'openai');
 
     expect(runtime).toEqual({ runtime: true });
-    expect(getAiProviderById).not.toHaveBeenCalled();
-    expect(getUserKeyVaults).not.toHaveBeenCalled();
-    expect(getBusinessModelRuntimeHooks).toHaveBeenCalledWith('user-1', 'openai');
+    expect(AiProviderModel).not.toHaveBeenCalledWith(expect.anything(), 'user-1');
+    expect(getAiProviderById).toHaveBeenCalledWith('openai', getUserKeyVaults);
+    expect(getBusinessModelRuntimeHooks).toHaveBeenCalledWith('user-1', 'openai', {
+      enforceGlobalProviderScope: true,
+      requireTextPricing: true,
+    });
     expect(mergeModelRuntimeHooks).toHaveBeenCalledWith(businessHooks, { tracing: true });
     expect(initializeWithProvider).toHaveBeenCalledWith(
       'openai',
-      { apiKey: 'platform-openai-key', userId: 'user-1' },
+      { apiKey: 'relay-openai-key', baseURL: 'https://relay.example.com/v1', userId: 'user-1' },
       { businessHooks, tracingHooks: { tracing: true } },
     );
   });
 
-  it('uses platform environment credentials without billing hooks when only platform hosted models are enabled', async () => {
+  it('installs platform scope hooks when platform mode is enabled without native billing', async () => {
+    runtimeState.nativeBillingEnabled = false;
     runtimeState.platformHostedModelsEnabled = true;
+    const businessHooks = { billing: false, scopeGuard: true };
+    getBusinessModelRuntimeHooks.mockReturnValue(businessHooks);
+    getAiProviderById.mockResolvedValue({
+      enabled: true,
+      keyVaults: { apiKey: 'relay-openai-key', baseURL: 'https://relay.example.com/v1' },
+      settings: { sdkType: 'openai' },
+    });
 
-    const runtime = await initModelRuntimeFromDB({} as never, 'user-1', 'openai');
+    await initModelRuntimeFromDB({} as never, 'user-1', 'openai');
 
-    expect(runtime).toEqual({ runtime: true });
-    expect(getAiProviderById).not.toHaveBeenCalled();
-    expect(getUserKeyVaults).not.toHaveBeenCalled();
-    expect(getBusinessModelRuntimeHooks).not.toHaveBeenCalled();
+    expect(getBusinessModelRuntimeHooks).toHaveBeenCalledWith('user-1', 'openai', {
+      enforceGlobalProviderScope: true,
+      requireTextPricing: false,
+    });
+    expect(mergeModelRuntimeHooks).toHaveBeenCalledWith(businessHooks, { tracing: true });
     expect(initializeWithProvider).toHaveBeenCalledWith(
       'openai',
-      { apiKey: 'platform-openai-key', userId: 'user-1' },
+      { apiKey: 'relay-openai-key', baseURL: 'https://relay.example.com/v1', userId: 'user-1' },
+      { businessHooks, tracingHooks: { tracing: true } },
+    );
+  });
+
+  it('resolves custom platform provider instances with sdkType instead of hard-coded newapi', async () => {
+    runtimeState.platformHostedModelsEnabled = true;
+    getAiProviderById.mockResolvedValue({
+      enabled: true,
+      keyVaults: { apiKey: 'anthropic-relay-key', baseURL: 'https://claude-relay.example.com' },
+      settings: { sdkType: 'anthropic' },
+    });
+
+    const runtime = await initModelRuntimeFromDB({} as never, 'user-1', 'newapi-claude-relay');
+
+    expect(runtime).toEqual({ runtime: true });
+    expect(getBusinessModelRuntimeHooks).toHaveBeenCalledWith('user-1', 'newapi-claude-relay', {
+      enforceGlobalProviderScope: true,
+      requireTextPricing: false,
+    });
+    expect(initializeWithProvider).toHaveBeenCalledWith(
+      'anthropic',
+      {
+        apiKey: 'anthropic-relay-key',
+        baseURL: 'https://claude-relay.example.com',
+        userId: 'user-1',
+      },
       expect.any(Object),
     );
   });
 
-  it('blocks custom providers when platform billing is enabled', async () => {
+  it('fails closed when global provider config is missing', async () => {
     runtimeState.nativeBillingEnabled = true;
     runtimeState.platformHostedModelsEnabled = true;
+    getAiProviderById.mockResolvedValue(undefined);
 
     await expect(
       initModelRuntimeFromDB({} as never, 'user-1', 'custom-openai'),
     ).rejects.toMatchObject({
-      code: 'PLATFORM_MODEL_ONLY',
+      code: 'PLATFORM_PROVIDER_DISABLED',
     });
-    expect(getAiProviderById).not.toHaveBeenCalled();
+    expect(getAiProviderById).toHaveBeenCalledWith('custom-openai', getUserKeyVaults);
   });
 
-  it('blocks hosted providers without their own platform credential', async () => {
+  it('fails closed when global provider credentials are missing', async () => {
     runtimeState.nativeBillingEnabled = true;
     runtimeState.platformHostedModelsEnabled = true;
+    getAiProviderById.mockResolvedValue({ enabled: true, keyVaults: {}, settings: { sdkType: 'openai' } });
 
     await expect(initModelRuntimeFromDB({} as never, 'user-1', 'anthropic')).rejects.toMatchObject({
       code: 'PLATFORM_MODEL_CREDENTIAL_MISSING',
     });
     expect(initializeWithProvider).not.toHaveBeenCalled();
-    expect(getAiProviderById).not.toHaveBeenCalled();
+  });
+
+  it('rejects OpenAI-compatible baseURL-only global provider credentials before runtime init', async () => {
+    runtimeState.nativeBillingEnabled = true;
+    runtimeState.platformHostedModelsEnabled = true;
+    getAiProviderById.mockResolvedValue({
+      enabled: true,
+      keyVaults: { baseURL: 'https://relay.example.com/v1' },
+      settings: { sdkType: 'openai' },
+    });
+
+    await expect(initModelRuntimeFromDB({} as never, 'user-1', 'openai')).rejects.toMatchObject({
+      code: 'PLATFORM_MODEL_CREDENTIAL_MISSING',
+    });
+    expect(initializeWithProvider).not.toHaveBeenCalled();
   });
 
   it('keeps the user provider config path when platform billing is disabled', async () => {

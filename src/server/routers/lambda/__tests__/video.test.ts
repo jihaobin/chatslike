@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
+
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { FileService } from '@/server/services/file';
 import { AsyncTaskStatus } from '@/types/asyncTask';
+
+type AsyncTaskModelInstance = InstanceType<typeof AsyncTaskModel>;
+type ChargeBeforeGenerateResult = Awaited<ReturnType<typeof chargeBeforeGenerate>>;
+type FileServiceInstance = InstanceType<typeof FileService>;
 
 // ---- hoisted mocks (available inside vi.mock factories) ----
 
 const {
   mockAfter,
+  mockAssertGlobalProviderModelAvailable,
   mockCreateVideo,
   mockLoadModels,
   mockProcessBackgroundVideoPolling,
@@ -15,17 +22,21 @@ const {
   mockServerDB,
   mockTransaction,
   nativeBillingEnabled,
+  platformHostedModelsEnabled,
 } = vi.hoisted(() => {
   const mockTransaction = vi.fn();
   const mockServerDB = { transaction: mockTransaction };
   const mockCreateVideo = vi.fn();
   const mockAfter = vi.fn((cb: () => void) => cb());
+  const mockAssertGlobalProviderModelAvailable = vi.fn();
   const mockLoadModels = vi.fn();
   const mockProcessBackgroundVideoPolling = vi.fn().mockResolvedValue(undefined);
   const mockResolveBusinessModelMapping = vi.fn();
   const nativeBillingEnabled = { value: true };
+  const platformHostedModelsEnabled = { value: false };
   return {
     mockAfter,
+    mockAssertGlobalProviderModelAvailable,
     mockCreateVideo,
     mockLoadModels,
     mockProcessBackgroundVideoPolling,
@@ -33,6 +44,7 @@ const {
     mockServerDB,
     mockTransaction,
     nativeBillingEnabled,
+    platformHostedModelsEnabled,
   };
 });
 
@@ -60,13 +72,21 @@ vi.mock('@/business/shared/commercialRuntime', () => ({
         return nativeBillingEnabled.value;
       },
     },
+    platformHostedModels: {
+      get enabled() {
+        return platformHostedModelsEnabled.value;
+      },
+    },
   },
+}));
+vi.mock('@/business/server/globalProviderScope/runtimeGuard', () => ({
+  assertGlobalProviderModelAvailable: mockAssertGlobalProviderModelAvailable,
 }));
 vi.mock('@/business/server/video-generation/chargeAfterGenerate', () => ({
   chargeAfterGenerate: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@lobechat/business-model-runtime', async (importOriginal) => ({
-  ...((await importOriginal()) as any),
+  ...((await importOriginal()) as typeof import('@lobechat/business-model-runtime')),
   resolveBusinessModelMapping: (...args: [string, string]) =>
     mockResolveBusinessModelMapping(...args),
 }));
@@ -125,13 +145,15 @@ const mockDbUpdate = vi.fn().mockReturnValue({
 function setupMocks() {
   const mockUpdate = vi.fn().mockResolvedValue(undefined);
 
-  vi.mocked(AsyncTaskModel).mockImplementation(() => ({ update: mockUpdate }) as any);
+  vi.mocked(AsyncTaskModel).mockImplementation(
+    () => ({ update: mockUpdate }) as unknown as AsyncTaskModelInstance,
+  );
   vi.mocked(FileService).mockImplementation(
     () =>
       ({
         getFullFileUrl: vi.fn().mockResolvedValue(null),
         getKeyFromFullUrl: vi.fn().mockResolvedValue(null),
-      }) as any,
+      }) as unknown as FileServiceInstance,
   );
 
   const mockInsert = createInsertChain();
@@ -154,6 +176,8 @@ describe('videoRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     nativeBillingEnabled.value = true;
+    platformHostedModelsEnabled.value = false;
+    mockAssertGlobalProviderModelAvailable.mockResolvedValue(undefined);
     mockResolveBusinessModelMapping.mockImplementation(
       async (_provider: string, model: string) => ({
         resolvedModelId: model,
@@ -227,6 +251,27 @@ describe('videoRouter', () => {
       expect(mockProcessBackgroundVideoPolling).toHaveBeenCalled();
     });
 
+    it('server-enforces global provider availability before creating platform-hosted videos', async () => {
+      setupMocks();
+      platformHostedModelsEnabled.value = true;
+      mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-platform', useWebhook: true });
+
+      const caller = videoRouter.createCaller(mockCtx);
+      await caller.createVideo({
+        ...defaultInput,
+        model: 'sora',
+        provider: 'newapi-video-relay',
+      });
+
+      expect(mockAssertGlobalProviderModelAvailable).toHaveBeenCalledWith({
+        db: mockServerDB,
+        modality: 'video',
+        model: 'sora',
+        provider: 'newapi-video-relay',
+        requirePricing: true,
+      });
+    });
+
     it('should use polling path when response contains videoUrl (no special handling)', async () => {
       const { mockUpdate } = setupMocks();
       mockCreateVideo.mockResolvedValue({
@@ -282,10 +327,11 @@ describe('videoRouter', () => {
       setupMocks();
       const { chargeBeforeGenerate } =
         await import('@/business/server/video-generation/chargeBeforeGenerate');
-      vi.mocked(chargeBeforeGenerate).mockResolvedValueOnce({
-        errorBatch: { error: 'insufficient_balance' } as any,
+      const chargeFailure = {
+        errorBatch: { error: 'insufficient_balance' },
         prechargeResult: undefined,
-      });
+      } as unknown as ChargeBeforeGenerateResult;
+      vi.mocked(chargeBeforeGenerate).mockResolvedValueOnce(chargeFailure);
 
       const caller = videoRouter.createCaller(mockCtx);
       const result = await caller.createVideo(defaultInput);

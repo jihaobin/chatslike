@@ -7,6 +7,7 @@ import { aiModelSelectors } from './selectors';
 
 describe('aiModelSelectors', () => {
   const mockState: AIProviderStoreState = {
+    activeProviderConfigScope: 'user',
     aiProviderModelList: [
       {
         id: 'model1',

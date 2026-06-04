@@ -9,6 +9,7 @@ import {
   nativeBillingAdapter,
   nativeNotificationAdapter,
   nativeReferralAdapter,
+  userModelProviderSettingsAdapter,
 } from '@/business/shared/adapters';
 import NavHeader from '@/features/NavHeader';
 import SettingContainer from '@/features/Setting/SettingContainer';
@@ -53,6 +54,9 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
   );
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
   const apiKeyEnabled = showApiKeyManage || isDevMode;
+  const providerSettingsVisible =
+    showProvider &&
+    (isSuperAdmin || userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial));
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,7 +81,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
       SettingsTabs.Storage,
       ...(!hideDocs ? [SettingsTabs.About] : []),
       ...(apiKeyEnabled ? [SettingsTabs.APIKey] : []),
-      ...(showProvider ? [SettingsTabs.Provider] : []),
+      ...(providerSettingsVisible ? [SettingsTabs.Provider] : []),
       ...(isDesktop ? [SettingsTabs.Proxy, SettingsTabs.SystemTools] : []),
       ...(nativeBillingEnabled
         ? [SettingsTabs.Plans, SettingsTabs.Usage, SettingsTabs.Credits, SettingsTabs.Billing]
@@ -98,7 +102,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
         SettingsTabs.About,
         ...(apiKeyEnabled ? [SettingsTabs.APIKey] : []),
         SettingsTabs.ServiceModel,
-        ...(showProvider ? [SettingsTabs.Provider] : []),
+        ...(providerSettingsVisible ? [SettingsTabs.Provider] : []),
         SettingsTabs.Profile,
         SettingsTabs.Stats,
         SettingsTabs.Security,
@@ -108,7 +112,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
           : []),
         ...(nativeBillingEnabled && isSuperAdmin ? [SettingsTabs.AdminBilling] : []),
         ...(referralEnabled ? [SettingsTabs.Referral] : []),
-      ].includes(tab as any)
+        ].includes(tab as SettingsTabs)
     ) {
       componentProps.mobile = mobile;
     }

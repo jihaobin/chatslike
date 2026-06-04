@@ -4,6 +4,7 @@ export { nativeNotificationAdapter } from './nativeNotificationAdapter';
 export { nativeReferralAdapter } from './nativeReferralAdapter';
 export { nativeShareAdapter } from './nativeShareAdapter';
 export { platformModelRuntimeAdapter } from './platformModelRuntimeAdapter';
+export { userModelProviderSettingsAdapter } from './userModelProviderSettingsAdapter';
 export type {
   BillingAdapter,
   CommercialAdapter,

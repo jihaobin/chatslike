@@ -52,6 +52,7 @@ import { notebookRouter } from './notebook';
 import { notificationRouter } from './notification';
 import { oauthDeviceFlowRouter } from './oauthDeviceFlow';
 import { pluginRouter } from './plugin';
+import { providerPricingRouter } from './providerPricing';
 import { ragEvalRouter } from './ragEval';
 import { recentRouter } from './recent';
 import { searchRouter } from './search';
@@ -114,6 +115,7 @@ export const lambdaRouter = router({
   notification: notificationRouter,
   oauthDeviceFlow: oauthDeviceFlowRouter,
   plugin: pluginRouter,
+  providerPricing: providerPricingRouter,
   ragEval: ragEvalRouter,
   recent: recentRouter,
   search: searchRouter,

@@ -20,4 +20,14 @@ describe('mobileRouter task routes', () => {
     expect(source).toContain("path: ':aid/task/:taskId'");
     expect(source).not.toContain("import('@/routes/(main)/tasks/_layout')");
   });
+
+  it('registers mobile global provider detail routes emitted by super-admin settings nav', async () => {
+    const source = await readFile(
+      path.join(process.cwd(), 'src/spa/router/mobileRouter.config.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("path: 'global/:providerId'");
+    expect(source).toContain('Mobile > Settings > Provider > Global Detail');
+  });
 });

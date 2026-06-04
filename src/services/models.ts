@@ -8,6 +8,10 @@ import { API_ENDPOINTS } from './_url';
 import { resolveRuntimeProvider } from './chat/helper';
 import { initializeWithClientStore } from './chat/mecha';
 
+interface GetModelsOptions {
+  scope?: 'global' | 'user';
+}
+
 const isEnableFetchOnClient = (provider: string) =>
   aiProviderSelectors.isProviderFetchOnClient(provider)(getAiInfraStoreState());
 
@@ -27,7 +31,10 @@ export type ErrorCallback = (error: { message: string }) => void;
 export class ModelsService {
   private _abortController: AbortController | null = null;
 
-  getModels = async (provider: string): Promise<ChatModelCard[] | undefined> => {
+  getModels = async (
+    provider: string,
+    options: GetModelsOptions = {},
+  ): Promise<ChatModelCard[] | undefined> => {
     const headers = await createHeaderWithAuth({
       headers: { 'Content-Type': 'application/json' },
       provider,
@@ -38,7 +45,7 @@ export class ModelsService {
       /**
        * Use browser agent runtime
        */
-      const enableFetchOnClient = isEnableFetchOnClient(provider);
+      const enableFetchOnClient = options.scope !== 'global' && isEnableFetchOnClient(provider);
       if (enableFetchOnClient) {
         const agentRuntime = await initializeWithClientStore({
           provider,
@@ -47,11 +54,12 @@ export class ModelsService {
         return agentRuntime.models();
       }
 
-      const res = await fetch(API_ENDPOINTS.models(provider), { headers });
+      const res = await fetch(API_ENDPOINTS.models(provider, options), { headers });
       if (!res.ok) return;
 
       return res.json();
-    } catch {
+    } catch (error) {
+      console.error('[models:getModels]', error);
       return;
     }
   };

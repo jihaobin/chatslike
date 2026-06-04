@@ -4,12 +4,13 @@ import { RequestTrigger } from '@lobechat/types';
 import { and, eq } from 'drizzle-orm';
 
 import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
+import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { DEFAULT_AGENT_CHAT_CONFIG, DEFAULT_SYSTEM_AGENT_CONFIG } from '@/const/settings';
 import { UserModel } from '@/database/models/user';
 import { agents, agentsToSessions, aiModels } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
-import { initModelRuntimeWithUserPayload } from '@/server/modules/ModelRuntime';
+import { initModelRuntimeFromDB, initModelRuntimeWithUserPayload } from '@/server/modules/ModelRuntime';
 import { resolveSystemAgentModelConfig } from '@/server/services/systemAgent/modelConfig';
 
 import { BaseService } from '../common/base.service';
@@ -317,16 +318,19 @@ export class ChatService extends BaseService {
     });
 
     try {
-      const { apiKey } = JSON.parse(await this.getApiKey(provider));
+      const modelRuntime = commercialRuntime.platformHostedModels.enabled
+        ? await initModelRuntimeFromDB(this.db, this.userId!, provider)
+        : await (async () => {
+            const { apiKey } = JSON.parse(await this.getApiKey(provider));
+            const hooks = getBusinessModelRuntimeHooks(this.userId!, provider);
 
-      // Create AgentRuntime instance
-      const hooks = getBusinessModelRuntimeHooks(this.userId!, provider);
-      const modelRuntime = await initModelRuntimeWithUserPayload(
-        provider,
-        { apiKey, userId: this.userId! },
-        {},
-        hooks,
-      );
+            return initModelRuntimeWithUserPayload(
+              provider,
+              { apiKey, userId: this.userId! },
+              {},
+              hooks,
+            );
+          })();
 
       // Build ChatStreamPayload
       const chatPayload: ChatStreamPayload = {
@@ -382,9 +386,7 @@ export class ChatService extends BaseService {
       };
     } catch (error) {
       // Improve error logging with more detailed error information
-      let errorDetails: any;
-
-      console.error('error', error);
+      let errorDetails: Record<string, unknown>;
 
       if (error instanceof Error) {
         errorDetails = {
@@ -393,7 +395,7 @@ export class ChatService extends BaseService {
         };
       } else if (typeof error === 'object' && error !== null) {
         try {
-          errorDetails = structuredClone(error);
+          errorDetails = structuredClone(error) as Record<string, unknown>;
         } catch {
           errorDetails = { rawError: String(error) };
         }

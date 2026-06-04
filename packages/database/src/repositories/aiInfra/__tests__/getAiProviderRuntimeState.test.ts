@@ -1,9 +1,12 @@
 import type { AiProviderRuntimeConfig, EnabledProvider } from '@lobechat/types';
 import type { EnabledAiModel } from 'model-bank';
+import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getTestDB } from '../../../core/getTestDB';
+import { aiModels, aiProviders, users } from '../../../schemas';
 import type { LobeChatDatabase } from '../../../type';
+import { GLOBAL_PROVIDER_CONFIG_USER_ID } from '../constants';
 import { AiInfraRepos } from '../index';
 
 const userId = 'test-user-id';
@@ -12,6 +15,12 @@ const mockProviderConfigs = {
   anthropic: { enabled: false },
 };
 
+const createRuntimeConfig = (apiKey: string): AiProviderRuntimeConfig => ({
+  config: {},
+  keyVaults: { apiKey },
+  settings: {},
+});
+
 let serverDB: LobeChatDatabase;
 let repo: AiInfraRepos;
 
@@ -19,8 +28,10 @@ beforeAll(async () => {
   serverDB = await getTestDB();
 }, 30000);
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
+  await serverDB.delete(users).where(eq(users.id, GLOBAL_PROVIDER_CONFIG_USER_ID));
+  await serverDB.delete(users).where(eq(users.id, userId));
   repo = new AiInfraRepos(serverDB, userId, mockProviderConfigs);
 });
 
@@ -28,8 +39,8 @@ describe('AiInfraRepos', () => {
   describe('getAiProviderRuntimeState', () => {
     it('should return complete runtime state', async () => {
       const mockRuntimeConfig = {
-        openai: { apiKey: 'test-key' },
-      } as unknown as Record<string, AiProviderRuntimeConfig>;
+        openai: createRuntimeConfig('test-key'),
+      } satisfies Record<string, AiProviderRuntimeConfig>;
       const mockEnabledProviders = [{ id: 'openai', name: 'OpenAI' }] as EnabledProvider[];
       const mockEnabledModels = [
         { id: 'gpt-4', providerId: 'openai', enabled: true },
@@ -52,10 +63,8 @@ describe('AiInfraRepos', () => {
 
     it('should return provider runtime state', async () => {
       const mockRuntimeConfig = {
-        openai: {
-          apiKey: 'test-key',
-        },
-      } as unknown as Record<string, AiProviderRuntimeConfig>;
+        openai: createRuntimeConfig('test-key'),
+      } satisfies Record<string, AiProviderRuntimeConfig>;
 
       vi.spyOn(repo.aiProviderModel, 'getAiProviderRuntimeConfig').mockResolvedValue(
         mockRuntimeConfig,
@@ -93,8 +102,10 @@ describe('AiInfraRepos', () => {
         enabledVideoAiProviders: [],
         runtimeConfig: {
           openai: {
-            apiKey: 'test-key',
+            config: {},
             enabled: true,
+            keyVaults: { apiKey: 'test-key' },
+            settings: {},
           },
         },
       });
@@ -103,12 +114,12 @@ describe('AiInfraRepos', () => {
     it('should return provider runtime state with enabledImageAiProviders', async () => {
       const mockRuntimeConfig = {
         fal: {
-          apiKey: 'test-fal-key',
+          ...createRuntimeConfig('test-fal-key'),
         },
         openai: {
-          apiKey: 'test-openai-key',
+          ...createRuntimeConfig('test-openai-key'),
         },
-      } as unknown as Record<string, AiProviderRuntimeConfig>;
+      } satisfies Record<string, AiProviderRuntimeConfig>;
 
       vi.spyOn(repo.aiProviderModel, 'getAiProviderRuntimeConfig').mockResolvedValue(
         mockRuntimeConfig,
@@ -184,15 +195,102 @@ describe('AiInfraRepos', () => {
         enabledVideoAiProviders: [],
         runtimeConfig: {
           fal: {
-            apiKey: 'test-fal-key',
-            enabled: undefined,
+            config: {},
+            keyVaults: { apiKey: 'test-fal-key' },
+            settings: {},
           },
           openai: {
-            apiKey: 'test-openai-key',
+            config: {},
             enabled: true,
+            keyVaults: { apiKey: 'test-openai-key' },
+            settings: {},
           },
         },
       });
+    });
+
+    it('uses all enabled global providers in platform hosted mode', async () => {
+      await serverDB.insert(users).values([
+        { id: GLOBAL_PROVIDER_CONFIG_USER_ID },
+        { id: userId },
+      ]);
+      await serverDB.insert(aiProviders).values([
+        {
+          enabled: true,
+          id: 'newapi-openai-relay',
+          name: 'OpenAI Relay',
+          source: 'custom',
+          sort: 1,
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+        {
+          enabled: true,
+          id: 'newapi-claude-relay',
+          name: 'Claude Relay',
+          source: 'custom',
+          sort: 2,
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+        {
+          enabled: false,
+          id: 'disabled-relay',
+          name: 'Disabled Relay',
+          source: 'custom',
+          sort: 3,
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+      ]);
+      await serverDB.insert(aiModels).values([
+        {
+          enabled: true,
+          id: 'gpt-4o',
+          providerId: 'newapi-openai-relay',
+          source: 'custom',
+          type: 'chat',
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+        {
+          enabled: true,
+          id: 'claude-sonnet-4',
+          providerId: 'newapi-claude-relay',
+          source: 'custom',
+          type: 'chat',
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+        {
+          enabled: true,
+          id: 'disabled-provider-model',
+          providerId: 'disabled-relay',
+          source: 'custom',
+          type: 'chat',
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+        {
+          enabled: false,
+          id: 'disabled-model',
+          providerId: 'newapi-openai-relay',
+          source: 'custom',
+          type: 'chat',
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+      ]);
+
+      const platformRepo = new AiInfraRepos(serverDB, userId, {}, { platformHostedModelsEnabled: true });
+
+      const result = await platformRepo.getAiProviderRuntimeState();
+
+      expect(result.enabledAiProviders.map((provider) => provider.id)).toEqual([
+        'newapi-openai-relay',
+        'newapi-claude-relay',
+      ]);
+      expect(result.enabledAiModels.map((model) => `${model.providerId}:${model.id}`)).toEqual([
+        'newapi-openai-relay:gpt-4o',
+        'newapi-claude-relay:claude-sonnet-4',
+      ]);
+      expect(result.enabledChatAiProviders.map((provider) => provider.id)).toEqual([
+        'newapi-openai-relay',
+        'newapi-claude-relay',
+      ]);
     });
   });
 });

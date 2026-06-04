@@ -26,6 +26,7 @@ import {
   nativeBillingAdapter,
   nativeNotificationAdapter,
   nativeReferralAdapter,
+  userModelProviderSettingsAdapter,
 } from '@/business/shared/adapters';
 import { type CellProps } from '@/components/Cell';
 import { SettingsTabs } from '@/store/global/initialState';
@@ -35,6 +36,7 @@ import {
   useServerConfigStore,
 } from '@/store/serverConfig';
 import { useUserStore } from '@/store/user';
+import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
 import { userGeneralSettingsSelectors } from '@/store/user/slices/settings/selectors';
 
 export enum SettingsGroupKey {
@@ -66,10 +68,20 @@ export const useCategory = (): CategoryGroup[] => {
   const notificationEnabled = nativeNotificationEnabled || lobeHubCloudEnabled;
   const referralEnabled = nativeReferralEnabled || lobeHubCloudEnabled;
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
+  const isSuperAdmin = useUserStore(
+    (s) => userProfileSelectors.userProfile(s)?.role === 'super-admin',
+  );
+  const canUseUserProviderSettings = userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial);
+  const providerSettingsVisible =
+    showProvider && (isSuperAdmin || canUseUserProviderSettings);
+  const providerSettingsUrl =
+    isSuperAdmin && !canUseUserProviderSettings
+      ? '/settings/provider/global/all'
+      : '/settings/provider/all';
 
   return useMemo(() => {
     const navigateTo = (key: SettingsTabs) =>
-      navigate(key === SettingsTabs.Provider ? '/settings/provider/all' : `/settings/${key}`);
+      navigate(key === SettingsTabs.Provider ? providerSettingsUrl : `/settings/${key}`);
 
     const makeItem = (item: Omit<CategoryItem, 'onClick'>): CategoryItem => ({
       ...item,
@@ -127,7 +139,7 @@ export const useCategory = (): CategoryGroup[] => {
     const agent: CategoryItem[] = [
       // Provider settings should not depend on Advanced tools: new users may need
       // non-LobeHub providers, and desktop users often bring their own API keys.
-      showProvider &&
+      providerSettingsVisible &&
         makeItem({ icon: Brain, key: SettingsTabs.Provider, label: t('setting:tab.provider') }),
       makeItem({
         icon: Sparkles,
@@ -170,7 +182,8 @@ export const useCategory = (): CategoryGroup[] => {
     notificationEnabled,
     referralEnabled,
     showApiKeyManage,
-    showProvider,
+    providerSettingsVisible,
+    providerSettingsUrl,
     isDevMode,
     navigate,
   ]);

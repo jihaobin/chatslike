@@ -9,6 +9,14 @@ import { withSWR } from '~test-utils';
 
 import { useAiInfraStore as useStore } from '../../store';
 
+const emptyQueryResult = {
+  command: '',
+  fields: [],
+  oid: 0,
+  rowCount: 0,
+  rows: [],
+};
+
 vi.mock('zustand/traditional');
 
 vi.mock('@/libs/swr', async (importOriginal) => {
@@ -53,7 +61,9 @@ describe('AiModelAction', () => {
         await result.current.batchToggleAiModels(['model-1', 'model-2'], true);
       });
 
-      expect(serviceSpy).toHaveBeenCalledWith('test-provider', ['model-1', 'model-2'], true);
+      expect(serviceSpy).toHaveBeenCalledWith('test-provider', ['model-1', 'model-2'], true, {
+        scope: 'user',
+      });
       expect(refreshSpy).toHaveBeenCalled();
     });
 
@@ -102,13 +112,13 @@ describe('AiModelAction', () => {
         .mockResolvedValue(undefined);
       const serviceSpy = vi
         .spyOn(aiModelService, 'batchUpdateAiModels')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue([]);
 
       await act(async () => {
         await result.current.batchUpdateAiModels(models);
       });
 
-      expect(serviceSpy).toHaveBeenCalledWith('test-provider', models);
+      expect(serviceSpy).toHaveBeenCalledWith('test-provider', models, { scope: 'user' });
       expect(refreshSpy).toHaveBeenCalled();
     });
 
@@ -120,7 +130,7 @@ describe('AiModelAction', () => {
       const { result } = renderHook(() => useStore());
       const serviceSpy = vi
         .spyOn(aiModelService, 'batchUpdateAiModels')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue([]);
 
       await act(async () => {
         await result.current.batchUpdateAiModels([]);
@@ -138,13 +148,13 @@ describe('AiModelAction', () => {
         .mockResolvedValue(undefined);
       const serviceSpy = vi
         .spyOn(aiModelService, 'clearModelsByProvider')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(emptyQueryResult);
 
       await act(async () => {
         await result.current.clearModelsByProvider('test-provider');
       });
 
-      expect(serviceSpy).toHaveBeenCalledWith('test-provider');
+      expect(serviceSpy).toHaveBeenCalledWith('test-provider', { scope: 'user' });
       expect(refreshSpy).toHaveBeenCalled();
     });
   });
@@ -157,13 +167,13 @@ describe('AiModelAction', () => {
         .mockResolvedValue(undefined);
       const serviceSpy = vi
         .spyOn(aiModelService, 'clearRemoteModels')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(emptyQueryResult);
 
       await act(async () => {
         await result.current.clearRemoteModels('test-provider');
       });
 
-      expect(serviceSpy).toHaveBeenCalledWith('test-provider');
+      expect(serviceSpy).toHaveBeenCalledWith('test-provider', { scope: 'user' });
       expect(refreshSpy).toHaveBeenCalled();
     });
   });
@@ -183,18 +193,40 @@ describe('AiModelAction', () => {
         .mockResolvedValue(undefined);
       const serviceSpy = vi
         .spyOn(aiModelService, 'createAiModel')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue('new-model');
 
       await act(async () => {
         await result.current.createNewAiModel(params);
       });
 
-      expect(serviceSpy).toHaveBeenCalledWith(params);
+      expect(serviceSpy).toHaveBeenCalledWith({ ...params, scope: 'user' });
       expect(refreshSpy).toHaveBeenCalled();
     });
   });
 
   describe('fetchRemoteModelList', () => {
+    it('passes active provider config scope to the remote model service', async () => {
+      act(() => {
+        useStore.setState({ activeProviderConfigScope: 'global' });
+      });
+
+      const getModels = vi.fn().mockResolvedValue(null);
+
+      vi.doMock('@/services/models', () => ({
+        modelsService: {
+          getModels,
+        },
+      }));
+
+      const { result } = renderHook(() => useStore());
+
+      await act(async () => {
+        await result.current.fetchRemoteModelList('test-provider');
+      });
+
+      expect(getModels).toHaveBeenCalledWith('test-provider', { scope: 'global' });
+    });
+
     it('should fetch remote models and batch update', async () => {
       const mockRemoteModels = [
         {
@@ -343,7 +375,7 @@ describe('AiModelAction', () => {
         await result.current.refreshAiModelList();
       });
 
-      expect(mutate).toHaveBeenCalledWith(['FETCH_AI_PROVIDER_MODELS', 'test-provider']);
+      expect(mutate).toHaveBeenCalledWith(['FETCH_AI_PROVIDER_MODELS', 'user', 'test-provider']);
       expect(refreshRuntimeSpy).toHaveBeenCalled();
     });
   });
@@ -356,13 +388,17 @@ describe('AiModelAction', () => {
         .mockResolvedValue(undefined);
       const serviceSpy = vi
         .spyOn(aiModelService, 'deleteAiModel')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(emptyQueryResult);
 
       await act(async () => {
         await result.current.removeAiModel('model-1', 'test-provider');
       });
 
-      expect(serviceSpy).toHaveBeenCalledWith({ id: 'model-1', providerId: 'test-provider' });
+      expect(serviceSpy).toHaveBeenCalledWith({
+        id: 'model-1',
+        providerId: 'test-provider',
+        scope: 'user',
+      });
       expect(refreshSpy).toHaveBeenCalled();
     });
   });
@@ -378,7 +414,7 @@ describe('AiModelAction', () => {
         .mockResolvedValue(undefined);
       const serviceSpy = vi
         .spyOn(aiModelService, 'toggleModelEnabled')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(emptyQueryResult);
 
       await act(async () => {
         await result.current.toggleModelEnabled({ enabled: true, id: 'model-1' });
@@ -389,9 +425,37 @@ describe('AiModelAction', () => {
         enabled: true,
         id: 'model-1',
         providerId: 'test-provider',
+        scope: 'user',
       });
       expect(refreshSpy).toHaveBeenCalled();
       expect(toggleLoadingSpy).toHaveBeenCalledWith('model-1', false);
+    });
+
+    it('passes global scope to model service calls', async () => {
+      act(() => {
+        useStore.setState({
+          activeAiProvider: 'newapi-openai-relay',
+          activeProviderConfigScope: 'global',
+        });
+      });
+
+      const { result } = renderHook(() => useStore());
+      vi.spyOn(result.current, 'internal_toggleAiModelLoading').mockImplementation(() => {});
+      vi.spyOn(result.current, 'refreshAiModelList').mockResolvedValue(undefined);
+      const serviceSpy = vi
+        .spyOn(aiModelService, 'toggleModelEnabled')
+        .mockResolvedValue(emptyQueryResult);
+
+      await act(async () => {
+        await result.current.toggleModelEnabled({ enabled: true, id: 'gpt-4o' });
+      });
+
+      expect(serviceSpy).toHaveBeenCalledWith({
+        enabled: true,
+        id: 'gpt-4o',
+        providerId: 'newapi-openai-relay',
+        scope: 'global',
+      });
     });
 
     it('should not toggle when no active provider', async () => {
@@ -402,7 +466,7 @@ describe('AiModelAction', () => {
       const { result } = renderHook(() => useStore());
       const serviceSpy = vi
         .spyOn(aiModelService, 'toggleModelEnabled')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(emptyQueryResult);
 
       await act(async () => {
         await result.current.toggleModelEnabled({ enabled: true, id: 'model-1' });
@@ -444,13 +508,15 @@ describe('AiModelAction', () => {
         .mockResolvedValue(undefined);
       const serviceSpy = vi
         .spyOn(aiModelService, 'updateAiModel')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(emptyQueryResult);
 
       await act(async () => {
         await result.current.updateAiModelsConfig('model-1', 'test-provider', updateData);
       });
 
-      expect(serviceSpy).toHaveBeenCalledWith('model-1', 'test-provider', updateData);
+      expect(serviceSpy).toHaveBeenCalledWith('model-1', 'test-provider', updateData, {
+        scope: 'user',
+      });
       expect(refreshSpy).toHaveBeenCalled();
     });
   });
@@ -474,7 +540,7 @@ describe('AiModelAction', () => {
         await result.current.updateAiModelsSort('test-provider', sortMap);
       });
 
-      expect(serviceSpy).toHaveBeenCalledWith('test-provider', sortMap);
+      expect(serviceSpy).toHaveBeenCalledWith('test-provider', sortMap, { scope: 'user' });
       expect(refreshSpy).toHaveBeenCalled();
     });
   });
@@ -503,7 +569,9 @@ describe('AiModelAction', () => {
         expect(result.current.data).toEqual(mockModels);
       });
 
-      expect(aiModelService.getAiProviderModelList).toHaveBeenCalledWith('test-provider');
+      expect(aiModelService.getAiProviderModelList).toHaveBeenCalledWith('test-provider', {
+        scope: 'user',
+      });
     });
 
     it('should update store state on successful fetch', async () => {

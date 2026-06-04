@@ -1,6 +1,6 @@
 'use client';
 
-import { Flexbox, Icon, SearchBar } from '@lobehub/ui';
+import { Flexbox, Icon, SearchBar, Tag } from '@lobehub/ui';
 import { cssVar } from 'antd-style';
 import { SearchIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import SkeletonList from '@/features/NavPanel/components/SkeletonList';
-import { useAiInfraStore } from '@/store/aiInfra/store';
+import { aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
 
 import AddNew from './AddNew';
 import ProviderList from './List';
@@ -21,10 +21,10 @@ interface ProviderMenuProps {
 const Layout = memo(({ children, mobile }: ProviderMenuProps) => {
   const { t } = useTranslation('modelProvider');
 
-  const [providerSearchKeyword, useFetchAiProviderList] = useAiInfraStore((s) => [
+  const [providerSearchKeyword, useFetchAiProviderList, isGlobalScope] = useAiInfraStore((s) => [
     s.providerSearchKeyword,
     s.useFetchAiProviderList,
-    s.initAiProviderList,
+    aiProviderSelectors.isGlobalProviderConfigScope(s),
   ]);
 
   useFetchAiProviderList();
@@ -81,6 +81,7 @@ const Layout = memo(({ children, mobile }: ProviderMenuProps) => {
             useAiInfraStore.setState({ providerSearchKeyword: v });
           }}
         />
+        {isGlobalScope && <Tag>{t('providerScope.global.badge')}</Tag>}
         <AddNew />
       </Flexbox>
       {children}

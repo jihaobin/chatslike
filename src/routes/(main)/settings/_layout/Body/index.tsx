@@ -54,7 +54,7 @@ const Body = memo(() => {
           >
             <Flexbox gap={1} paddingBlock={1}>
               {group.items.map((item) => {
-                const url = getTabUrl(item.key);
+                const url = item.url ?? getTabUrl(item.key);
                 return (
                   <Link
                     key={item.key}

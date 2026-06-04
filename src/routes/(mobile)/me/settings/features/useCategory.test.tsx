@@ -1,7 +1,8 @@
 import { renderHook } from '@testing-library/react';
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { CommercialRuntimeConfig } from '@/business/shared/commercialRuntime';
 import { mapFeatureFlagsEnvToState } from '@/config/featureFlags';
 import { SettingsTabs } from '@/store/global/initialState';
 import { initServerConfigStore, Provider } from '@/store/serverConfig/store';
@@ -32,7 +33,14 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-const createWrapper = (showProvider: boolean) => {
+const createCommercialConfig = (platformHostedModels = false): CommercialRuntimeConfig => ({
+  commercial: { enabled: platformHostedModels },
+  lobeHubCloudIntegration: { enabled: false },
+  nativeBilling: { enabled: false },
+  platformHostedModels: { enabled: platformHostedModels },
+});
+
+const createWrapper = (showProvider: boolean, commercial = createCommercialConfig()) => {
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <Provider
       createStore={() =>
@@ -43,6 +51,7 @@ const createWrapper = (showProvider: boolean) => {
             }),
             showProvider,
           },
+          serverConfig: { aiProvider: {}, commercial, telemetry: {} },
         })
       }
     >
@@ -75,6 +84,21 @@ describe('mobile settings useCategory', () => {
     provider?.onClick?.();
 
     expect(navigate).toHaveBeenCalledWith('/settings/provider/all');
+  });
+
+  it('routes super-admin platform model settings to the registered global provider list', () => {
+    useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
+    const { result } = renderHook(() => useCategory(), {
+      wrapper: createWrapper(true, createCommercialConfig(true)),
+    });
+
+    const provider = result.current
+      .flatMap((group) => group.items)
+      .find((item) => item.key === SettingsTabs.Provider);
+
+    provider?.onClick?.();
+
+    expect(navigate).toHaveBeenCalledWith('/settings/provider/global/all');
   });
 
   it('hides Provider when provider settings are disabled', () => {

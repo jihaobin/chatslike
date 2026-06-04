@@ -12,9 +12,11 @@ const {
   mockAsyncTaskModelUpdate,
   mockChargeBeforeGenerate,
   mockCreateAsyncCaller,
+  mockAssertGlobalProviderModelAvailable,
   mockLoadModels,
   mockResolveBusinessModelMapping,
   nativeBillingEnabled,
+  platformHostedModelsEnabled,
 } = vi.hoisted(() => ({
   mockServerDB: {
     transaction: vi.fn(),
@@ -24,9 +26,11 @@ const {
   mockAsyncTaskModelUpdate: vi.fn(),
   mockChargeBeforeGenerate: vi.fn(),
   mockCreateAsyncCaller: vi.fn(),
+  mockAssertGlobalProviderModelAvailable: vi.fn(),
   mockLoadModels: vi.fn(),
   mockResolveBusinessModelMapping: vi.fn(),
   nativeBillingEnabled: { value: true },
+  platformHostedModelsEnabled: { value: false },
 }));
 
 // Mock debug
@@ -66,11 +70,20 @@ vi.mock('@/business/shared/commercialRuntime', () => ({
         return nativeBillingEnabled.value;
       },
     },
+    platformHostedModels: {
+      get enabled() {
+        return platformHostedModelsEnabled.value;
+      },
+    },
   },
 }));
 
+vi.mock('@/business/server/globalProviderScope/runtimeGuard', () => ({
+  assertGlobalProviderModelAvailable: mockAssertGlobalProviderModelAvailable,
+}));
+
 vi.mock('@lobechat/business-model-runtime', async (importOriginal) => ({
-  ...((await importOriginal()) as any),
+  ...((await importOriginal()) as typeof import('@lobechat/business-model-runtime')),
   resolveBusinessModelMapping: (...args: [string, string]) =>
     mockResolveBusinessModelMapping(...args),
 }));
@@ -127,6 +140,7 @@ describe('imageRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     nativeBillingEnabled.value = true;
+    platformHostedModelsEnabled.value = false;
 
     // Default mock implementations
     mockResolveBusinessModelMapping.mockImplementation(
@@ -135,6 +149,7 @@ describe('imageRouter', () => {
       }),
     );
     mockChargeBeforeGenerate.mockResolvedValue(undefined);
+    mockAssertGlobalProviderModelAvailable.mockResolvedValue(undefined);
     mockGetKeyFromFullUrl.mockResolvedValue(null);
     mockGetFullFileUrl.mockResolvedValue(null);
     mockLoadModels.mockResolvedValue([
@@ -420,6 +435,23 @@ describe('imageRouter', () => {
           userId: mockUserId,
         }),
       );
+    });
+
+    it('server-enforces global provider availability before creating platform-hosted images', async () => {
+      platformHostedModelsEnabled.value = true;
+      const ctx = createMockCtx();
+      const input = createDefaultInput({ model: 'gpt-image-1', provider: 'newapi-openai-relay' });
+
+      const caller = imageRouter.createCaller(ctx);
+      await caller.createImage(input);
+
+      expect(mockAssertGlobalProviderModelAvailable).toHaveBeenCalledWith({
+        db: mockServerDB,
+        modality: 'image',
+        model: 'gpt-image-1',
+        provider: 'newapi-openai-relay',
+        requirePricing: true,
+      });
     });
 
     it('should skip pre-charge and billing metadata when native billing is disabled', async () => {

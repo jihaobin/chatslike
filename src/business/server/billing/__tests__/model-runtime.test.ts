@@ -2,6 +2,8 @@
 import type {
   ChatCompletionErrorPayload,
   ChatStreamPayload,
+  EmbeddingsPayload,
+  GenerateObjectPayload,
   OnFinishData,
 } from '@lobechat/model-runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
 
 const {
+  assertGlobalProviderModelAvailable,
   assertPrechargeRisk,
   captureUsageCredits,
   createUsageRecord,
@@ -17,6 +20,7 @@ const {
   releaseUsageCredits,
   reserveUsageCredits,
 } = vi.hoisted(() => ({
+  assertGlobalProviderModelAvailable: vi.fn(),
   assertPrechargeRisk: vi.fn(),
   captureUsageCredits: vi.fn(),
   createUsageRecord: vi.fn(),
@@ -48,6 +52,10 @@ vi.mock('@/business/server/billing/pricing', async (importOriginal) => ({
   getTextPricing,
 }));
 
+vi.mock('@/business/server/globalProviderScope/runtimeGuard', () => ({
+  assertGlobalProviderModelAvailable,
+}));
+
 const payload = {
   messages: [{ content: 'hello', role: 'user' }],
   model: 'gpt-4.1',
@@ -58,6 +66,8 @@ describe('getBusinessModelRuntimeHooks', () => {
   beforeEach(() => {
     assertPrechargeRisk.mockReset();
     assertPrechargeRisk.mockResolvedValue(undefined);
+    assertGlobalProviderModelAvailable.mockReset();
+    assertGlobalProviderModelAvailable.mockResolvedValue(undefined);
     captureUsageCredits.mockReset();
     createUsageRecord.mockReset();
     getTextPricing.mockReset();
@@ -123,6 +133,91 @@ describe('getBusinessModelRuntimeHooks', () => {
       captureUsageCredits.mock.invocationCallOrder[0],
     );
     expect(releaseUsageCredits).not.toHaveBeenCalled();
+  });
+
+  it('checks global text provider and model availability before pricing in platform scope', async () => {
+    reserveUsageCredits.mockResolvedValue({ id: 'reservation-1' });
+    const hooks = getBusinessModelRuntimeHooks('user-1', 'openai', {
+      enforceGlobalProviderScope: true,
+      requireTextPricing: true,
+    });
+
+    await hooks?.beforeChat?.(payload);
+
+    expect(assertGlobalProviderModelAvailable).toHaveBeenCalledWith({
+      db: mockDb,
+      modality: 'text',
+      model: 'gpt-4.1',
+      provider: 'openai',
+      requirePricing: true,
+    });
+    expect(assertGlobalProviderModelAvailable.mock.invocationCallOrder[0]).toBeLessThan(
+      getTextPricing.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('checks platform chat availability without reserving credits when text pricing is not required', async () => {
+    const hooks = getBusinessModelRuntimeHooks('user-1', 'openai', {
+      enforceGlobalProviderScope: true,
+      requireTextPricing: false,
+    });
+
+    await hooks?.beforeChat?.(payload);
+
+    expect(assertGlobalProviderModelAvailable).toHaveBeenCalledWith({
+      db: mockDb,
+      modality: 'text',
+      model: 'gpt-4.1',
+      provider: 'openai',
+      requirePricing: false,
+    });
+    expect(getTextPricing).not.toHaveBeenCalled();
+    expect(assertPrechargeRisk).not.toHaveBeenCalled();
+    expect(reserveUsageCredits).not.toHaveBeenCalled();
+  });
+
+  it('checks platform text availability before generateObject without reserving credits', async () => {
+    const hooks = getBusinessModelRuntimeHooks('user-1', 'openai', {
+      enforceGlobalProviderScope: true,
+      requireTextPricing: true,
+    });
+    const generatePayload = {
+      messages: [{ content: 'extract json', role: 'user' }],
+      model: 'gpt-4.1',
+    } satisfies GenerateObjectPayload;
+
+    await hooks?.beforeGenerateObject?.(generatePayload);
+
+    expect(assertGlobalProviderModelAvailable).toHaveBeenCalledWith({
+      db: mockDb,
+      modality: 'text',
+      model: 'gpt-4.1',
+      provider: 'openai',
+      requirePricing: true,
+    });
+    expect(getTextPricing).not.toHaveBeenCalled();
+    expect(reserveUsageCredits).not.toHaveBeenCalled();
+  });
+
+  it('checks platform embedding availability without modality or pricing requirement', async () => {
+    const hooks = getBusinessModelRuntimeHooks('user-1', 'openai', {
+      enforceGlobalProviderScope: true,
+      requireTextPricing: true,
+    });
+    const embeddingsPayload = {
+      input: 'hello',
+      model: 'text-embedding-3-small',
+    } satisfies EmbeddingsPayload;
+
+    await hooks?.beforeEmbeddings?.(embeddingsPayload);
+
+    expect(assertGlobalProviderModelAvailable).toHaveBeenCalledWith({
+      db: mockDb,
+      model: 'text-embedding-3-small',
+      provider: 'openai',
+    });
+    expect(getTextPricing).not.toHaveBeenCalled();
+    expect(reserveUsageCredits).not.toHaveBeenCalled();
   });
 
   it('releases the reservation when chat throws', async () => {

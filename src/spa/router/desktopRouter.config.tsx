@@ -9,7 +9,8 @@ import {
   Settings,
   ShapesIcon,
 } from 'lucide-react';
-import { type RouteObject } from 'react-router-dom';
+import type { RouteObject } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 
 import {
   BusinessDesktopRoutesWithMainLayout,
@@ -383,25 +384,60 @@ export const desktopRoutes: RouteObject[] = [
           {
             children: [
               {
-                element: redirectElement('/settings/provider/all'),
-                index: true,
-              },
-              {
+                children: [
+                  {
+                    element: redirectElement('/settings/provider/all'),
+                    index: true,
+                  },
+                  {
+                    element: dynamicElement(
+                      () =>
+                        import('@/routes/(main)/settings/provider').then((m) => m.ProviderDetailPage),
+                      'Desktop > Settings > Provider > Detail',
+                    ),
+                    handle: {
+                      meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
+                    },
+                    path: ':providerId',
+                  },
+                ],
                 element: dynamicElement(
-                  () =>
-                    import('@/routes/(main)/settings/provider').then((m) => m.ProviderDetailPage),
-                  'Desktop > Settings > Provider > Detail',
+                  () => import('@/routes/(main)/settings/provider').then((m) => m.ProviderLayout),
+                  'Desktop > Settings > Provider > Layout',
                 ),
                 handle: {
                   meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
                 },
-                path: ':providerId',
+              },
+              {
+                children: [
+                  {
+                    element: redirectElement('/settings/provider/global/all'),
+                    index: true,
+                  },
+                  {
+                    element: dynamicElement(
+                      () =>
+                        import('@/routes/(main)/settings/provider').then((m) => m.ProviderDetailPage),
+                      'Desktop > Settings > Provider > Global > Detail',
+                    ),
+                    handle: {
+                      meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
+                    },
+                    path: ':providerId',
+                  },
+                ],
+                element: dynamicElement(
+                  () => import('@/routes/(main)/settings/provider').then((m) => m.ProviderGlobalLayout),
+                  'Desktop > Settings > Provider > Global > Layout',
+                ),
+                handle: {
+                  meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
+                },
+                path: 'global',
               },
             ],
-            element: dynamicElement(
-              () => import('@/routes/(main)/settings/provider').then((m) => m.ProviderLayout),
-              'Desktop > Settings > Provider > Layout',
-            ),
+            element: <Outlet />,
             handle: {
               meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
             },

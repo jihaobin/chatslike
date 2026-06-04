@@ -119,6 +119,16 @@ const getItemKeys = (commercial?: CommercialRuntimeConfig) => {
   return result.current.flatMap((group) => group.items.map((item) => item.key));
 };
 
+const getProviderItem = (commercial?: CommercialRuntimeConfig) => {
+  const { result } = renderHook(() => useCategory(), {
+    wrapper: createWrapper(true, commercial),
+  });
+
+  return result.current
+    .flatMap((group) => group.items)
+    .find((item) => item.key === SettingsTabs.Provider);
+};
+
 const initialUserStoreState = useUserStore.getState();
 
 afterEach(() => {
@@ -138,6 +148,27 @@ describe('settings useCategory', () => {
     const keys = result.current.flatMap((group) => group.items.map((item) => item.key));
 
     expect(keys).not.toContain(SettingsTabs.Provider);
+  });
+
+  it('hides Provider for ordinary platform-model-only users', () => {
+    act(() => {
+      useUserStore.setState({ user: { id: 'normal-user', role: 'user' } }, false);
+    });
+
+    expect(getItemKeys(createCommercialConfig({ platformHostedModels: true }))).not.toContain(
+      SettingsTabs.Provider,
+    );
+  });
+
+  it('keeps Provider visible for super-admin platform-model settings', () => {
+    act(() => {
+      useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
+    });
+
+    expect(getProviderItem(createCommercialConfig({ platformHostedModels: true }))).toMatchObject({
+      key: SettingsTabs.Provider,
+      url: '/settings/provider/global/all',
+    });
   });
 
   it('shows Admin Billing only for super-admin users', () => {

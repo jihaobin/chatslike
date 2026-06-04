@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import type { RouteObject } from 'react-router-dom';
+import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
+
+import { desktopRoutes } from './desktopRouter.config';
 
 /**
  * Known path pairs that intentionally differ between web and desktop (Electron).
@@ -46,6 +50,10 @@ function extractPaths(source: string) {
 
 function normalizePaths(paths: string[]) {
   return [...new Set(paths.map((path) => KNOWN_DIVERGENCES[path] ?? path))].sort();
+}
+
+function findDirectChildByPath(route: RouteObject | undefined, pathName: string) {
+  return route?.children?.find((child) => child.path === pathName);
 }
 
 async function readDesktopRouterSources() {
@@ -101,5 +109,31 @@ describe('desktopRouter config sync', () => {
     expect(asyncSource).not.toContain("import('@/routes/(main)/task/_layout')");
     expect(syncSource).not.toContain("from '@/routes/(main)/tasks/_layout'");
     expect(syncSource).not.toContain("from '@/routes/(main)/task/_layout'");
+  });
+
+  it('production provider global route is a direct global layout branch', () => {
+    const rootRoute = desktopRoutes.find((route) => route.path === '/');
+    const settingsRoute = findDirectChildByPath(rootRoute, 'settings');
+    const providerRoute = findDirectChildByPath(settingsRoute, 'provider');
+    expect(providerRoute, 'Provider route must exist in production route objects').toBeDefined();
+
+    const providerChildren = providerRoute?.children ?? [];
+    const globalRoute = providerChildren.find((route) => route.path === 'global');
+    const userLayoutRoute = providerChildren.find((route) => !route.path);
+
+    expect(globalRoute, 'Global provider branch must be a direct child of /settings/provider').toBeDefined();
+    expect(
+      userLayoutRoute?.children?.some((route) => route.path === 'global'),
+      'Global branch must not be nested under the user-scoped provider layout',
+    ).toBe(false);
+
+    const matches = matchRoutes(desktopRoutes, '/settings/provider/global/openai');
+    expect(matches?.map(({ route }) => route.path ?? '(pathless)')).toEqual([
+      '/',
+      'settings',
+      'provider',
+      'global',
+      ':providerId',
+    ]);
   });
 });

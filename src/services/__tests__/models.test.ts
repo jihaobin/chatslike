@@ -51,9 +51,11 @@ const modelsService = new ModelsService();
 const mockedCreateHeaderWithAuth = vi.mocked(createHeaderWithAuth);
 const mockedResolveRuntimeProvider = vi.mocked(resolveRuntimeProvider);
 const mockedInitializeWithClientStore = vi.mocked(initializeWithClientStore);
+type ClientRuntime = Awaited<ReturnType<typeof initializeWithClientStore>>;
 
 describe('ModelsService', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     (fetch as Mock).mockClear();
     mockedCreateHeaderWithAuth.mockClear();
     mockedResolveRuntimeProvider.mockReset();
@@ -71,6 +73,28 @@ describe('ModelsService', () => {
 
       expect(mockedResolveRuntimeProvider).toHaveBeenCalledWith('openai');
       expect(fetch).toHaveBeenCalledWith('/webapi/models/openai', { headers: {} });
+      expect(mockedInitializeWithClientStore).not.toHaveBeenCalled();
+    });
+
+    it('should include global scope in the server fetch URL', async () => {
+      (fetch as Mock).mockResolvedValueOnce(
+        new Response(JSON.stringify({ models: [] }), { status: 200 }),
+      );
+
+      await modelsService.getModels('openai', { scope: 'global' });
+
+      expect(fetch).toHaveBeenCalledWith('/webapi/models/openai?scope=global', { headers: {} });
+    });
+
+    it('should force server fetching for global scope even when client fetch is enabled', async () => {
+      vi.spyOn(aiProviderSelectors, 'isProviderFetchOnClient').mockReturnValue(() => true);
+      (fetch as Mock).mockResolvedValueOnce(
+        new Response(JSON.stringify({ models: [] }), { status: 200 }),
+      );
+
+      await modelsService.getModels('openai', { scope: 'global' });
+
+      expect(fetch).toHaveBeenCalledWith('/webapi/models/openai?scope=global', { headers: {} });
       expect(mockedInitializeWithClientStore).not.toHaveBeenCalled();
     });
 
@@ -95,7 +119,8 @@ describe('ModelsService', () => {
         .mockReturnValue(() => true);
       // Mock initializeWithClientStore to return a runtime with a models() method
       const mockModels = vi.fn().mockResolvedValue({ models: ['model1', 'model2'] });
-      mockedInitializeWithClientStore.mockResolvedValue({ models: mockModels } as any);
+      const mockRuntime = { models: mockModels } as unknown as ClientRuntime;
+      mockedInitializeWithClientStore.mockResolvedValue(mockRuntime);
 
       const result = await modelsService.getModels('openai');
 

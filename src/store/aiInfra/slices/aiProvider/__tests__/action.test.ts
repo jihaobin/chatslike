@@ -1,6 +1,16 @@
 import * as runtimeModule from '@lobechat/model-runtime';
-import type { AIImageModelCard, EnabledAiModel, ModelParamsSchema, Pricing } from 'model-bank';
+import type {
+  AIImageModelCard,
+  AiProviderModelListItem,
+  EnabledAiModel,
+  ModelParamsSchema,
+  Pricing,
+} from 'model-bank';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { aiProviderService } from '@/services/aiProvider';
+import { useAiInfraStore as useStore } from '@/store/aiInfra/store';
+import { AiProviderSourceEnum } from '@/types/aiProvider';
 
 import {
   getChatModelList,
@@ -20,7 +30,27 @@ const createChatModel = (overrides: Partial<EnabledAiModel> = {}): EnabledAiMode
   ...overrides,
 });
 
+const createProviderModelListItem = (
+  overrides: Partial<AiProviderModelListItem> = {},
+): AiProviderModelListItem => ({
+  abilities: overrides.abilities ?? {},
+  displayName: overrides.displayName ?? 'Chat Model',
+  enabled: overrides.enabled ?? true,
+  id: overrides.id ?? 'chat-model',
+  source: overrides.source ?? 'builtin',
+  type: overrides.type ?? 'chat',
+  ...overrides,
+});
+
 type ImageEnabledModel = EnabledAiModel & AIImageModelCard;
+
+const emptyQueryResult = {
+  command: '',
+  fields: [],
+  oid: 0,
+  rowCount: 0,
+  rows: [],
+};
 
 const createImageModel = (overrides: Partial<ImageEnabledModel> = {}): ImageEnabledModel => ({
   abilities: overrides.abilities ?? {},
@@ -36,6 +66,86 @@ const createImageModel = (overrides: Partial<ImageEnabledModel> = {}): ImageEnab
 describe('aiProvider action helpers', () => {
   beforeEach(() => {
     vi.spyOn(runtimeModule, 'getModelPropertyWithFallback').mockResolvedValue(undefined);
+  });
+
+  describe('scope forwarding', () => {
+    it('passes global scope to provider service calls', async () => {
+      useStore.setState({ activeProviderConfigScope: 'global', aiProviderLoadingIds: [] });
+      vi.spyOn(useStore.getState(), 'refreshAiProviderList').mockResolvedValue(undefined);
+      const serviceSpy = vi
+        .spyOn(aiProviderService, 'toggleProviderEnabled')
+        .mockResolvedValue(emptyQueryResult);
+
+      await useStore.getState().toggleProviderEnabled('newapi-openai-relay', true);
+
+      expect(serviceSpy).toHaveBeenCalledWith('newapi-openai-relay', true, { scope: 'global' });
+    });
+
+    it('sets active provider config scope and clears provider caches', () => {
+      const runtimeConfig = {
+        openai: { config: {}, keyVaults: {}, settings: {} },
+      };
+      const enabledModel = createChatModel({ id: 'stale-enabled-model' });
+       const enabledProvider = {
+         id: 'openai',
+         name: 'OpenAI',
+         source: AiProviderSourceEnum.Builtin,
+       };
+       const enabledProviderWithModels = {
+         children: [enabledModel],
+         id: 'openai',
+         name: 'OpenAI',
+         source: AiProviderSourceEnum.Builtin,
+       };
+
+      useStore.setState({
+        activeAiProvider: 'openai',
+        activeProviderModelList: [{ id: 'stale-active-model' }],
+        activeProviderConfigScope: 'user',
+        aiProviderRuntimeConfig: runtimeConfig,
+        aiModelLoadingIds: ['model-1'],
+        aiProviderDetailMap: {
+          openai: {
+            enabled: true,
+            id: 'openai',
+            name: 'OpenAI',
+            settings: {},
+            source: 'custom',
+          },
+        },
+        aiProviderList: [{ enabled: true, id: 'openai', name: 'OpenAI', source: 'custom' }],
+        aiProviderModelList: [createProviderModelListItem({ id: 'stale-model' })],
+        enabledAiModels: [enabledModel],
+        enabledAiProviders: [enabledProvider],
+        enabledChatModelList: [enabledProviderWithModels],
+        enabledImageModelList: [enabledProviderWithModels],
+        enabledVideoModelList: [enabledProviderWithModels],
+        initAiProviderList: true,
+        isAiModelListInit: true,
+        isInitAiProviderRuntimeState: true,
+      });
+
+      useStore.getState().setActiveProviderConfigScope('global');
+
+      expect(useStore.getState()).toMatchObject({
+        activeAiProvider: undefined,
+        activeProviderModelList: [],
+        activeProviderConfigScope: 'global',
+        aiModelLoadingIds: [],
+        aiProviderDetailMap: {},
+        aiProviderList: [],
+        aiProviderModelList: [],
+        aiProviderRuntimeConfig: {},
+        enabledAiModels: undefined,
+        enabledAiProviders: undefined,
+        enabledChatModelList: undefined,
+        enabledImageModelList: undefined,
+        enabledVideoModelList: undefined,
+        initAiProviderList: false,
+        isAiModelListInit: false,
+        isInitAiProviderRuntimeState: false,
+      });
+    });
   });
 
   afterEach(() => {

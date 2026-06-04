@@ -192,6 +192,31 @@ describe('SettingsContent', () => {
     expect(screen.queryByTestId(`settings-${SettingsTabs.Provider}`)).not.toBeInTheDocument();
   });
 
+  it('does not render Provider from direct navigation for ordinary platform-model-only users', () => {
+    renderSettingsContent({
+      activeTab: SettingsTabs.Provider,
+      commercial: createCommercialConfig({ platformHostedModels: true }),
+    });
+
+    expect(screen.queryByTestId(`settings-${SettingsTabs.Provider}`)).not.toBeInTheDocument();
+  });
+
+  it('renders Provider from direct navigation for super-admin platform-model settings', () => {
+    act(() => {
+      useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
+    });
+
+    renderSettingsContent({
+      activeTab: SettingsTabs.Provider,
+      commercial: createCommercialConfig({ platformHostedModels: true }),
+    });
+
+    expect(screen.getByTestId(`settings-${SettingsTabs.Provider}`)).toHaveAttribute(
+      'data-mobile',
+      'true',
+    );
+  });
+
   it('gates APIKey by API key management flag or dev mode', () => {
     const { unmount } = renderSettingsContent({
       activeTab: SettingsTabs.APIKey,

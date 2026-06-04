@@ -10,7 +10,10 @@ export const API_ENDPOINTS = {
   chat: (provider: string) => withElectronProtocolIfElectron(`/webapi/chat/${provider}`),
 
   // models
-  models: (provider: string) => withElectronProtocolIfElectron(`/webapi/models/${provider}`),
+  models: (provider: string, options?: { scope?: 'global' | 'user' }) => {
+    const scopeQuery = options?.scope === 'global' ? '?scope=global' : '';
+    return withElectronProtocolIfElectron(`/webapi/models/${provider}${scopeQuery}`);
+  },
   modelPull: (provider: string) =>
     withElectronProtocolIfElectron(`/webapi/models/${provider}/pull`),
 

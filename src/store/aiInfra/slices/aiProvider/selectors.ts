@@ -5,6 +5,11 @@ import { type AiProviderRuntimeConfig } from '@/types/aiProvider';
 import { AiProviderSourceEnum } from '@/types/aiProvider';
 import { type GlobalLLMProviderKey } from '@/types/user/settings';
 
+const activeProviderConfigScope = (s: AIProviderStoreState) => s.activeProviderConfigScope;
+
+const isGlobalProviderConfigScope = (s: AIProviderStoreState) =>
+  s.activeProviderConfigScope === 'global';
+
 // List
 const enabledAiProviderList = (s: AIProviderStoreState) =>
   s.aiProviderList.filter((item) => item.enabled).sort((a, b) => a.sort! - b.sort!);
@@ -133,6 +138,7 @@ const isProviderEnableResponseApi = (id: string) => (s: AIProviderStoreState) =>
 const isInitAiProviderRuntimeState = (s: AIProviderStoreState) => !!s.isInitAiProviderRuntimeState;
 
 export const aiProviderSelectors = {
+  activeProviderConfigScope,
   activeProviderConfig,
   disabledAiProviderList,
   disabledCustomAiProviderList,
@@ -143,6 +149,7 @@ export const aiProviderSelectors = {
   isActiveProviderEndpointNotEmpty,
   isAiProviderConfigLoading,
   isInitAiProviderRuntimeState,
+  isGlobalProviderConfigScope,
   isProviderConfigUpdating,
   isProviderEnableResponseApi,
   isProviderEnabled,

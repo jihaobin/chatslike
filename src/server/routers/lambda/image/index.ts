@@ -9,6 +9,7 @@ import { isProviderModelAvailable } from 'model-bank';
 import { z } from 'zod';
 
 import { chargeBeforeGenerate } from '@/business/server/image-generation/chargeBeforeGenerate';
+import { assertGlobalProviderModelAvailable } from '@/business/server/globalProviderScope/runtimeGuard';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { type NewGeneration, type NewGenerationBatch } from '@/database/schemas';
@@ -85,6 +86,16 @@ export const imageRouter = router({
         cause: { data: { modelType: 'image', requestedModel: model } },
         code: 'BAD_REQUEST',
         message: ChatErrorType.LobeHubModelDeprecated,
+      });
+    }
+
+    if (commercialRuntime.platformHostedModels.enabled) {
+      await assertGlobalProviderModelAvailable({
+        db: serverDB,
+        modality: 'image',
+        model,
+        provider,
+        requirePricing: commercialRuntime.nativeBilling.enabled,
       });
     }
 

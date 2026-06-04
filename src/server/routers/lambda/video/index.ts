@@ -15,6 +15,7 @@ import { after } from 'next/server';
 import { z } from 'zod';
 
 import { getProviderContentPolicyErrorMessage } from '@/business/server/getProviderContentPolicyErrorMessage';
+import { assertGlobalProviderModelAvailable } from '@/business/server/globalProviderScope/runtimeGuard';
 import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
 import { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
 import { getVideoFreeQuota } from '@/business/server/video-generation/getVideoFreeQuota';
@@ -89,6 +90,16 @@ export const videoRouter = router({
         cause: { data: { modelType: 'video', requestedModel: model } },
         code: 'BAD_REQUEST',
         message: ChatErrorType.LobeHubModelDeprecated,
+      });
+    }
+
+    if (commercialRuntime.platformHostedModels.enabled) {
+      await assertGlobalProviderModelAvailable({
+        db: serverDB,
+        modality: 'video',
+        model,
+        provider,
+        requirePricing: commercialRuntime.nativeBilling.enabled,
       });
     }
 

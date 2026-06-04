@@ -8,6 +8,7 @@ import { isCustomBranding } from '@/const/version';
 import DesktopLayout from '../_layout/Desktop';
 import MobileLayout from '../_layout/Mobile';
 import ProviderDetailPage from '../detail';
+import ProviderScopeBanner from '../features/ProviderScopeBanner';
 import Footer from './Footer';
 
 const Page = (props: { mobile?: boolean }) => {
@@ -27,6 +28,7 @@ const Page = (props: { mobile?: boolean }) => {
 
   return (
     <ProviderLayout onProviderSelect={setProvider}>
+      <ProviderScopeBanner />
       {ProviderListPage}
       {!isCustomBranding && <Footer />}
     </ProviderLayout>
