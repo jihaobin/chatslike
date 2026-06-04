@@ -27,6 +27,7 @@ describe('billing env', () => {
         ALIPAY_NOTIFY_URL: 'https://example.com/api/webhooks/payments/alipay',
         ALIPAY_PRIVATE_KEY: 'ali-private',
         ALIPAY_PUBLIC_KEY: 'ali-public',
+        BILLING_ALLOW_MOCK_PAYMENTS: '1',
         BILLING_FREE_DAILY_LIMIT: '2000000',
         BILLING_PAID_DAILY_LIMIT: '20000000',
         BILLING_TRIAL_CREDITS: '600000',
@@ -46,6 +47,7 @@ describe('billing env', () => {
         privateKey: 'ali-private',
         publicKey: 'ali-public',
       },
+      allowMockPayments: true,
       enabled: true,
       limits: {
         freeDailyCredits: 2_000_000,
@@ -75,6 +77,7 @@ describe('billing env', () => {
     expect(config.ENABLE_PLATFORM_HOSTED_MODELS).toBe(false);
     expect(config.ENABLE_LOBEHUB_CLOUD_INTEGRATION).toBe(false);
     expect(config.BILLING_TRIAL_CREDITS).toBeUndefined();
+    expect(config.BILLING_ALLOW_MOCK_PAYMENTS).toBe(false);
     expect(config.ALIPAY_PRIVATE_KEY).toBeUndefined();
     expect(config.WECHAT_PAY_API_V3_KEY).toBeUndefined();
   });

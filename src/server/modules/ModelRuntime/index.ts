@@ -22,6 +22,7 @@ import { BillingError } from '@/business/server/billing/errors';
 import { GLOBAL_PROVIDER_CONFIG_USER_ID } from '@/business/server/globalProviderScope/constants';
 import { hasGlobalProviderCredential } from '@/business/server/globalProviderScope/runtimeGuard';
 import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
+import { NEWAPI_PROVIDER_ID } from '@/business/server/platformCatalog/constants';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AiProviderModel } from '@/database/models/aiProvider';
 import { type LobeChatDatabase } from '@/database/type';

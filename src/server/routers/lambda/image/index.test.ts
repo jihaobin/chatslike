@@ -14,6 +14,7 @@ const {
   mockCreateAsyncCaller,
   mockAssertGlobalProviderModelAvailable,
   mockLoadModels,
+  mockAssertNewApiPlatformModelAvailable,
   mockResolveBusinessModelMapping,
   nativeBillingEnabled,
   platformHostedModelsEnabled,
@@ -28,6 +29,7 @@ const {
   mockCreateAsyncCaller: vi.fn(),
   mockAssertGlobalProviderModelAvailable: vi.fn(),
   mockLoadModels: vi.fn(),
+  mockAssertNewApiPlatformModelAvailable: vi.fn(),
   mockResolveBusinessModelMapping: vi.fn(),
   nativeBillingEnabled: { value: true },
   platformHostedModelsEnabled: { value: false },
@@ -61,6 +63,11 @@ vi.mock('@/database/models/asyncTask', () => ({
 // Mock chargeBeforeGenerate
 vi.mock('@/business/server/image-generation/chargeBeforeGenerate', () => ({
   chargeBeforeGenerate: (params: any) => mockChargeBeforeGenerate(params),
+}));
+
+vi.mock('@/business/server/platformCatalog/runtimeGuard', () => ({
+  assertNewApiPlatformModelAvailable: (params: any) =>
+    mockAssertNewApiPlatformModelAvailable(params),
 }));
 
 vi.mock('@/business/shared/commercialRuntime', () => ({
@@ -148,6 +155,7 @@ describe('imageRouter', () => {
         resolvedModelId: model,
       }),
     );
+    mockAssertNewApiPlatformModelAvailable.mockResolvedValue(undefined);
     mockChargeBeforeGenerate.mockResolvedValue(undefined);
     mockAssertGlobalProviderModelAvailable.mockResolvedValue(undefined);
     mockGetKeyFromFullUrl.mockResolvedValue(null);
@@ -216,6 +224,26 @@ describe('imageRouter', () => {
   });
 
   describe('createImage', () => {
+    it('validates resolved New API catalog model when platform hosted models are enabled', async () => {
+      platformHostedModelsEnabled.value = true;
+
+      const caller = imageRouter.createCaller(createMockCtx());
+
+      await expect(
+        caller.createImage(createDefaultInput({ provider: 'custom-openai' })),
+      ).resolves.toMatchObject({
+        success: true,
+      });
+      expect(mockAssertNewApiPlatformModelAvailable).toHaveBeenCalledWith({
+        db: mockServerDB,
+        modality: 'image',
+        model: 'stable-diffusion',
+        requirePricing: true,
+        userId: mockUserId,
+      });
+      expect(mockChargeBeforeGenerate).toHaveBeenCalled();
+    });
+
     it('should create image generation batch and generations successfully', async () => {
       const ctx = createMockCtx();
       const input = createDefaultInput();

@@ -74,6 +74,13 @@ describe('aiProviderRouter', () => {
     runtimeConfig: {},
   };
 
+  const createCommercialConfig = (platformHostedModels = false) => ({
+    commercial: { enabled: platformHostedModels },
+    lobeHubCloudIntegration: { enabled: false },
+    nativeBilling: { enabled: false },
+    platformHostedModels: { enabled: platformHostedModels },
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -89,6 +96,86 @@ describe('aiProviderRouter', () => {
 
   const createMockContext = () => ({
     userId: mockUserId,
+  });
+
+  const enablePlatformModelOnly = () => {
+    vi.mocked(getServerGlobalConfig).mockReturnValue({
+      aiProvider: {},
+      commercial: createCommercialConfig(true),
+    } as any);
+  };
+
+  describe('platform model only guard', () => {
+    it.each([
+      ['createAiProvider', () => ({ id: mockProviderId, name: 'Test Provider', source: 'custom' })],
+      ['updateAiProvider', () => ({ id: mockProviderId, value: { name: 'Updated Provider' } })],
+      ['updateAiProviderConfig', () => ({ id: mockProviderId, value: { checkModel: 'gpt-4' } })],
+      ['toggleProviderEnabled', () => ({ id: mockProviderId, enabled: true })],
+      ['removeAiProvider', () => ({ id: mockProviderId })],
+      ['updateAiProviderOrder', () => ({ sortMap: [{ id: mockProviderId, sort: 1 }] })],
+    ] as const)(
+      'rejects %s when platform hosted models are enabled',
+      async (procedure, inputFactory) => {
+        enablePlatformModelOnly();
+        const caller = aiProviderRouter.createCaller(createMockContext()) as any;
+
+        await expect(caller[procedure](inputFactory())).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+          message: 'USER_PROVIDER_SETTINGS_DISABLED',
+        });
+      },
+    );
+
+    it('sanitizes keyVaults from provider detail reads when platform hosted models are enabled', async () => {
+      enablePlatformModelOnly();
+      vi.mocked(AiInfraRepos).prototype.getAiProviderDetail = vi.fn().mockResolvedValue({
+        ...mockProviderDetail,
+        keyVaults: { apiKey: 'user-key', baseURL: 'https://user.example.com/v1' },
+      });
+
+      const caller = aiProviderRouter.createCaller(createMockContext());
+      const result = await caller.getAiProviderById({ id: mockProviderId });
+
+      expect(result).toEqual(expect.objectContaining({ id: mockProviderId }));
+      expect(result).not.toHaveProperty('keyVaults');
+    });
+
+    it('sanitizes runtime keyVaults when platform hosted models are enabled', async () => {
+      enablePlatformModelOnly();
+      vi.mocked(AiInfraRepos).prototype.getAiProviderRuntimeState = vi.fn().mockResolvedValue({
+        ...mockRuntimeState,
+        runtimeConfig: {
+          newapi: {
+            config: {},
+            keyVaults: { apiKey: 'user-newapi-key' },
+            settings: {},
+          },
+        },
+      });
+
+      const caller = aiProviderRouter.createCaller(createMockContext());
+      const result = await caller.getAiProviderRuntimeState({});
+
+      expect(result.runtimeConfig.newapi).toEqual({
+        config: {},
+        keyVaults: {},
+        settings: {},
+      });
+    });
+
+    it('rejects custom provider connectivity checks when platform hosted models are enabled', async () => {
+      enablePlatformModelOnly();
+
+      const caller = aiProviderRouter.createCaller(createMockContext());
+
+      await expect(
+        caller.checkProviderConnectivity({ id: 'custom-openai', model: 'gpt-4o-mini' }),
+      ).resolves.toEqual({
+        error: 'PLATFORM_MODEL_ONLY',
+        model: 'gpt-4o-mini',
+        ok: false,
+      });
+    });
   });
 
   describe('createAiProvider', () => {

@@ -31,7 +31,9 @@ import {
   nativeNotificationAdapter,
   nativeReferralAdapter,
   userModelProviderSettingsAdapter,
+  userModelProviderSettingsAdapter,
 } from '@/business/shared/adapters';
+import { isSuperAdminRole } from '@/const/authRoles';
 import { useElectronStore } from '@/store/electron';
 import { electronSyncSelectors } from '@/store/electron/selectors';
 import { SettingsTabs } from '@/store/global/initialState';
@@ -50,8 +52,6 @@ export enum SettingsGroupKey {
   Subscription = 'subscription',
   System = 'system',
 }
-
-const SUPER_ADMIN_ROLE = 'super-admin';
 
 export interface CategoryItem {
   icon: any;
@@ -78,8 +78,8 @@ export const useCategory = () => {
   ]);
   const remoteServerUrl = useElectronStore(electronSyncSelectors.remoteServerUrl);
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
-  const isSuperAdmin = useUserStore(
-    (s) => userProfileSelectors.userProfile(s)?.role === SUPER_ADMIN_ROLE,
+  const isSuperAdmin = useUserStore((s) =>
+    isSuperAdminRole(userProfileSelectors.userProfile(s)?.role),
   );
 
   const avatarUrl = useMemo(() => {
@@ -94,6 +94,8 @@ export const useCategory = () => {
   const lobeHubCloudEnabled = lobeHubCloudAdapter.getCapability(commercial).enabled;
   const nativeNotificationEnabled = nativeNotificationAdapter.getCapability(commercial).enabled;
   const nativeReferralEnabled = nativeReferralAdapter.getCapability(commercial).enabled;
+  const userProviderSettingsEnabled =
+    userModelProviderSettingsAdapter.getCapability(commercial).enabled;
   const notificationEnabled = nativeNotificationEnabled || lobeHubCloudEnabled;
   const referralEnabled = nativeReferralEnabled || lobeHubCloudEnabled;
   const canUseUserProviderSettings = userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial);
@@ -209,7 +211,7 @@ export const useCategory = () => {
         key: SettingsTabs.Memory,
         label: t('tab.memory'),
       },
-      {
+      userProviderSettingsEnabled && {
         icon: KeyRound,
         key: SettingsTabs.Creds,
         label: t('tab.creds'),

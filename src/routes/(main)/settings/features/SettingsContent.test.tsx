@@ -35,6 +35,7 @@ vi.mock('./componentMap', () => {
       [SettingsTabs.Appearance]: createComponent(SettingsTabs.Appearance),
       [SettingsTabs.About]: createComponent(SettingsTabs.About),
       [SettingsTabs.Billing]: createComponent(SettingsTabs.Billing),
+      [SettingsTabs.Creds]: createComponent(SettingsTabs.Creds),
       [SettingsTabs.Credits]: createComponent(SettingsTabs.Credits),
       [SettingsTabs.Notification]: createComponent(SettingsTabs.Notification),
       [SettingsTabs.Plans]: createComponent(SettingsTabs.Plans),

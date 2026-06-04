@@ -59,6 +59,7 @@ const aiProviderProcedure = authedProcedure.use(serverDatabase).use(async (opts)
   const { ctx } = opts;
 
   const { aiProvider, commercial } = await getServerGlobalConfig();
+  const { aiProvider, commercial } = await getServerGlobalConfig();
 
   const gateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
   return opts.next({

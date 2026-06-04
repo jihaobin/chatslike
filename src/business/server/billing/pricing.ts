@@ -368,7 +368,9 @@ export class ModelPricingService {
       )
       .orderBy(desc(modelPricing.effectiveAt), desc(modelPricing.createdAt));
 
-    const matched = rows.find((row) => matchesParameterRules(row.parameterRules, params.parameters));
+    const matched = rows.find((row) =>
+      matchesParameterRules(row.parameterRules, params.parameters),
+    );
     if (!matched) throw new PricingNotFoundError({ ...params });
 
     return matched;

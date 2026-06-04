@@ -1,6 +1,7 @@
 import { ENABLE_BUSINESS_FEATURES } from '@lobechat/business-const';
 
 import { getCommercialRuntimeConfig } from '@/business/shared/commercialRuntime';
+import { getPlatformProviderStatus } from '@/business/shared/platformProviderStatus';
 import { klavisEnv } from '@/config/klavis';
 import { isDesktop } from '@/const/version';
 import { appEnv, getAppConfig } from '@/envs/app';
@@ -9,6 +10,7 @@ import { fileEnv } from '@/envs/file';
 import { imageEnv } from '@/envs/image';
 import { knowledgeEnv } from '@/envs/knowledge';
 import { langfuseEnv } from '@/envs/langfuse';
+import { getLLMConfig } from '@/envs/llm';
 import { toolsEnv } from '@/envs/tools';
 import { parseSSOProviders } from '@/libs/better-auth/utils/server';
 import { parseSystemAgent } from '@/server/globalConfig/parseSystemAgent';
@@ -37,6 +39,7 @@ export const getServerGlobalConfig = async () => {
     ENABLE_PLATFORM_HOSTED_MODELS: process.env.ENABLE_PLATFORM_HOSTED_MODELS,
     NEXT_PUBLIC_ENABLE_PLATFORM_BILLING: process.env.NEXT_PUBLIC_ENABLE_PLATFORM_BILLING,
   });
+  const llmConfig = getLLMConfig() as Record<string, unknown>;
 
   const config: GlobalServerConfig = {
     aiProvider: await genServerAiProvidersConfig({
@@ -131,6 +134,7 @@ export const getServerGlobalConfig = async () => {
       userMemory: cleanObject(getPublicMemoryExtractionConfig()),
     },
     oAuthSSOProviders: getBetterAuthSSOProviders(),
+    platformProviderStatus: getPlatformProviderStatus(llmConfig),
     systemAgent: parseSystemAgent(appEnv.SYSTEM_AGENT),
     telemetry: {
       langfuse: langfuseEnv.ENABLE_LANGFUSE,

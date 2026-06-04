@@ -22,6 +22,8 @@ export const userProfileSelectors = {
   fullName: (s: UserStore): string => s.user?.fullName || '',
   interests: (s: UserStore): string[] => s.user?.interests || [],
   nickName,
+  phone: (s: UserStore): string => s.user?.phone || '',
+  phoneNumberVerified: (s: UserStore): boolean => s.user?.phoneNumberVerified === true,
   userAvatar: (s: UserStore): string => s.user?.avatar || '',
   userId: (s: UserStore) => s.user?.id,
   userProfile: (s: UserStore): LobeUser | null | undefined => s.user,

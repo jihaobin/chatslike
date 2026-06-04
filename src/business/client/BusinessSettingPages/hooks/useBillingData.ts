@@ -1,5 +1,6 @@
 import useSWR, { mutate } from 'swr';
 
+import type { ModelPricingListParams, PlatformCatalogFilters } from '@/services/billing';
 import { billingService } from '@/services/billing';
 
 const BILLING_PAGE_SIZE = 20;
@@ -63,3 +64,24 @@ export const useAdminBillingUsers = () =>
   useSWR(['billing.admin.users', BILLING_PAGE_SIZE], () =>
     billingService.adminListUsers({ pageSize: BILLING_PAGE_SIZE }),
   );
+
+export const usePlatformCatalogStatus = () =>
+  useSWR('billing.admin.platformCatalog.status', () =>
+    billingService.adminGetNewApiProviderStatus(),
+  );
+
+export const usePlatformCatalogModels = (filters: PlatformCatalogFilters = {}) =>
+  useSWR(['billing.admin.platformCatalog.models', filters], () =>
+    billingService.adminListPlatformModels(filters),
+  );
+
+export const usePlatformModelPricing = (params?: ModelPricingListParams) =>
+  useSWR(params ? ['billing.admin.platformCatalog.pricing', params] : null, () =>
+    billingService.adminListModelPricing(params!),
+  );
+
+export const refreshPlatformCatalog = (filters: PlatformCatalogFilters = {}) =>
+  Promise.all([
+    mutate('billing.admin.platformCatalog.status'),
+    mutate(['billing.admin.platformCatalog.models', filters]),
+  ]);

@@ -7,16 +7,13 @@ import type {
   PaymentCallbackResult,
 } from './types';
 
-const isMockPaymentEnabled = () =>
-  process.env.NODE_ENV !== 'production' && process.env.BILLING_ALLOW_MOCK_PAYMENTS === '1';
-
 const hasWechatPaySigningConfig = () =>
   Boolean(
     billingEnv.wechatPay.appId &&
-      billingEnv.wechatPay.apiV3Key &&
-      billingEnv.wechatPay.mchId &&
-      billingEnv.wechatPay.privateKey &&
-      billingEnv.wechatPay.serialNo,
+    billingEnv.wechatPay.apiV3Key &&
+    billingEnv.wechatPay.mchId &&
+    billingEnv.wechatPay.privateKey &&
+    billingEnv.wechatPay.serialNo,
   );
 
 const verifyWechatPayCallbackSignature = () => {
@@ -33,8 +30,7 @@ interface WechatPayCallbackBody {
 
 export class WechatPayAdapter implements PaymentAdapter {
   async createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
-    if (!billingEnv.wechatPay.mchId) throw new PaymentNotConfiguredError('wechat');
-    if (!hasWechatPaySigningConfig() && !isMockPaymentEnabled()) {
+    if (!hasWechatPaySigningConfig() && !billingEnv.allowMockPayments) {
       throw new PaymentNotConfiguredError('wechat');
     }
     if (!hasWechatPaySigningConfig()) {

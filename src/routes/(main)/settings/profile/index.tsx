@@ -20,6 +20,7 @@ import FullNameRow from './features/FullNameRow';
 import InterestsRow from './features/InterestsRow';
 import KlavisAuthorizationList from './features/KlavisAuthorizationList';
 import PasswordRow from './features/PasswordRow';
+import PhoneVerificationRow from './features/PhoneVerificationRow';
 import ProfileRow from './features/ProfileRow';
 import SSOProvidersList from './features/SSOProvidersList';
 import UsernameRow from './features/UsernameRow';
@@ -103,6 +104,13 @@ const ProfileSetting = () => {
             <>
               <Divider style={{ margin: 0 }} />
               <EmailRow />
+            </>
+          )}
+
+          {isLogin && (
+            <>
+              <Divider style={{ margin: 0 }} />
+              <PhoneVerificationRow />
             </>
           )}
 

@@ -75,6 +75,16 @@ export const imageRouter = router({
 
     const { resolvedModelId } = await resolveBusinessModelMapping(provider, model);
 
+    if (commercialRuntime.platformHostedModels.enabled) {
+      await assertNewApiPlatformModelAvailable({
+        db: serverDB,
+        modality: 'image',
+        model: resolvedModelId,
+        requirePricing: commercialRuntime.nativeBilling.enabled,
+        userId,
+      });
+    }
+
     // Reject lobehub model ids that are no longer in the model bank so callers get a
     // clear error instead of an opaque downstream failure when the underlying channel
     // can't serve the requested id.

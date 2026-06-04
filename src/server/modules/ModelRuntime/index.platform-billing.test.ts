@@ -20,7 +20,7 @@ const {
   getBusinessModelRuntimeHooks: vi.fn(),
   getUserKeyVaults: vi.fn(),
   llmConfig: {
-    OPENAI_API_KEY: 'platform-openai-key',
+    NEWAPI_API_KEY: 'platform-newapi-key',
   } as Record<string, string | undefined>,
   initializeWithProvider: vi.fn(),
   mergeModelRuntimeHooks: vi.fn((businessHooks, tracingHooks) => ({
@@ -95,7 +95,7 @@ describe('initModelRuntimeFromDB platform billing', () => {
     for (const key of Object.keys(llmConfig)) {
       delete llmConfig[key];
     }
-    llmConfig.OPENAI_API_KEY = 'platform-openai-key';
+    llmConfig.NEWAPI_API_KEY = 'platform-newapi-key';
     initializeWithProvider.mockReturnValue({ runtime: true });
     runtimeState.nativeBillingEnabled = false;
     runtimeState.platformHostedModelsEnabled = false;

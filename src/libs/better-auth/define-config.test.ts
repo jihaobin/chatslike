@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import type { BetterAuthOptions } from 'better-auth/minimal';
+import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   betterAuth: vi.fn((options) => options),
@@ -135,6 +134,23 @@ describe('defineConfig', () => {
       expect.objectContaining({
         emailAndPassword: expect.objectContaining({
           revokeSessionsOnPasswordReset: true,
+        }),
+      }),
+    );
+  });
+
+  it('should register super-admin as a Better Auth admin role', async () => {
+    const { admin } = await import('better-auth/plugins');
+    const { SUPER_ADMIN_ROLE } = await import('@/const/authRoles');
+    const { defineConfig } = await import('./define-config');
+
+    defineConfig({ plugins: [] });
+
+    expect(admin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adminRoles: [SUPER_ADMIN_ROLE],
+        roles: expect.objectContaining({
+          [SUPER_ADMIN_ROLE]: expect.anything(),
         }),
       }),
     );

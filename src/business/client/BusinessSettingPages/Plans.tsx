@@ -3,6 +3,7 @@
 import { ModelIcon } from '@lobehub/icons';
 import { Button, Flexbox, Icon, Skeleton, Text } from '@lobehub/ui';
 import { createStaticStyles, cssVar } from 'antd-style';
+import type { LucideIcon } from 'lucide-react';
 import {
   AtomIcon,
   CheckIcon,
@@ -12,14 +13,18 @@ import {
   SparklesIcon,
   ZapIcon,
 } from 'lucide-react';
-import type { ElementType } from 'react';
+import type { ReactNode } from 'react';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { billingService } from '@/services/billing';
 import { formatNumber } from '@/utils/format';
 
-import { useCurrentSubscription, useSubscriptionPlans, useTextModelPricing } from './hooks/useBillingData';
+import {
+  useCurrentSubscription,
+  useSubscriptionPlans,
+  useTextModelPricing,
+} from './hooks/useBillingData';
 
 const CLOUD_NAME = 'LobeHub Cloud';
 
@@ -49,7 +54,7 @@ interface HeroPlan {
   badge?: string;
   credits: number;
   desc: string;
-  icon: ElementType;
+  icon: LucideIcon;
   id: SubscriptionPlanId;
   monthlyEquivalent: string;
   monthlyPrice: string;
@@ -74,6 +79,11 @@ interface ModelAllowance {
   premium: string;
   starter: string;
   ultimate: string;
+}
+
+interface TranslateString {
+  (key: string, fallback: string): unknown;
+  (key: string, fallback: string, values: Record<string, string>): unknown;
 }
 
 const PLAN_RANK = {
@@ -315,9 +325,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   `,
   answer: css`
     max-width: 640px;
-    color: ${token.colorTextSecondary};
     font-size: 12px;
     line-height: 1.7;
+    color: ${token.colorTextSecondary};
   `,
   billingToggle: css`
     display: grid;
@@ -381,6 +391,7 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     inset-block-start: 0;
 
     padding-block: 0 12px;
+
     background: ${token.colorBgLayout};
   `,
   compareHeaderCard: css`
@@ -421,14 +432,14 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   heroCard: css`
     position: relative;
 
+    overflow: hidden;
     flex: 0 0 var(--plan-card-width, calc((100% - 24px) / 3));
 
-    overflow: hidden;
-
-    max-width: 100%;
     min-width: 0;
+    max-width: 100%;
     min-height: 1220px;
-    padding: 22px 20px 16px;
+    padding-block: 22px 16px;
+    padding-inline: 20px;
     border: 1px solid ${token.colorBorderSecondary};
     border-radius: 8px;
 
@@ -472,9 +483,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     margin-block-start: 26px;
   `,
   benefitGroupTitle: css`
-    color: ${token.colorTextSecondary};
     font-size: 16px;
     font-weight: 700;
+    color: ${token.colorTextSecondary};
   `,
   benefitItem: css`
     display: grid;
@@ -490,14 +501,12 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     line-height: 1.45;
   `,
   oneTimePayment: css`
-    color: ${token.colorTextTertiary};
     font-size: 13px;
+    color: ${token.colorTextTertiary};
   `,
   oneTimeSelect: css`
     position: relative;
-
     display: block;
-
     width: 100%;
   `,
   oneTimeSelectButton: css`
@@ -512,10 +521,10 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     border-radius: 7px;
 
     color: ${token.colorText};
+    text-align: start;
+
     background: ${token.colorBgContainer};
     box-shadow: none;
-
-    text-align: start;
   `,
   oneTimeSelectMenu: css`
     position: absolute;
@@ -541,9 +550,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     border: 0;
 
     color: ${token.colorText};
-    background: transparent;
-
     text-align: start;
+
+    background: transparent;
 
     &[data-active='true'] {
       background: ${token.colorFillSecondary};
@@ -583,6 +592,7 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     max-width: 1360px;
     margin-inline: auto;
     padding-block: 30px 88px;
+
     color: ${token.colorText};
   `,
   pageDivider: css`
@@ -593,7 +603,6 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   paymentBadge: css`
     gap: 4px;
     align-items: center;
-    color: ${token.colorTextSecondary};
     font-size: 15px;
   `,
   planIntro: css`
@@ -603,15 +612,16 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-
     min-height: 168px;
   `,
   planButton: css`
     width: 100%;
     height: 48px;
     border-radius: 8px;
+
     font-size: 16px;
     font-weight: 700;
+
     background: #1f1f1f !important;
     box-shadow: none !important;
 
@@ -636,10 +646,10 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     flex-wrap: wrap;
     gap: 4px;
     align-items: baseline;
+
     white-space: nowrap;
   `,
   priceCaption: css`
-    color: ${token.colorTextSecondary};
     font-size: 14px;
   `,
   priceDocsButton: css`
@@ -663,9 +673,8 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     font-weight: 800;
   `,
   priceTable: css`
-    width: 100%;
-    border-collapse: collapse;
     table-layout: fixed;
+    border-collapse: collapse;
 
     th,
     td {
@@ -682,13 +691,13 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
 
       height: 56px;
 
-      color: ${token.colorText};
       font-size: 16px;
       font-weight: 800;
+      color: ${token.colorText};
+      white-space: nowrap;
 
       background: ${token.colorBgContainer};
       box-shadow: inset 0 -1px ${token.colorBorderSecondary};
-      white-space: nowrap;
     }
 
     th:nth-child(2),
@@ -704,13 +713,13 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   `,
   priceTablePanel: css`
     container: pricing-table / inline-size;
+    overflow: hidden auto;
 
-    overflow-x: hidden;
-    overflow-y: auto;
     width: 100%;
     max-height: min(760px, 72vh);
     border: 1px solid ${token.colorBorderSecondary};
     border-radius: 8px;
+
     background: ${token.colorBgContainer};
   `,
   priceTableRate: css`
@@ -731,9 +740,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     padding-inline: 8px;
     border-radius: 5px;
 
-    color: ${token.colorTextSecondary};
     font-size: 14px;
     font-weight: 500;
+    color: ${token.colorTextSecondary};
 
     background: ${token.colorFillQuaternary};
   `,
@@ -743,15 +752,16 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     padding-inline: 8px;
     border-radius: 5px;
 
-    color: ${token.colorTextSecondary};
     font-size: 14px;
     font-weight: 700;
+    color: ${token.colorTextSecondary};
 
     background: ${token.colorFillQuaternary};
   `,
   pricingModelName: css`
-    min-width: 0;
     overflow: hidden;
+
+    min-width: 0;
 
     font-size: 17px;
     line-height: 1.35;
@@ -759,14 +769,13 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     white-space: nowrap;
 
     @container pricing-table (width >= 760px) {
-      display: -webkit-box;
       overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
 
       text-overflow: initial;
       white-space: normal;
-
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
     }
   `,
   sectionTitle: css`
@@ -783,7 +792,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     height: 54px;
     border: 0 !important;
     border-radius: 10px;
+
     color: ${token.colorTextSecondary};
+
     background: transparent !important;
     box-shadow: none !important;
 
@@ -831,13 +842,13 @@ const getPlanIcon = (planId: SubscriptionPlanId) => {
 
 const renderCompareValue = (
   value: string | true,
-  t: ReturnType<typeof useTranslation>['t'],
+  t: TranslateString,
   unitKey?: string,
-) =>
+): ReactNode =>
   value === true ? (
     <Icon color="#29a34a" icon={CheckIcon} size={14} />
   ) : unitKey ? (
-    t(unitKey, { amount: value })
+    translateString(t, unitKey, value, { amount: value })
   ) : (
     value
   );
@@ -1342,11 +1353,15 @@ const Plans = memo(() => {
                 <th>{t('models.title')}</th>
                 <th>
                   {t('models.input')}
-                  <span className={styles.priceTokenBadge}>{t('modelPricing.perMillionTokens')}</span>
+                  <span className={styles.priceTokenBadge}>
+                    {t('modelPricing.perMillionTokens')}
+                  </span>
                 </th>
                 <th>
                   {t('models.output')}
-                  <span className={styles.priceTokenBadge}>{t('modelPricing.perMillionTokens')}</span>
+                  <span className={styles.priceTokenBadge}>
+                    {t('modelPricing.perMillionTokens')}
+                  </span>
                 </th>
               </tr>
             </thead>
@@ -1364,13 +1379,17 @@ const Plans = memo(() => {
                   <td>
                     <span className={styles.priceTableRate}>
                       {formatCreditsPerMillionTokens(item.inputCreditsPerMillionTokens)}
-                      <span className={styles.priceTableUnit}>{t('billingNative.billing.creditsUnit')}</span>
+                      <span className={styles.priceTableUnit}>
+                        {t('billingNative.billing.creditsUnit')}
+                      </span>
                     </span>
                   </td>
                   <td>
                     <span className={styles.priceTableRate}>
                       {formatCreditsPerMillionTokens(item.outputCreditsPerMillionTokens)}
-                      <span className={styles.priceTableUnit}>{t('billingNative.billing.creditsUnit')}</span>
+                      <span className={styles.priceTableUnit}>
+                        {t('billingNative.billing.creditsUnit')}
+                      </span>
                     </span>
                   </td>
                 </tr>
@@ -1489,11 +1508,11 @@ const getCompareValueUnitKey = (titleKey: string) => {
 
 const MemoCompareGroup = memo<{
   group: (typeof COMPARE_GROUPS)[number];
-  t: ReturnType<typeof useTranslation>['t'];
+  t: TranslateString;
 }>(({ group, t }) => (
   <>
     <Flexbox className={styles.featureSection} paddingBlock={16}>
-      {t(group.title)}
+      {translateString(t, group.title, group.title)}
     </Flexbox>
     <div />
     <div />
@@ -1513,11 +1532,13 @@ MemoCompareGroup.displayName = 'MemoCompareGroup';
 
 const MemoCompareFeature = memo<{
   feature: CompareFeature;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: TranslateString;
   unitKey?: string;
 }>(({ feature, t, unitKey }) => (
   <>
-    <Flexbox className={styles.compareTitleCell}>{t(feature.titleKey)}</Flexbox>
+    <Flexbox className={styles.compareTitleCell}>
+      {translateString(t, feature.titleKey, feature.titleKey)}
+    </Flexbox>
     <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
       {renderCompareValue(feature.starter, t, unitKey)}
     </Flexbox>
@@ -1534,7 +1555,7 @@ MemoCompareFeature.displayName = 'MemoCompareFeature';
 
 const MemoCompareAllowance = memo<{
   item: ModelAllowance;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: TranslateString;
 }>(({ item, t }) => {
   const key =
     item.kind === 'image'
@@ -1550,13 +1571,13 @@ const MemoCompareAllowance = memo<{
         </Flexbox>
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {t(key, { amount: item.starter })}
+        {translateString(t, key, item.starter, { amount: item.starter })}
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {t(key, { amount: item.premium })}
+        {translateString(t, key, item.premium, { amount: item.premium })}
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {t(key, { amount: item.ultimate })}
+        {translateString(t, key, item.ultimate, { amount: item.ultimate })}
       </Flexbox>
     </>
   );

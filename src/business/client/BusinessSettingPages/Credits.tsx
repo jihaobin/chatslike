@@ -474,7 +474,7 @@ const Credits = memo(() => {
     setProductId(value);
   };
 
-  const handleCustomCreditsChange = (value: number | null) => {
+  const handleCustomCreditsChange = (value: number | string | null) => {
     const nextValue = Math.max(1, Number(value ?? 1));
     setCustomCreditsMillion(nextValue);
 

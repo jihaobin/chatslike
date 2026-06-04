@@ -62,6 +62,11 @@ export class CommonActionImpl {
     await this.#get().refreshUserState();
   };
 
+  verifyPhoneForTrial = async (phoneNumber: string): Promise<void> => {
+    await userService.verifyPhoneForTrial(phoneNumber);
+    await this.#get().refreshUserState();
+  };
+
   updateKeyVaultConfig = async (provider: string, config: any): Promise<void> => {
     await this.#get().setSettings({ keyVaults: { [provider]: config } });
   };
@@ -131,6 +136,8 @@ export class CommonActionImpl {
                     id: data.userId,
                     interests: data.interests,
                     latestName: data.lastName,
+                    phone: data.phone,
+                    phoneNumberVerified: data.phoneNumberVerified,
                     role: data.role,
                     username: data.username,
                   } as LobeUser)

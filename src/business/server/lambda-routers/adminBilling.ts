@@ -2,12 +2,12 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 import { AdminBillingService } from '@/business/server/billing/admin';
+import { isSuperAdminRole } from '@/const/authRoles';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware/serverDatabase';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
-const SUPER_ADMIN_ROLE = 'super-admin';
 
 const listInputSchema = z
   .object({
@@ -34,7 +34,7 @@ const adminBillingProcedure = authedProcedure.use(serverDatabase).use(async (opt
     where: (table, { eq }) => eq(table.id, ctx.userId),
   });
 
-  if (user?.role !== SUPER_ADMIN_ROLE) {
+  if (!isSuperAdminRole(user?.role)) {
     throw new TRPCError({
       code: 'FORBIDDEN',
       message: 'Admin billing access is restricted to super administrators',

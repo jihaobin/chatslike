@@ -4,7 +4,6 @@ import { AGENT_SKILLS_IDENTIFIER_PREFIX } from '@lobechat/const';
 import { type BuiltinInspectorProps } from '@lobechat/types';
 import { SkillsIcon } from '@lobehub/ui/icons';
 import { createStaticStyles, cx } from 'antd-style';
-import { type TFunction } from 'i18next';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,11 +18,8 @@ import type { ActivateSkillParams, ActivateSkillSource, ActivateSkillState } fro
  * best-effort fallback. Project skills can't be inferred from the bare name
  * (no prefix), so they show "Activate Skill" until the result lands.
  *
- * `t` is invoked with literal keys per branch so i18next's typed-key map can
- * still validate the call site.
  */
-const resolveLabel = (
-  t: TFunction<'plugin'>,
+const resolveLabelKey = (
   source: ActivateSkillSource | undefined,
   rawName: string | undefined,
 ): string => {
@@ -32,13 +28,13 @@ const resolveLabel = (
 
   switch (effective) {
     case 'agent': {
-      return t('builtins.lobe-skills.apiName.activateAgentSkill');
+      return 'builtins.lobe-skills.apiName.activateAgentSkill';
     }
     case 'project': {
-      return t('builtins.lobe-skills.apiName.activateProjectSkill');
+      return 'builtins.lobe-skills.apiName.activateProjectSkill';
     }
     default: {
-      return t('builtins.lobe-skills.apiName.activateSkill');
+      return 'builtins.lobe-skills.apiName.activateSkill';
     }
   }
 };
@@ -84,7 +80,7 @@ export const RunSkillInspector = memo<
 
   const name = args?.name || partialArgs?.name;
   const displayName = pluginState?.title || pluginState?.name || name;
-  const label = resolveLabel(t, pluginState?.source, name);
+  const label = t(resolveLabelKey(pluginState?.source, name));
 
   if (isArgumentsStreaming) {
     if (!displayName)

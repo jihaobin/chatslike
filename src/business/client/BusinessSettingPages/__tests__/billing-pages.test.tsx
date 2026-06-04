@@ -18,6 +18,7 @@ const translationFallbacks: Record<string, string> = {
   'billingNative.plans.pixel.period.yearly': 'Yearly',
   'billingNative.plans.pixel.price.perMonthYearly': '/ month (yearly)',
   'billingNative.plans.pixel.price.perYear': '{{price}} / year',
+  'billingNative.admin.tabs.platform-models': 'Platform Models',
   'compare.title': 'Plan Comparison',
   'modelPricing.perMillionTokens': '1M Tokens',
   'modelPricing.title': 'Text Model Pricing',
@@ -34,8 +35,8 @@ vi.mock('react-i18next', () => ({
     values?: Record<string, React.ReactNode>;
   }) => {
     if (i18nKey === 'billingNative.credits.purchase.upgradeSaving' && components?.plan) {
-      const PlanLink = components.plan.type;
-      const planProps = components.plan.props;
+      const PlanLink = components.plan.type as React.ComponentType<{ children?: React.ReactNode }>;
+      const planProps = components.plan.props as { children?: React.ReactNode };
 
       return (
         <>
@@ -259,6 +260,7 @@ const mutateBalance = vi.hoisted(() => vi.fn());
 const useCurrentSubscription = vi.hoisted(() => vi.fn());
 const useBillingOrder = vi.hoisted(() => vi.fn());
 const useAdminBillingUsers = vi.hoisted(() => vi.fn());
+const inlineTableRender = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/billing', () => ({
   billingService: {
@@ -283,33 +285,41 @@ vi.mock('@/components/InlineTable', () => ({
     }[];
     dataSource?: unknown[];
     locale?: { emptyText?: React.ReactNode };
-  }) => (
-    <div data-testid="inline-table">
-      {dataSource?.length
-        ? dataSource.map((record, rowIndex) => (
-            <div key={rowIndex}>
-              {columns?.map((column) => {
-                const row = record as Record<string, unknown>;
-                const value = column.dataIndex ? row[column.dataIndex] : undefined;
+  }) => {
+    inlineTableRender({ columns, dataSource, locale });
 
-                return (
-                  <div key={column.key ?? column.dataIndex}>
-                    {column.title}
-                    {column.render ? column.render(value, row) : String(value ?? '')}
-                  </div>
-                );
-              })}
-            </div>
-          ))
-        : locale?.emptyText}
-    </div>
-  ),
+    return (
+      <div data-testid="inline-table">
+        {dataSource?.length
+          ? dataSource.map((record, rowIndex) => (
+              <div key={rowIndex}>
+                {columns?.map((column) => {
+                  const row = record as Record<string, unknown>;
+                  const value = column.dataIndex ? row[column.dataIndex] : undefined;
+
+                  return (
+                    <div key={column.key ?? column.dataIndex}>
+                      {column.title}
+                      {column.render ? column.render(value, row) : String(value ?? '')}
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          : locale?.emptyText}
+      </div>
+    );
+  },
 }));
 
 vi.mock('../SubscriptionIframeWrapper', () => ({
   SubscriptionIframeWrapper: ({ page }: { page: string }) => (
     <div data-page={page} data-testid="subscription-iframe-wrapper" />
   ),
+}));
+
+vi.mock('../PlatformCatalog', () => ({
+  default: () => <div data-testid="platform-catalog">New API 模型目录</div>,
 }));
 
 vi.mock('../hooks/useBillingData', () => ({
@@ -439,6 +449,7 @@ describe('Business billing pages', () => {
     createTopUpOrder.mockReset();
     mutateBalance.mockReset();
     refreshBillingOrders.mockReset();
+    inlineTableRender.mockClear();
     useBillingOrder.mockReset();
     useBillingOrder.mockReturnValue({ data: undefined });
     useCurrentSubscription.mockReset();
@@ -756,5 +767,15 @@ describe('Business billing pages', () => {
     expect(screen.getByText('20,000')).toBeInTheDocument();
     expect(screen.getByText('Granted: 150,000')).toBeInTheDocument();
     expect(screen.getByText('Consumed: 30,000')).toBeInTheDocument();
+  }, 30_000);
+
+  it('exposes the New API platform catalog from admin billing', async () => {
+    const { default: AdminBilling } = await import('../AdminBilling');
+
+    render(<AdminBilling />);
+    fireEvent.click(screen.getByRole('button', { name: 'Platform Models' }));
+
+    expect(await screen.findByTestId('platform-catalog')).toBeInTheDocument();
+    expect(screen.getByText('New API 模型目录')).toBeInTheDocument();
   }, 30_000);
 });

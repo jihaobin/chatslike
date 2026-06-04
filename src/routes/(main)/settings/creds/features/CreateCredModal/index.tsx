@@ -7,6 +7,9 @@ import { createStaticStyles } from 'antd-style';
 import { type FC, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { userModelProviderSettingsAdapter } from '@/business/shared/adapters';
+import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
+
 import CredTypeSelector from './CredTypeSelector';
 import FileCredForm from './FileCredForm';
 import KVCredForm from './KVCredForm';
@@ -31,8 +34,12 @@ const CreateCredModal: FC<CreateCredModalProps> = ({ open, onCancel, onSuccess }
   const { t } = useTranslation('setting');
   const [step, setStep] = useState(0);
   const [credType, setCredType] = useState<CredType | null>(null);
+  const commercial = useServerConfigStore(serverConfigSelectors.commercial);
+  const allowKV = userModelProviderSettingsAdapter.canWriteModelProviderKeyVaults(commercial);
 
   const handleTypeSelect = (type: CredType) => {
+    if (!allowKV && (type === 'kv-env' || type === 'kv-header')) return;
+
     setCredType(type);
     setStep(1);
   };
@@ -91,7 +98,11 @@ const CreateCredModal: FC<CreateCredModalProps> = ({ open, onCancel, onSuccess }
           ]}
         />
 
-        {step === 0 ? <CredTypeSelector onSelect={handleTypeSelect} /> : renderForm()}
+        {step === 0 ? (
+          <CredTypeSelector allowKV={allowKV} onSelect={handleTypeSelect} />
+        ) : (
+          renderForm()
+        )}
       </div>
     </Modal>
   );

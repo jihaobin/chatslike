@@ -1,8 +1,6 @@
 import type { ChatStreamPayload, ModelRuntimeHooks, OnFinishData } from '@lobechat/model-runtime';
 import debug from 'debug';
 
-import { getServerDB } from '@/database/core/db-adaptor';
-
 import { CreditsService } from '@/business/server/billing/credits';
 import {
   calculateTextCredits,
@@ -30,8 +28,7 @@ interface BusinessModelRuntimeHookOptions {
 
 const createOperationId = (userId: string, provider: string, model: string) => {
   const now = Date.now();
-  const suffix =
-    globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  const suffix = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
   return `chat:${userId}:${provider}:${model}:${now}:${suffix}`;
 };
@@ -41,7 +38,10 @@ const estimatePromptTokens = (payload: ChatStreamPayload) =>
 
 const getActualTextCredits = (
   data: OnFinishData,
-  pricing: Pick<RuntimeBillingState, 'inputCreditsPerMillionTokens' | 'outputCreditsPerMillionTokens'>,
+  pricing: Pick<
+    RuntimeBillingState,
+    'inputCreditsPerMillionTokens' | 'outputCreditsPerMillionTokens'
+  >,
 ) => {
   const { inputTokens, outputTokens } = getTextUsageTokens(data);
 
