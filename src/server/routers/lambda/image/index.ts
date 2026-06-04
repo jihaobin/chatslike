@@ -8,8 +8,9 @@ import { and, eq } from 'drizzle-orm';
 import { isProviderModelAvailable } from 'model-bank';
 import { z } from 'zod';
 
-import { chargeBeforeGenerate } from '@/business/server/image-generation/chargeBeforeGenerate';
 import { assertGlobalProviderModelAvailable } from '@/business/server/globalProviderScope/runtimeGuard';
+import { chargeBeforeGenerate } from '@/business/server/image-generation/chargeBeforeGenerate';
+import { assertNewApiPlatformModelAvailable } from '@/business/server/platformCatalog/runtimeGuard';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { type NewGeneration, type NewGenerationBatch } from '@/database/schemas';

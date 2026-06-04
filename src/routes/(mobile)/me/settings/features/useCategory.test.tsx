@@ -101,6 +101,21 @@ describe('mobile settings useCategory', () => {
     expect(navigate).toHaveBeenCalledWith('/settings/provider/global/all');
   });
 
+  it('routes super-admin provider settings to global scope when user provider settings are available', () => {
+    useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
+    const { result } = renderHook(() => useCategory(), {
+      wrapper: createWrapper(true),
+    });
+
+    const provider = result.current
+      .flatMap((group) => group.items)
+      .find((item) => item.key === SettingsTabs.Provider);
+
+    provider?.onClick?.();
+
+    expect(navigate).toHaveBeenCalledWith('/settings/provider/global/all');
+  });
+
   it('hides Provider when provider settings are disabled', () => {
     const { result } = renderHook(() => useCategory(), {
       wrapper: createWrapper(false),

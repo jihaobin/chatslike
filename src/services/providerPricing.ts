@@ -8,14 +8,16 @@ export interface ProviderPricingListParams {
 }
 
 export interface CreateProviderPriceVersionParams extends ProviderPricingListParams {
-  currency?: string;
+  currency?: 'CNY';
   effectiveAt?: Date;
   fixedCreditsPerUnit?: number;
   inputCreditsPerMillionTokens?: number;
   outputCreditsPerMillionTokens?: number;
   parameterRules?: Record<string, unknown>;
   priceKey?: string;
+  providerCost?: number;
   reason: string;
+  sellRate?: number;
   unit?: string;
 }
 
@@ -31,12 +33,16 @@ export interface ProviderPricingRecord {
   outputCreditsPerMillionTokens?: number | null;
   priceKey?: string | null;
   provider: string;
+  providerCost?: number | null;
+  sellRate?: number | null;
   status?: string | null;
   unit?: string | null;
 }
 
 class ProviderPricingService {
-  listModelPricing = async (params: ProviderPricingListParams): Promise<ProviderPricingRecord[]> => {
+  listModelPricing = async (
+    params: ProviderPricingListParams,
+  ): Promise<ProviderPricingRecord[]> => {
     const { data } = await lambdaClient.providerPricing.listModelPricing.query(params);
     return data;
   };

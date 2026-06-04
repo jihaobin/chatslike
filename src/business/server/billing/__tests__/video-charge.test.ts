@@ -1,6 +1,9 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { chargeAfterGenerate } from '../../video-generation/chargeAfterGenerate';
+import { chargeBeforeGenerate } from '../../video-generation/chargeBeforeGenerate';
+
 const {
   assertPrechargeRisk,
   captureUsageCredits,
@@ -44,9 +47,6 @@ vi.mock('../pricing', async (importOriginal) => ({
   ...((await importOriginal()) as Record<string, unknown>),
   getVideoPricing,
 }));
-
-import { chargeAfterGenerate } from '../../video-generation/chargeAfterGenerate';
-import { chargeBeforeGenerate } from '../../video-generation/chargeBeforeGenerate';
 
 describe('video generation billing', () => {
   beforeEach(() => {
@@ -230,6 +230,46 @@ describe('video generation billing', () => {
         modality: 'video',
         reservationId: 'reservation-video-1',
         status: 'captured',
+      }),
+    );
+  });
+
+  it('captures token-priced video credits when usage is available', async () => {
+    getVideoPricing.mockResolvedValue({
+      inputCreditsPerMillionTokens: 10_000,
+      outputCreditsPerMillionTokens: 20_000,
+    });
+
+    await chargeAfterGenerate({
+      metadata: {
+        asyncTaskId: 'task-1',
+        generationBatchId: 'batch-1',
+        modelId: 'default-video',
+        topicId: 'topic-1',
+      },
+      model: 'default-video',
+      prechargeResult: {
+        estimatedCredits: 1,
+        operationId: 'video:user-1:topic-1:lobehub:default-video:hash',
+        reservationId: 'reservation-video-1',
+      },
+      provider: 'lobehub',
+      usage: { completionTokens: 500_000, totalTokens: 1_500_000 },
+      userId: 'user-1',
+    });
+
+    expect(captureUsageCredits).toHaveBeenCalledWith({
+      actualCredits: 20_000,
+      operationId: 'video:user-1:topic-1:lobehub:default-video:hash:capture',
+      reservationId: 'reservation-video-1',
+      usageRecordId: 'usage-video-1',
+    });
+    expect(createUsageRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actualCredits: 20_000,
+        estimatedCredits: 1,
+        modality: 'video',
+        reservationId: 'reservation-video-1',
       }),
     );
   });

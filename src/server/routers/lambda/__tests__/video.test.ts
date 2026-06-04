@@ -1,7 +1,7 @@
+import type * as BusinessModelRuntime from '@lobechat/business-model-runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
-
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { FileService } from '@/server/services/file';
 import { AsyncTaskStatus } from '@/types/asyncTask';
@@ -24,7 +24,6 @@ const {
   mockTransaction,
   nativeBillingEnabled,
   platformHostedModelsEnabled,
-  platformHostedModelsEnabled,
 } = vi.hoisted(() => {
   const mockTransaction = vi.fn();
   const mockServerDB = { transaction: mockTransaction };
@@ -37,7 +36,6 @@ const {
   const mockResolveBusinessModelMapping = vi.fn();
   const nativeBillingEnabled = { value: true };
   const platformHostedModelsEnabled = { value: false };
-  const platformHostedModelsEnabled = { value: false };
   return {
     mockAfter,
     mockAssertGlobalProviderModelAvailable,
@@ -49,7 +47,6 @@ const {
     mockServerDB,
     mockTransaction,
     nativeBillingEnabled,
-    platformHostedModelsEnabled,
     platformHostedModelsEnabled,
   };
 });
@@ -87,11 +84,6 @@ vi.mock('@/business/shared/commercialRuntime', () => ({
         return platformHostedModelsEnabled.value;
       },
     },
-    platformHostedModels: {
-      get enabled() {
-        return platformHostedModelsEnabled.value;
-      },
-    },
   },
 }));
 vi.mock('@/business/server/globalProviderScope/runtimeGuard', () => ({
@@ -101,7 +93,7 @@ vi.mock('@/business/server/video-generation/chargeAfterGenerate', () => ({
   chargeAfterGenerate: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@lobechat/business-model-runtime', async (importOriginal) => ({
-  ...((await importOriginal()) as typeof import('@lobechat/business-model-runtime')),
+  ...((await importOriginal()) as typeof BusinessModelRuntime),
   resolveBusinessModelMapping: (...args: [string, string]) =>
     mockResolveBusinessModelMapping(...args),
 }));

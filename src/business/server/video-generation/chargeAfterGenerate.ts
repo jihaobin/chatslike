@@ -1,6 +1,7 @@
 import { getServerDB } from '@/database/core/db-adaptor';
 
 import { CreditsService } from '../billing/credits';
+import { calculateTextCredits, getVideoPricing } from '../billing/pricing';
 
 interface ChargeParams {
   computePriceParams?: { generateAudio?: boolean; resolution?: string };
@@ -46,6 +47,30 @@ const getVideoPrechargeResult = (
   };
 };
 
+const getActualVideoCredits = async (params: {
+  estimatedCredits: number;
+  model: string;
+  provider: string;
+  usage?: { completionTokens: number; totalTokens: number };
+}) => {
+  if (!params.usage) return params.estimatedCredits;
+
+  const pricing = await getVideoPricing({ model: params.model, provider: params.provider });
+  if (
+    typeof pricing.inputCreditsPerMillionTokens !== 'number' ||
+    typeof pricing.outputCreditsPerMillionTokens !== 'number'
+  ) {
+    return params.estimatedCredits;
+  }
+
+  return calculateTextCredits({
+    inputCreditsPerMillionTokens: pricing.inputCreditsPerMillionTokens,
+    inputTokens: Math.max(0, params.usage.totalTokens - params.usage.completionTokens),
+    outputCreditsPerMillionTokens: pricing.outputCreditsPerMillionTokens,
+    outputTokens: params.usage.completionTokens,
+  });
+};
+
 export async function chargeAfterGenerate(params: ChargeParams): Promise<void> {
   const prechargeResult = getVideoPrechargeResult(params.prechargeResult);
   if (!prechargeResult) return;
@@ -62,8 +87,15 @@ export async function chargeAfterGenerate(params: ChargeParams): Promise<void> {
     return;
   }
 
+  const actualCredits = await getActualVideoCredits({
+    estimatedCredits: prechargeResult.estimatedCredits,
+    model: params.model,
+    provider: params.provider,
+    usage: params.usage,
+  });
+
   const usageRecord = await credits.createUsageRecord({
-    actualCredits: prechargeResult.estimatedCredits,
+    actualCredits,
     businessId: params.metadata.generationBatchId,
     estimatedCredits: prechargeResult.estimatedCredits,
     metadata: {
@@ -82,7 +114,7 @@ export async function chargeAfterGenerate(params: ChargeParams): Promise<void> {
   });
 
   await credits.captureUsageCredits({
-    actualCredits: prechargeResult.estimatedCredits,
+    actualCredits,
     operationId: `${prechargeResult.operationId}:capture`,
     reservationId: prechargeResult.reservationId,
     usageRecordId: usageRecord.id,

@@ -81,10 +81,19 @@ interface ModelAllowance {
   ultimate: string;
 }
 
+type TranslationValues = { defaultValue?: string } & Record<string, number | string | undefined>;
+
 interface TranslateString {
-  (key: string, fallback: string): unknown;
-  (key: string, fallback: string, values: Record<string, string>): unknown;
+  (key: string): string;
+  (key: string, values: TranslationValues): string;
 }
+
+const translateString = (
+  t: TranslateString,
+  key: string,
+  fallback: string,
+  values?: TranslationValues,
+) => t(key, { ...values, defaultValue: fallback });
 
 const PLAN_RANK = {
   premium: 1,
@@ -1115,7 +1124,12 @@ const Plans = memo(() => {
                             {selectedOneTimeOption.price}
                           </Text>
                           <Text as={'span'} fontSize={14} weight={600}>
-                            / {t(selectedOneTimeOption.labelKey)}
+                            /{' '}
+                            {translateString(
+                              t,
+                              selectedOneTimeOption.labelKey,
+                              selectedOneTimeOption.labelKey,
+                            )}
                           </Text>
                           {selectedOneTimeOption.discount ? (
                             <Text
@@ -1154,7 +1168,7 @@ const Plans = memo(() => {
                                   {option.price}
                                 </Text>
                                 <Text as={'span'} fontSize={14} weight={600}>
-                                  / {t(option.labelKey)}
+                                  / {translateString(t, option.labelKey, option.labelKey)}
                                 </Text>
                                 {option.discount ? (
                                   <Text
@@ -1276,7 +1290,7 @@ const Plans = memo(() => {
                   <Flexbox className={styles.benefitGroup} key={group.titleKey}>
                     <Flexbox horizontal align={'center'} gap={5}>
                       <Text className={styles.benefitGroupTitle}>{t(group.titleKey)}</Text>
-                      {group.tooltip ? (
+                      {'tooltip' in group && group.tooltip ? (
                         <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={14} />
                       ) : null}
                     </Flexbox>

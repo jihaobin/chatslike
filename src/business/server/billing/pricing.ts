@@ -63,6 +63,8 @@ type FixedPricingItem = ModelPricingItem & {
   fixedCreditsPerUnit: number;
 };
 
+type VideoPricingItem = FixedPricingItem | TextPricingItem;
+
 export interface PublicTextModelPricingRow {
   contextWindowTokens: number;
   displayName: string;
@@ -423,13 +425,17 @@ export async function getImagePricing(
 
 export async function getVideoPricing(
   params: Omit<PricingLookupParams, 'modality'>,
-): Promise<FixedPricingItem> {
+): Promise<VideoPricingItem> {
   const pricing = await getModelPricing({ ...params, modality: 'video' });
-  if (typeof pricing.fixedCreditsPerUnit !== 'number') {
-    throw new PricingNotFoundError({ ...params, modality: 'video', reason: 'missing_fixed_rate' });
+  if (
+    typeof pricing.fixedCreditsPerUnit !== 'number' &&
+    (typeof pricing.inputCreditsPerMillionTokens !== 'number' ||
+      typeof pricing.outputCreditsPerMillionTokens !== 'number')
+  ) {
+    throw new PricingNotFoundError({ ...params, modality: 'video', reason: 'missing_video_rates' });
   }
 
-  return pricing as FixedPricingItem;
+  return pricing as VideoPricingItem;
 }
 
 async function getModelPricing(params: PricingLookupParams) {

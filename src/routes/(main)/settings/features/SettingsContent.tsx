@@ -10,7 +10,6 @@ import {
   nativeNotificationAdapter,
   nativeReferralAdapter,
   userModelProviderSettingsAdapter,
-  userModelProviderSettingsAdapter,
 } from '@/business/shared/adapters';
 import { isSuperAdminRole } from '@/const/authRoles';
 import NavHeader from '@/features/NavHeader';
@@ -114,7 +113,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
           : []),
         ...(nativeBillingEnabled && isSuperAdmin ? [SettingsTabs.AdminBilling] : []),
         ...(referralEnabled ? [SettingsTabs.Referral] : []),
-        ].includes(tab as SettingsTabs)
+      ].includes(tab as SettingsTabs)
     ) {
       componentProps.mobile = mobile;
     }

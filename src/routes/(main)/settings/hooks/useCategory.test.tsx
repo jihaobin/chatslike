@@ -171,6 +171,17 @@ describe('settings useCategory', () => {
     });
   });
 
+  it('routes super-admin provider settings to global scope when user provider settings are available', () => {
+    act(() => {
+      useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
+    });
+
+    expect(getProviderItem()).toMatchObject({
+      key: SettingsTabs.Provider,
+      url: '/settings/provider/global/all',
+    });
+  });
+
   it('shows Admin Billing only for super-admin users', () => {
     act(() => {
       useUserStore.setState({ user: { id: 'admin-user', role: 'admin' } });

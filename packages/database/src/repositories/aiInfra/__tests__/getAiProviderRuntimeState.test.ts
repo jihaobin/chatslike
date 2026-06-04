@@ -1,6 +1,6 @@
 import type { AiProviderRuntimeConfig, EnabledProvider } from '@lobechat/types';
-import type { EnabledAiModel } from 'model-bank';
 import { eq } from 'drizzle-orm';
+import type { EnabledAiModel } from 'model-bank';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getTestDB } from '../../../core/getTestDB';
@@ -210,10 +210,7 @@ describe('AiInfraRepos', () => {
     });
 
     it('uses all enabled global providers in platform hosted mode', async () => {
-      await serverDB.insert(users).values([
-        { id: GLOBAL_PROVIDER_CONFIG_USER_ID },
-        { id: userId },
-      ]);
+      await serverDB.insert(users).values([{ id: GLOBAL_PROVIDER_CONFIG_USER_ID }, { id: userId }]);
       await serverDB.insert(aiProviders).values([
         {
           enabled: true,
@@ -275,7 +272,12 @@ describe('AiInfraRepos', () => {
         },
       ]);
 
-      const platformRepo = new AiInfraRepos(serverDB, userId, {}, { platformHostedModelsEnabled: true });
+      const platformRepo = new AiInfraRepos(
+        serverDB,
+        userId,
+        {},
+        { platformHostedModelsEnabled: true },
+      );
 
       const result = await platformRepo.getAiProviderRuntimeState();
 
@@ -291,6 +293,44 @@ describe('AiInfraRepos', () => {
         'newapi-openai-relay',
         'newapi-claude-relay',
       ]);
+    });
+
+    it('uses enabled builtin provider server model lists in platform hosted mode', async () => {
+      await serverDB.insert(users).values([{ id: GLOBAL_PROVIDER_CONFIG_USER_ID }, { id: userId }]);
+      await serverDB.insert(aiProviders).values({
+        enabled: true,
+        id: 'openai',
+        name: 'OpenAI',
+        source: 'builtin',
+        sort: 1,
+        userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+      });
+
+      const platformRepo = new AiInfraRepos(
+        serverDB,
+        userId,
+        {
+          openai: {
+            enabled: true,
+            serverModelLists: [
+              {
+                enabled: true,
+                id: 'gpt-4o',
+                type: 'chat',
+              },
+            ],
+          },
+        },
+        { platformHostedModelsEnabled: true },
+      );
+
+      const result = await platformRepo.getAiProviderRuntimeState();
+
+      expect(result.enabledAiProviders.map((provider) => provider.id)).toEqual(['openai']);
+      expect(result.enabledAiModels.map((model) => `${model.providerId}:${model.id}`)).toEqual([
+        'openai:gpt-4o',
+      ]);
+      expect(result.enabledChatAiProviders.map((provider) => provider.id)).toEqual(['openai']);
     });
   });
 });

@@ -31,7 +31,6 @@ import {
   nativeNotificationAdapter,
   nativeReferralAdapter,
   userModelProviderSettingsAdapter,
-  userModelProviderSettingsAdapter,
 } from '@/business/shared/adapters';
 import { isSuperAdminRole } from '@/const/authRoles';
 import { useElectronStore } from '@/store/electron';
@@ -98,13 +97,12 @@ export const useCategory = () => {
     userModelProviderSettingsAdapter.getCapability(commercial).enabled;
   const notificationEnabled = nativeNotificationEnabled || lobeHubCloudEnabled;
   const referralEnabled = nativeReferralEnabled || lobeHubCloudEnabled;
-  const canUseUserProviderSettings = userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial);
-  const providerSettingsVisible =
-    showProvider && (isSuperAdmin || canUseUserProviderSettings);
-  const providerSettingsUrl =
-    isSuperAdmin && !canUseUserProviderSettings
-      ? '/settings/provider/global/all'
-      : '/settings/provider/all';
+  const canUseUserProviderSettings =
+    userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial);
+  const providerSettingsVisible = showProvider && (isSuperAdmin || canUseUserProviderSettings);
+  const providerSettingsUrl = isSuperAdmin
+    ? '/settings/provider/global/all'
+    : '/settings/provider/all';
   const categoryGroups: CategoryGroup[] = useMemo(() => {
     const groups: CategoryGroup[] = [];
 
@@ -287,6 +285,7 @@ export const useCategory = () => {
     showApiKeyManage,
     providerSettingsVisible,
     providerSettingsUrl,
+    userProviderSettingsEnabled,
     isDevMode,
     isSuperAdmin,
     avatarUrl,

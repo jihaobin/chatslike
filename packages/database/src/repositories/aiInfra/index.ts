@@ -9,15 +9,16 @@ import type {
 } from '@lobechat/types';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { isEmpty } from 'es-toolkit/compat';
-import { and, asc, desc, eq } from 'drizzle-orm';
 import type {
   AIChatModelCard,
+  AiModelConfig,
   AiModelSettings,
   AiProviderModelListItem,
   EnabledAiModel,
   ModelAbilities,
+  ModelParamsSchema,
 } from 'model-bank';
-import { AiModelSourceEnum, isAiModelVisible } from 'model-bank';
+import { AiModelSourceEnum, AiModelTypeSchema, isAiModelVisible, ModelProvider } from 'model-bank';
 import { DEFAULT_MODEL_PROVIDER_LIST } from 'model-bank/modelProviders';
 import pMap from 'p-map';
 
@@ -25,7 +26,6 @@ import { merge, mergeArrayById } from '@/utils/merge';
 
 import { AiModelModel } from '../../models/aiModel';
 import { AiProviderModel } from '../../models/aiProvider';
-import { aiModels, aiProviders } from '../../schemas';
 import { aiModels, aiProviders } from '../../schemas';
 import type { LobeChatDatabase } from '../../type';
 import { GLOBAL_PROVIDER_CONFIG_USER_ID } from './constants';
@@ -116,50 +116,88 @@ const normalizeModelAbilities = (abilities: unknown): ModelAbilities => {
   };
 };
 
+const normalizeModelSettings = (settings: unknown): AiModelSettings | undefined => {
+  if (!settings || typeof settings !== 'object') return undefined;
+
+  return settings as AiModelSettings;
+};
+
+const normalizeModelConfig = (config: unknown): AiModelConfig | undefined => {
+  if (!config || typeof config !== 'object') return undefined;
+
+  return config as AiModelConfig;
+};
+
+const normalizeModelParameters = (parameters: unknown): ModelParamsSchema | undefined => {
+  if (!parameters || typeof parameters !== 'object') return undefined;
+
+  return parameters as ModelParamsSchema;
+};
+
+const normalizeModelType = (type: unknown) => {
+  const result = AiModelTypeSchema.safeParse(type);
+
+  return result.success ? result.data : undefined;
+};
+
 interface SearchSettingsModel {
-  abilities?: ModelAbilities | null;
+  abilities?: unknown;
   id: string;
-  settings?: AiModelSettings | null;
+  settings?: unknown;
+}
+
+interface NormalizedSearchSettingsFields {
+  abilities: ModelAbilities;
+  settings?: AiModelSettings;
 }
 
 // Only inject settings during read; add or remove search-related fields in settings based on abilities.search
-const injectSearchSettings = <T extends SearchSettingsModel>(providerId: string, item: T): T => {
-  const abilities = item.abilities || {};
+const injectSearchSettings = <T extends SearchSettingsModel>(
+  providerId: string,
+  item: T,
+): Omit<T, 'abilities' | 'settings'> & NormalizedSearchSettingsFields => {
+  const abilities = normalizeModelAbilities(item.abilities);
+  const normalizedItem = {
+    ...item,
+    abilities,
+    settings: normalizeModelSettings(item.settings),
+  };
 
   // Model explicitly disables search capability: remove search-related fields from settings to prevent UI from showing built-in search
   if (abilities.search === false) {
-    if (item.settings?.searchImpl || item.settings?.searchProvider) {
-      const { searchImpl, searchProvider, ...restSettings } = item.settings;
+    if (normalizedItem.settings?.searchImpl || normalizedItem.settings?.searchProvider) {
+      const { searchImpl, searchProvider, ...restSettings } = normalizedItem.settings;
       void searchImpl;
       void searchProvider;
 
       return {
-        ...item,
+        ...normalizedItem,
         settings: Object.keys(restSettings).length > 0 ? restSettings : undefined,
       };
     }
-    return item;
+    return normalizedItem;
   }
 
   // Model explicitly enables search capability: add search-related fields to settings
   else if (abilities.search === true) {
     // If built-in (local) model already has either field, preserve it without overriding
-    if (item.settings?.searchImpl || item.settings?.searchProvider) return item;
+    if (normalizedItem.settings?.searchImpl || normalizedItem.settings?.searchProvider)
+      return normalizedItem;
 
     // Otherwise use providerId + modelId
     const searchSettings = inferProviderSearchDefaults(providerId, item.id);
 
     return {
-      ...item,
+      ...normalizedItem,
       settings: {
-        ...item.settings,
+        ...normalizedItem.settings,
         ...searchSettings,
       },
     };
   }
 
   // Compatibility for legacy versions where database doesn't store abilities.search field
-  return item;
+  return normalizedItem;
 };
 
 export class AiInfraRepos {
@@ -402,14 +440,16 @@ export class AiInfraRepos {
       .where(eq(aiProviders.userId, GLOBAL_PROVIDER_CONFIG_USER_ID))
       .orderBy(asc(aiProviders.sort), asc(aiProviders.id));
 
-    return providers.filter((provider) => provider.enabled !== false).map(
-      (provider): EnabledProvider => ({
-        id: provider.id,
-        logo: provider.logo ?? undefined,
-        name: provider.name ?? undefined,
-        source: provider.source ?? 'custom',
-      }),
-    );
+    return providers
+      .filter((provider) => provider.enabled !== false)
+      .map(
+        (provider): EnabledProvider => ({
+          id: provider.id,
+          logo: provider.logo ?? undefined,
+          name: provider.name ?? undefined,
+          source: provider.source ?? 'custom',
+        }),
+      );
   };
 
   private getGlobalPlatformEnabledModels = async (): Promise<EnabledAiModel[]> => {
@@ -419,9 +459,8 @@ export class AiInfraRepos {
       .where(eq(aiProviders.userId, GLOBAL_PROVIDER_CONFIG_USER_ID))
       .orderBy(asc(aiProviders.sort), asc(aiProviders.id));
 
-    const enabledProviderIds = new Set(
-      providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id),
-    );
+    const enabledProviders = providers.filter((provider) => provider.enabled !== false);
+    const enabledProviderIds = new Set(enabledProviders.map((provider) => provider.id));
 
     if (enabledProviderIds.size === 0) return [];
 
@@ -442,17 +481,79 @@ export class AiInfraRepos {
         type: aiModels.type,
       })
       .from(aiModels)
-      .where(and(eq(aiModels.userId, GLOBAL_PROVIDER_CONFIG_USER_ID), eq(aiModels.enabled, true)))
+      .where(eq(aiModels.userId, GLOBAL_PROVIDER_CONFIG_USER_ID))
       .orderBy(asc(aiModels.sort), desc(aiModels.releasedAt), desc(aiModels.updatedAt));
 
-    return rows
-      .filter((item) => enabledProviderIds.has(item.providerId))
+    const builtinModelList = await pMap(
+      enabledProviders,
+      async (provider) => {
+        const aiModels = await this.fetchBuiltinModels(provider.id);
+        return (aiModels || [])
+          .map<EnabledAiModel & { enabled?: boolean | null }>((item) => {
+            const globalModel = rows.find(
+              (model) => model.id === item.id && model.providerId === provider.id,
+            );
+
+            if (!globalModel)
+              return injectSearchSettings(provider.id, {
+                ...item,
+                abilities: item.abilities || {},
+                providerId: provider.id,
+              });
+
+            const mergedModel = {
+              ...item,
+              abilities: !isEmpty(globalModel.abilities)
+                ? normalizeModelAbilities(globalModel.abilities)
+                : item.abilities || {},
+              config: !isEmpty(globalModel.config)
+                ? normalizeModelConfig(globalModel.config)
+                : item.config,
+              contextWindowTokens:
+                typeof globalModel.contextWindowTokens === 'number'
+                  ? globalModel.contextWindowTokens
+                  : item.contextWindowTokens,
+              displayName: globalModel.displayName || item.displayName,
+              enabled:
+                typeof globalModel.enabled === 'boolean' ? globalModel.enabled : item.enabled,
+              id: item.id,
+              parameters: normalizeModelParameters(globalModel.parameters) || item.parameters,
+              providerId: provider.id,
+              releasedAt: globalModel.releasedAt || item.releasedAt,
+              settings: isEmpty(globalModel.settings)
+                ? item.settings
+                : merge(item.settings || {}, globalModel.settings || {}),
+              sort: globalModel.sort ?? undefined,
+              source: globalModel.source || item.source,
+              type: normalizeModelType(globalModel.type) || item.type,
+            };
+
+            return injectSearchSettings(provider.id, mergedModel);
+          })
+          .filter((item) => item.enabled);
+      },
+      { concurrency: 10 },
+    );
+
+    const builtinModels = builtinModelList.flat();
+    const builtinModelKeys = new Set(builtinModels.map((item) => `${item.providerId}:${item.id}`));
+
+    const appendedGlobalModels = rows
+      .filter((item) => {
+        if (item.providerId === BRANDING_PROVIDER) return false;
+        if (builtinModelKeys.has(`${item.providerId}:${item.id}`)) return false;
+        return enabledProviderIds.has(item.providerId) && item.enabled;
+      })
       .map((item) =>
         injectSearchSettings(item.providerId, {
           ...item,
           abilities: normalizeModelAbilities(item.abilities),
         }),
-      ) as EnabledAiModel[];
+      );
+
+    return [...builtinModels, ...appendedGlobalModels].sort(
+      (a, b) => (a?.sort ?? Infinity) - (b?.sort ?? Infinity),
+    ) as EnabledAiModel[];
   };
 
   /**

@@ -81,9 +81,11 @@ const ModelConfigModal = memo<ModelConfigModalProps>(({ id, open, setOpen }) => 
       {editingProvider && (
         <ProviderPricing
           model={id}
+          modelType={model?.type}
           provider={editingProvider}
           readonly={activeProviderConfigScope !== 'global'}
           scope={activeProviderConfigScope}
+          upstreamPricing={model?.pricing}
         />
       )}
     </Modal>

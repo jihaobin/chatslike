@@ -5,9 +5,9 @@ import { eq } from 'drizzle-orm';
 import { getServerDB } from '@/database/core/db-adaptor';
 import {
   asyncTasks,
+  generationBatches,
   type GenerationBatchItem,
   type GenerationItem,
-  generationBatches,
   generations,
 } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
@@ -183,6 +183,10 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
     },
     provider: params.provider,
   });
+  if (typeof pricing.fixedCreditsPerUnit !== 'number') {
+    throw new Error('VIDEO_FIXED_PRICING_REQUIRED');
+  }
+
   const estimatedCredits = calculateVideoCredits({
     durationSeconds,
     fixedCreditsPerSecond: pricing.fixedCreditsPerUnit,

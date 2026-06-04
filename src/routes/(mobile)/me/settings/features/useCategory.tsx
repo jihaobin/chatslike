@@ -71,13 +71,12 @@ export const useCategory = (): CategoryGroup[] => {
   const isSuperAdmin = useUserStore(
     (s) => userProfileSelectors.userProfile(s)?.role === 'super-admin',
   );
-  const canUseUserProviderSettings = userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial);
-  const providerSettingsVisible =
-    showProvider && (isSuperAdmin || canUseUserProviderSettings);
-  const providerSettingsUrl =
-    isSuperAdmin && !canUseUserProviderSettings
-      ? '/settings/provider/global/all'
-      : '/settings/provider/all';
+  const canUseUserProviderSettings =
+    userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial);
+  const providerSettingsVisible = showProvider && (isSuperAdmin || canUseUserProviderSettings);
+  const providerSettingsUrl = isSuperAdmin
+    ? '/settings/provider/global/all'
+    : '/settings/provider/all';
 
   return useMemo(() => {
     const navigateTo = (key: SettingsTabs) =>

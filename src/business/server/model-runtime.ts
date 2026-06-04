@@ -9,6 +9,7 @@ import {
 } from '@/business/server/billing/pricing';
 import { assertPrechargeRisk } from '@/business/server/billing/risk';
 import { assertGlobalProviderModelAvailable } from '@/business/server/globalProviderScope/runtimeGuard';
+import { getServerDB } from '@/database/core/db-adaptor';
 
 const ESTIMATED_CHARS_PER_TOKEN = 4;
 const log = debug('lobe-server:billing:model-runtime');

@@ -15,6 +15,8 @@ import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 const providerConfigScopeSchema = z.enum(['user', 'global']).optional();
 const pricingModalitySchema = z.enum(['text', 'image', 'video']);
 const creditAmountSchema = z.number().int().positive().optional();
+const MIN_TOKEN_CREDITS_PER_MILLION = 1_000;
+const numericAmountSchema = z.number().positive().optional();
 
 const listModelPricingSchema = z.object({
   modality: pricingModalitySchema.optional(),
@@ -23,24 +25,66 @@ const listModelPricingSchema = z.object({
   scope: providerConfigScopeSchema,
 });
 
-const createModelPricingVersionSchema = listModelPricingSchema.extend({
-  currency: z.string().default('CNY'),
-  effectiveAt: z.coerce.date().optional(),
-  fixedCreditsPerUnit: creditAmountSchema,
-  inputCreditsPerMillionTokens: creditAmountSchema,
-  modality: pricingModalitySchema.default('text'),
-  outputCreditsPerMillionTokens: creditAmountSchema,
-  parameterRules: z.record(z.string(), z.unknown()).optional(),
-  priceKey: z.string().optional(),
-  reason: z.string().min(1),
-  unit: z.string().default('unit'),
-}).refine(
-  (value) =>
-    typeof value.inputCreditsPerMillionTokens === 'number' ||
-    typeof value.outputCreditsPerMillionTokens === 'number' ||
-    typeof value.fixedCreditsPerUnit === 'number',
-  { message: 'MODEL_PRICING_PRICE_REQUIRED' },
-);
+const createModelPricingVersionSchema = listModelPricingSchema
+  .extend({
+    currency: z.literal('CNY').default('CNY'),
+    effectiveAt: z.coerce.date().optional(),
+    fixedCreditsPerUnit: creditAmountSchema,
+    inputCreditsPerMillionTokens: creditAmountSchema,
+    modality: pricingModalitySchema.default('text'),
+    outputCreditsPerMillionTokens: creditAmountSchema,
+    parameterRules: z.record(z.string(), z.unknown()).optional(),
+    priceKey: z.string().optional(),
+    providerCost: numericAmountSchema,
+    reason: z.string().min(1),
+    sellRate: numericAmountSchema,
+    unit: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const hasInputRate = typeof value.inputCreditsPerMillionTokens === 'number';
+    const hasOutputRate = typeof value.outputCreditsPerMillionTokens === 'number';
+    const hasTokenRates = hasInputRate && hasOutputRate;
+    const hasPartialTokenRates = hasInputRate !== hasOutputRate;
+    const hasFixedRate = typeof value.fixedCreditsPerUnit === 'number';
+
+    if (!hasTokenRates && !hasFixedRate) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'MODEL_PRICING_PRICE_REQUIRED' });
+      return;
+    }
+
+    if (hasTokenRates) {
+      const tooSmall =
+        value.inputCreditsPerMillionTokens! < MIN_TOKEN_CREDITS_PER_MILLION ||
+        value.outputCreditsPerMillionTokens! < MIN_TOKEN_CREDITS_PER_MILLION;
+
+      if (tooSmall) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'MODEL_PRICING_TOKEN_RATE_TOO_SMALL',
+        });
+      }
+    }
+
+    if (hasFixedRate && !value.unit) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'MODEL_PRICING_FIXED_UNIT_REQUIRED' });
+    }
+
+    if (value.modality === 'image') {
+      if (hasPartialTokenRates || (hasTokenRates && hasFixedRate)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'MODEL_PRICING_IMAGE_PRICE_EXCLUSIVE',
+        });
+      }
+      return;
+    }
+
+    if (value.modality === 'video' && hasFixedRate) return;
+
+    if (!hasTokenRates || hasFixedRate) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'MODEL_PRICING_TOKEN_RATES_REQUIRED' });
+    }
+  });
 
 const retireModelPricingVersionSchema = z.object({
   id: z.string(),
@@ -59,7 +103,7 @@ const getPricingRuleKey = (rules: Record<string, unknown> | null) =>
     : '';
 
 const getCurrentPricingRows = (rows: (typeof modelPricing.$inferSelect)[]) => {
-  const rowsByCurrentShape = new Map<string, (typeof modelPricing.$inferSelect)>();
+  const rowsByCurrentShape = new Map<string, typeof modelPricing.$inferSelect>();
 
   for (const row of rows) {
     const key = `${row.modality}:${getPricingRuleKey(row.parameterRules)}`;
@@ -127,47 +171,55 @@ export const providerPricingRouter = router({
         })
         .returning();
 
-      if (!created) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'MODEL_PRICING_CREATE_FAILED' });
+      if (!created)
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'MODEL_PRICING_CREATE_FAILED',
+        });
 
       return { data: created, message: 'Model pricing version created', success: true };
     }),
 
-  listModelPricing: providerPricingProcedure.input(listModelPricingSchema).query(async ({ ctx, input }) => {
-    const isGlobalScope = isGlobalProviderScope(input.scope);
-    if (isGlobalProviderScope(input.scope)) {
-      await assertGlobalProviderScopeReadable({
-        db: ctx.serverDB,
-        selector: input,
-        userId: ctx.userId,
-      });
-    }
+  listModelPricing: providerPricingProcedure
+    .input(listModelPricingSchema)
+    .query(async ({ ctx, input }) => {
+      const isGlobalScope = isGlobalProviderScope(input.scope);
+      if (isGlobalProviderScope(input.scope)) {
+        await assertGlobalProviderScopeReadable({
+          db: ctx.serverDB,
+          selector: input,
+          userId: ctx.userId,
+        });
+      }
 
-    const now = new Date();
+      const now = new Date();
 
-    const conditions = [
-      eq(modelPricing.provider, input.provider),
-      eq(modelPricing.model, input.model),
-    ];
+      const conditions = [
+        eq(modelPricing.provider, input.provider),
+        eq(modelPricing.model, input.model),
+      ];
 
-    if (input.modality) conditions.push(eq(modelPricing.modality, input.modality));
-    if (!isGlobalScope) {
-      conditions.push(eq(modelPricing.status, 'active'));
-      conditions.push(lte(modelPricing.effectiveAt, now));
-    }
+      if (input.modality) conditions.push(eq(modelPricing.modality, input.modality));
+      if (!isGlobalScope) {
+        conditions.push(eq(modelPricing.status, 'active'));
+        conditions.push(lte(modelPricing.effectiveAt, now));
+      }
 
-    const rows = await ctx.serverDB
-      .select()
-      .from(modelPricing)
-      .where(and(...conditions))
-      .orderBy(desc(modelPricing.effectiveAt), desc(modelPricing.createdAt));
+      const rows = await ctx.serverDB
+        .select()
+        .from(modelPricing)
+        .where(and(...conditions))
+        .orderBy(desc(modelPricing.effectiveAt), desc(modelPricing.createdAt));
 
-    return {
-      data: isGlobalScope
-        ? rows
-        : getCurrentPricingRows(rows.filter((row) => row.status === 'active' && row.effectiveAt <= now)),
-      success: true,
-    };
-  }),
+      return {
+        data: isGlobalScope
+          ? rows
+          : getCurrentPricingRows(
+              rows.filter((row) => row.status === 'active' && row.effectiveAt <= now),
+            ),
+        success: true,
+      };
+    }),
 
   retireModelPricingVersion: providerPricingProcedure
     .input(retireModelPricingVersionSchema)

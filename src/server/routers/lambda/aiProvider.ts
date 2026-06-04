@@ -30,7 +30,9 @@ import {
 import { type ProviderConfig } from '@/types/user/settings';
 
 const providerConfigScopeSchema = z.enum(['user', 'global']).optional();
-const scopedCreateAiProviderSchema = CreateAiProviderSchema.extend({ scope: providerConfigScopeSchema });
+const scopedCreateAiProviderSchema = CreateAiProviderSchema.extend({
+  scope: providerConfigScopeSchema,
+});
 const providerScopeInputSchema = z.object({ scope: providerConfigScopeSchema }).optional();
 const providerIdInputSchema = z.object({ id: z.string(), scope: providerConfigScopeSchema });
 
@@ -58,7 +60,6 @@ const getConnectivityErrorMessage = (error: unknown) => {
 const aiProviderProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
   const { ctx } = opts;
 
-  const { aiProvider, commercial } = await getServerGlobalConfig();
   const { aiProvider, commercial } = await getServerGlobalConfig();
 
   const gateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
@@ -95,7 +96,8 @@ const createAiProviderRepos = (params: {
 const shouldReadGlobalProviderScope = (params: {
   commercial: Awaited<ReturnType<typeof getServerGlobalConfig>>['commercial'];
   scope?: ProviderConfigScope;
-}) => isGlobalProviderScope(params.scope) || params.commercial?.platformHostedModels.enabled === true;
+}) =>
+  isGlobalProviderScope(params.scope) || params.commercial?.platformHostedModels.enabled === true;
 
 const sanitizeProviderDetailForPlatformUser = (
   detail: AiProviderDetailItem | undefined,
@@ -165,7 +167,11 @@ export const aiProviderRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       if (isGlobalProviderScope(input.scope)) {
-        await assertGlobalProviderScopeWritable({ db: ctx.serverDB, selector: input, userId: ctx.userId });
+        await assertGlobalProviderScopeWritable({
+          db: ctx.serverDB,
+          selector: input,
+          userId: ctx.userId,
+        });
       }
 
       const aiInfraRepos = isGlobalProviderScope(input.scope)
@@ -247,10 +253,17 @@ export const aiProviderRouter = router({
 
     .query(async ({ input, ctx }): Promise<AiProviderDetailItem | undefined> => {
       if (isGlobalProviderScope(input.scope)) {
-        await assertGlobalProviderScopeReadable({ db: ctx.serverDB, selector: input, userId: ctx.userId });
+        await assertGlobalProviderScopeReadable({
+          db: ctx.serverDB,
+          selector: input,
+          userId: ctx.userId,
+        });
       }
 
-      const aiInfraRepos = shouldReadGlobalProviderScope({ commercial: ctx.commercial, scope: input.scope })
+      const aiInfraRepos = shouldReadGlobalProviderScope({
+        commercial: ctx.commercial,
+        scope: input.scope,
+      })
         ? createAiProviderRepos({
             aiProvider: ctx.aiProviderConfig,
             ctx,
@@ -259,52 +272,75 @@ export const aiProviderRouter = router({
           })
         : ctx.aiInfraRepos;
 
-      const detail = await aiInfraRepos.getAiProviderDetail(input.id, KeyVaultsGateKeeper.getUserKeyVaults);
+      const detail = await aiInfraRepos.getAiProviderDetail(
+        input.id,
+        KeyVaultsGateKeeper.getUserKeyVaults,
+      );
 
       return sanitizeProviderDetailForPlatformUser(
         detail,
-        ctx.commercial?.platformHostedModels.enabled === true && !isGlobalProviderScope(input.scope),
+        ctx.commercial?.platformHostedModels.enabled === true &&
+          !isGlobalProviderScope(input.scope),
       );
     }),
 
-  getAiProviderList: aiProviderProcedure.input(providerScopeInputSchema).query(async ({ ctx, input }) => {
-    if (isGlobalProviderScope(input?.scope)) {
-      await assertGlobalProviderScopeReadable({ db: ctx.serverDB, selector: input, userId: ctx.userId });
-    }
-
-    const aiInfraRepos = shouldReadGlobalProviderScope({ commercial: ctx.commercial, scope: input?.scope })
-      ? createAiProviderRepos({
-          aiProvider: ctx.aiProviderConfig,
-          ctx,
-          platformHostedModelsEnabled: ctx.commercial?.platformHostedModels.enabled ?? false,
-          scope: ProviderConfigScope.Global,
-        })
-      : ctx.aiInfraRepos;
-
-    return await aiInfraRepos.getAiProviderList();
-  }),
-
-  getAiProviderRuntimeState: aiProviderProcedure
-    .input(z.object({ isLogin: z.boolean().optional(), scope: providerConfigScopeSchema }))
-    .query(async ({ ctx, input }): Promise<AiProviderRuntimeState> => {
-      if (isGlobalProviderScope(input.scope)) {
-        await assertGlobalProviderScopeReadable({ db: ctx.serverDB, selector: input, userId: ctx.userId });
+  getAiProviderList: aiProviderProcedure
+    .input(providerScopeInputSchema)
+    .query(async ({ ctx, input }) => {
+      if (isGlobalProviderScope(input?.scope)) {
+        await assertGlobalProviderScopeReadable({
+          db: ctx.serverDB,
+          selector: input,
+          userId: ctx.userId,
+        });
       }
 
-      const aiInfraRepos = shouldReadGlobalProviderScope({ commercial: ctx.commercial, scope: input.scope })
+      const aiInfraRepos = shouldReadGlobalProviderScope({
+        commercial: ctx.commercial,
+        scope: input?.scope,
+      })
         ? createAiProviderRepos({
             aiProvider: ctx.aiProviderConfig,
             ctx,
             platformHostedModelsEnabled: ctx.commercial?.platformHostedModels.enabled ?? false,
             scope: ProviderConfigScope.Global,
-        })
+          })
         : ctx.aiInfraRepos;
 
-      const runtimeState = await aiInfraRepos.getAiProviderRuntimeState(KeyVaultsGateKeeper.getUserKeyVaults);
+      return await aiInfraRepos.getAiProviderList();
+    }),
+
+  getAiProviderRuntimeState: aiProviderProcedure
+    .input(z.object({ isLogin: z.boolean().optional(), scope: providerConfigScopeSchema }))
+    .query(async ({ ctx, input }): Promise<AiProviderRuntimeState> => {
+      if (isGlobalProviderScope(input.scope)) {
+        await assertGlobalProviderScopeReadable({
+          db: ctx.serverDB,
+          selector: input,
+          userId: ctx.userId,
+        });
+      }
+
+      const aiInfraRepos = shouldReadGlobalProviderScope({
+        commercial: ctx.commercial,
+        scope: input.scope,
+      })
+        ? createAiProviderRepos({
+            aiProvider: ctx.aiProviderConfig,
+            ctx,
+            platformHostedModelsEnabled: ctx.commercial?.platformHostedModels.enabled ?? false,
+            scope: ProviderConfigScope.Global,
+          })
+        : ctx.aiInfraRepos;
+
+      const runtimeState = await aiInfraRepos.getAiProviderRuntimeState(
+        KeyVaultsGateKeeper.getUserKeyVaults,
+      );
 
       return sanitizeRuntimeStateForPlatformUser(
         runtimeState,
-        ctx.commercial?.platformHostedModels.enabled === true && !isGlobalProviderScope(input.scope),
+        ctx.commercial?.platformHostedModels.enabled === true &&
+          !isGlobalProviderScope(input.scope),
       );
     }),
 

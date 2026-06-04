@@ -16,6 +16,7 @@ import { z } from 'zod';
 
 import { getProviderContentPolicyErrorMessage } from '@/business/server/getProviderContentPolicyErrorMessage';
 import { assertGlobalProviderModelAvailable } from '@/business/server/globalProviderScope/runtimeGuard';
+import { assertNewApiPlatformModelAvailable } from '@/business/server/platformCatalog/runtimeGuard';
 import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
 import { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
 import { getVideoFreeQuota } from '@/business/server/video-generation/getVideoFreeQuota';

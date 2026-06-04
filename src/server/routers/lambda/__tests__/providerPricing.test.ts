@@ -59,6 +59,9 @@ describe('providerPricingRouter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDb.insert.mockReset();
+    mockDb.select.mockReset();
+    mockDb.update.mockReset();
     vi.mocked(getServerDB).mockResolvedValue(mockDb as never);
     mockDb.select.mockReturnValue(mockRoleLookup('user'));
   });
@@ -197,8 +200,9 @@ describe('providerPricingRouter', () => {
 
     await expect(
       caller.createModelPricingVersion({
-        inputCreditsPerMillionTokens: 10,
+        inputCreditsPerMillionTokens: 10_000_000,
         model: 'gpt-4o',
+        outputCreditsPerMillionTokens: 20_000_000,
         provider: 'openai',
         reason: 'initial price',
         scope: 'global',
@@ -216,10 +220,202 @@ describe('providerPricingRouter', () => {
     expect(insertQuery.values).toHaveBeenCalledWith(
       expect.objectContaining({
         currency: 'CNY',
+        inputCreditsPerMillionTokens: 10_000_000,
+        modality: 'text',
+        outputCreditsPerMillionTokens: 20_000_000,
+        status: 'active',
+      }),
+    );
+  });
+
+  it('rejects unconverted tiny text token rates', async () => {
+    mockDb.select.mockReturnValue(mockRoleLookup('super-admin'));
+    const caller = providerPricingRouter.createCaller({ userId: mockUserId });
+
+    await expect(
+      caller.createModelPricingVersion({
+        inputCreditsPerMillionTokens: 5,
+        modality: 'text',
+        model: 'gpt-5.5',
+        outputCreditsPerMillionTokens: 30,
+        provider: 'amux',
+        reason: 'invalid tiny rates',
+        scope: 'global',
+      }),
+    ).rejects.toThrow('MODEL_PRICING_TOKEN_RATE_TOO_SMALL');
+  });
+
+  it('accepts converted text token rates', async () => {
+    const convertedPricingRow = {
+      ...mockPricingRow,
+      inputCreditsPerMillionTokens: 5_000_000,
+      model: 'gpt-5.5',
+      outputCreditsPerMillionTokens: 30_000_000,
+      provider: 'amux',
+      providerCost: 35,
+      sellRate: 1,
+    };
+    const roleQuery = mockRoleLookup('super-admin');
+    const sentinelInsert = mockSentinelUserInsert();
+    const updateQuery = mockUpdateQuery();
+    const returning = vi.fn().mockResolvedValue([convertedPricingRow]);
+    const insertQuery = {
+      returning,
+      values: vi.fn().mockReturnValue({ returning }),
+    };
+    mockDb.select.mockReturnValueOnce(roleQuery);
+    mockDb.insert.mockReturnValueOnce(sentinelInsert.query).mockReturnValueOnce(insertQuery);
+    mockDb.update.mockReturnValueOnce(updateQuery.query);
+    const caller = providerPricingRouter.createCaller({ userId: mockUserId });
+
+    const result = await caller.createModelPricingVersion({
+      inputCreditsPerMillionTokens: 5_000_000,
+      modality: 'text',
+      model: 'gpt-5.5',
+      outputCreditsPerMillionTokens: 30_000_000,
+      provider: 'amux',
+      providerCost: 35,
+      reason: 'valid converted rates',
+      scope: 'global',
+      sellRate: 1,
+    });
+
+    expect(result.data.inputCreditsPerMillionTokens).toBe(5_000_000);
+    expect(result.data.outputCreditsPerMillionTokens).toBe(30_000_000);
+    expect(Number(result.data.providerCost)).toBe(35);
+    expect(Number(result.data.sellRate)).toBe(1);
+  });
+
+  it('accepts fixed image pricing with unit', async () => {
+    const fixedPricingRow = {
+      ...mockPricingRow,
+      fixedCreditsPerUnit: 20_000,
+      inputCreditsPerMillionTokens: undefined,
+      modality: 'image',
+      model: 'image-model',
+      outputCreditsPerMillionTokens: undefined,
+      provider: 'amux',
+      providerCost: 0.04,
+      sellRate: 0.5,
+      unit: 'image',
+    };
+    const roleQuery = mockRoleLookup('super-admin');
+    const sentinelInsert = mockSentinelUserInsert();
+    const updateQuery = mockUpdateQuery();
+    const returning = vi.fn().mockResolvedValue([fixedPricingRow]);
+    const insertQuery = {
+      returning,
+      values: vi.fn().mockReturnValue({ returning }),
+    };
+    mockDb.select.mockReturnValueOnce(roleQuery);
+    mockDb.insert.mockReturnValueOnce(sentinelInsert.query).mockReturnValueOnce(insertQuery);
+    mockDb.update.mockReturnValueOnce(updateQuery.query);
+    const caller = providerPricingRouter.createCaller({ userId: mockUserId });
+
+    const result = await caller.createModelPricingVersion({
+      fixedCreditsPerUnit: 20_000,
+      modality: 'image',
+      model: 'image-model',
+      provider: 'amux',
+      providerCost: 0.04,
+      reason: 'valid image fixed price',
+      scope: 'global',
+      sellRate: 0.5,
+      unit: 'image',
+    });
+
+    expect(result.data.fixedCreditsPerUnit).toBe(20_000);
+    expect(result.data.unit).toBe('image');
+  });
+
+  it('rejects non-CNY pricing versions', async () => {
+    mockDb.select.mockReturnValue(mockRoleLookup('super-admin'));
+    const caller = providerPricingRouter.createCaller({ userId: mockUserId });
+    const createModelPricingVersion = caller.createModelPricingVersion as (
+      input: Record<string, unknown>,
+    ) => Promise<unknown>;
+
+    await expect(
+      createModelPricingVersion({
+        currency: 'USD',
+        inputCreditsPerMillionTokens: 10,
+        model: 'gpt-4o',
+        outputCreditsPerMillionTokens: 20,
+        provider: 'openai',
+        reason: 'initial price',
+        scope: 'global',
+      }),
+    ).rejects.toThrow();
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('requires text pricing to include both input and output token rates', async () => {
+    mockDb.select.mockReturnValue(mockRoleLookup('super-admin'));
+    const caller = providerPricingRouter.createCaller({ userId: mockUserId });
+
+    await expect(
+      caller.createModelPricingVersion({
         inputCreditsPerMillionTokens: 10,
         modality: 'text',
-        status: 'active',
-        unit: 'unit',
+        model: 'gpt-4o',
+        provider: 'openai',
+        reason: 'initial price',
+        scope: 'global',
+      }),
+    ).rejects.toThrow();
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects image pricing that mixes token and fixed dimensions', async () => {
+    mockDb.select.mockReturnValue(mockRoleLookup('super-admin'));
+    const caller = providerPricingRouter.createCaller({ userId: mockUserId });
+
+    await expect(
+      caller.createModelPricingVersion({
+        fixedCreditsPerUnit: 30,
+        inputCreditsPerMillionTokens: 10,
+        modality: 'image',
+        model: 'dall-e-3',
+        outputCreditsPerMillionTokens: 20,
+        provider: 'openai',
+        reason: 'initial price',
+        scope: 'global',
+        unit: 'image',
+      }),
+    ).rejects.toThrow();
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('accepts video token pricing versions', async () => {
+    const roleQuery = mockRoleLookup('super-admin');
+    const sentinelInsert = mockSentinelUserInsert();
+    const updateQuery = mockUpdateQuery();
+    const returning = vi.fn().mockResolvedValue([{ ...mockPricingRow, modality: 'video' }]);
+    const insertQuery = {
+      returning,
+      values: vi.fn().mockReturnValue({ returning }),
+    };
+    mockDb.select.mockReturnValueOnce(roleQuery);
+    mockDb.insert.mockReturnValueOnce(sentinelInsert.query).mockReturnValueOnce(insertQuery);
+    mockDb.update.mockReturnValueOnce(updateQuery.query);
+    const caller = providerPricingRouter.createCaller({ userId: mockUserId });
+
+    await caller.createModelPricingVersion({
+      inputCreditsPerMillionTokens: 10_000_000,
+      modality: 'video',
+      model: 'sora',
+      outputCreditsPerMillionTokens: 20_000_000,
+      provider: 'openai',
+      reason: 'initial price',
+      scope: 'global',
+    });
+
+    expect(insertQuery.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currency: 'CNY',
+        inputCreditsPerMillionTokens: 10_000_000,
+        modality: 'video',
+        outputCreditsPerMillionTokens: 20_000_000,
       }),
     );
   });
@@ -229,9 +425,9 @@ describe('providerPricingRouter', () => {
 
     await expect(
       caller.createModelPricingVersion({
-        inputCreditsPerMillionTokens: 10,
+        inputCreditsPerMillionTokens: 10_000_000,
         model: 'gpt-4o',
-        outputCreditsPerMillionTokens: 20,
+        outputCreditsPerMillionTokens: 20_000_000,
         provider: 'openai',
         reason: 'initial price',
         scope: 'user',

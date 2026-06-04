@@ -49,6 +49,12 @@ describe('createErrorResponse', () => {
     expect(response.status).toBe(429);
   });
 
+  it('returns a 403 status for phone verification required error type', () => {
+    const errorType: Parameters<typeof createErrorResponse>[0] = 'PHONE_VERIFICATION_REQUIRED';
+    const response = createErrorResponse(errorType);
+    expect(response.status).toBe(403);
+  });
+
   it('returns a 400 status for ExceededContextWindow error type', () => {
     const errorType = AgentRuntimeErrorType.ExceededContextWindow;
     const response = createErrorResponse(errorType);
@@ -97,9 +103,7 @@ describe('createErrorResponse', () => {
   it('logs an error when the status code is not a number or not in the range of 200-599', () => {
     const errorType = 'Unknown Error';
     const consoleSpy = vi.spyOn(console, 'error');
-    try {
-      createErrorResponse(errorType as any);
-    } catch (e) {}
+    expect(() => createErrorResponse(errorType as any)).toThrow();
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
