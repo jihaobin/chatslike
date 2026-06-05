@@ -186,12 +186,32 @@ export default {
   'profile.interests': 'Interests',
   'profile.password': 'Password',
   'profile.phone': 'Phone Number',
+  'profile.phoneAlreadyBound':
+    'This phone number is already linked to another account. Use a different number or sign in with that account.',
+  'profile.phoneCodeAttemptsExceeded':
+    'Too many incorrect attempts. Request a new code and try again.',
+  'profile.phoneCodeExpired':
+    'The verification code has expired. Request a new code and try again.',
+  'profile.phoneCodeInvalid': 'Please enter the 6-digit verification code',
+  'profile.phoneCodePlaceholder': 'Enter verification code',
+  'profile.phoneCodeRequired': 'Please enter the verification code',
+  'profile.phoneCodeSent': 'Verification code sent to {{phone}}',
+  'profile.phoneCodeSendTooFrequent':
+    'A code was sent recently. Please wait before requesting another one.',
   'profile.phoneInvalid': 'Please enter a valid phone number',
   'profile.phonePlaceholder': '+86 138 0000 0000',
   'profile.phoneRequired': 'Please enter your phone number',
+  'profile.phoneResendCountdown': 'Resend in {{seconds}}s',
+  'profile.phoneSendCodeAction': 'Send Code',
+  'profile.phoneSendCodeFailed': 'Failed to send verification code. Please try again later.',
+  'profile.phoneServiceUnavailable':
+    'Phone verification is temporarily unavailable. Please try again later or contact support.',
   'profile.phoneTrialGranted': 'Phone verified. 500,000 trial Credits have been issued.',
   'profile.phoneTrialHint': 'Verify your phone number to receive 500,000 trial Credits once.',
   'profile.phoneVerified': 'Verified',
+  'profile.phoneVerifiedTrialAlreadyClaimed':
+    'Phone verified. Trial Credits were already claimed for this phone number.',
+  'profile.phoneVerifyCodeAction': 'Verify Code',
   'profile.phoneVerifyAction': 'Verify',
   'profile.phoneVerifyFailed': 'Failed to verify phone number. Please try again later.',
   'profile.resetPasswordError': 'Failed to send password reset link',

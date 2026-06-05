@@ -33,6 +33,8 @@ import { userModelProviderSettingsAdapter } from '@/business/shared/adapters';
 import { MessageModel } from '@/database/models/message';
 import { SessionModel } from '@/database/models/session';
 import { UserModel } from '@/database/models/user';
+import { getRedisConfig } from '@/envs/redis';
+import { initializeRedisWithPrefix } from '@/libs/redis';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { getServerGlobalConfig } from '@/server/globalConfig';
@@ -41,6 +43,8 @@ import { FileS3 } from '@/server/modules/S3';
 import { AgentDocumentsService } from '@/server/services/agentDocuments';
 import { FileService } from '@/server/services/file';
 import { OnboardingService } from '@/server/services/onboarding';
+import { PhoneVerificationService } from '@/server/services/phoneVerification';
+import { createAliyunSmsProvider } from '@/server/services/sms';
 
 const usernameSchema = z
   .string()
@@ -56,8 +60,37 @@ const phoneSchema = z
   .max(32, { message: 'PHONE_TOO_LONG' })
   .regex(/^\+?[\d\s\-()]+$/, { message: 'PHONE_INVALID' });
 
+const phoneVerificationCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, {
+    message: 'PHONE_CODE_INVALID',
+  });
+
+const phoneVerificationInputSchema = z.object({
+  code: phoneVerificationCodeSchema,
+  phoneNumber: phoneSchema,
+});
+
+const USERS_PHONE_UNIQUE_CONSTRAINT = 'users_phone_unique';
 const AVATAR_WEBAPI_PREFIX = '/webapi/';
 const USER_PROVIDER_SETTINGS_DISABLED = 'USER_PROVIDER_SETTINGS_DISABLED';
+
+const getNestedErrorRecord = (error: unknown): Record<string, unknown> | undefined => {
+  if (!error || typeof error !== 'object') return;
+
+  return error as Record<string, unknown>;
+};
+
+const isUsersPhoneUniqueViolation = (error: unknown): boolean => {
+  const current = getNestedErrorRecord(error);
+  if (!current) return false;
+
+  const constraint = current.constraint || current.constraint_name;
+  if (current.code === '23505' && constraint === USERS_PHONE_UNIQUE_CONSTRAINT) return true;
+
+  return isUsersPhoneUniqueViolation(current.cause);
+};
 
 // Accept only: base64 data URL, absolute http(s) URL, empty string,
 // or an internal /webapi/user/avatar/<userId>/... path scoped to the caller.
@@ -91,6 +124,24 @@ const userProcedure = authedProcedure.use(serverDatabase).use(async ({ ctx, next
     },
   });
 });
+
+const createPhoneVerificationService = async () => {
+  const redis = await initializeRedisWithPrefix(getRedisConfig(), 'phoneVerification');
+  const secret = process.env.KEY_VAULTS_SECRET || process.env.AUTH_SECRET;
+
+  if (!secret) {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'PHONE_VERIFICATION_SECRET_REQUIRED',
+    });
+  }
+
+  return new PhoneVerificationService({
+    redis,
+    secret,
+    smsProvider: createAliyunSmsProvider(),
+  });
+};
 
 export const userRouter = router({
   getUserRegistrationDuration: userProcedure.query(async ({ ctx }) => {
@@ -182,6 +233,11 @@ export const userRouter = router({
     return ctx.userModel.updateUser({ isOnboarded: true });
   }),
 
+  sendPhoneVerificationCode: userProcedure.input(phoneSchema).mutation(async ({ input }) => {
+    const service = await createPhoneVerificationService();
+    return service.sendCode(input);
+  }),
+
   resetSettings: userProcedure.mutation(async ({ ctx }) => {
     return ctx.userModel.deleteSetting();
   }),
@@ -263,23 +319,37 @@ export const userRouter = router({
     return ctx.userModel.updateUser({ interests: input });
   }),
 
-  verifyPhoneForTrial: userProcedure.input(phoneSchema).mutation(async ({ ctx, input }) => {
-    const phoneNumber = input.trim();
+  verifyPhoneForTrial: userProcedure
+    .input(phoneVerificationInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const service = await createPhoneVerificationService();
+      const { normalizedPhoneNumber } = await service.verifyCode({
+        code: input.code,
+        phoneNumber: input.phoneNumber,
+      });
 
-    await ctx.userModel.updateUser({ phone: phoneNumber, phoneNumberVerified: true });
+      try {
+        await ctx.userModel.updateUser({ phone: normalizedPhoneNumber, phoneNumberVerified: true });
+      } catch (error) {
+        if (isUsersPhoneUniqueViolation(error)) {
+          throw new TRPCError({ code: 'CONFLICT', message: 'PHONE_ALREADY_BOUND' });
+        }
 
-    const trial = await onBusinessUserPhoneVerified({
-      db: ctx.serverDB,
-      phoneNumber,
-      userId: ctx.userId,
-    });
+        throw error;
+      }
 
-    return {
-      phone: phoneNumber,
-      phoneNumberVerified: true,
-      trial,
-    };
-  }),
+      const trial = await onBusinessUserPhoneVerified({
+        db: ctx.serverDB,
+        phoneNumber: normalizedPhoneNumber,
+        userId: ctx.userId,
+      });
+
+      return {
+        phone: normalizedPhoneNumber,
+        phoneNumberVerified: true,
+        trial,
+      };
+    }),
 
   getOrCreateOnboardingState: userProcedure.query(async ({ ctx }) => {
     const onboardingService = new OnboardingService(ctx.serverDB, ctx.userId);

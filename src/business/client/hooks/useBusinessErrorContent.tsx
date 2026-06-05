@@ -1,9 +1,9 @@
 import { type ErrorType } from '@lobechat/types';
 import { Button, Center, Flexbox, FluentEmoji, Text } from '@lobehub/ui';
 import { createStaticStyles, cssVar } from 'antd-style';
-import { t } from 'i18next';
 import { GiftIcon } from 'lucide-react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { formatNumber } from '@/utils/format';
 
@@ -24,8 +24,8 @@ const styles = createStaticStyles(({ css }) => ({
     padding-block: 28px;
   `,
   desc: css`
-    color: ${cssVar.colorTextSecondary};
     font-size: 15px;
+    color: ${cssVar.colorTextSecondary};
     text-align: center;
   `,
   icon: css`
@@ -33,16 +33,16 @@ const styles = createStaticStyles(({ css }) => ({
     background: ${cssVar.colorFillTertiary};
   `,
   label: css`
-    color: ${cssVar.colorTextSecondary};
     font-size: 14px;
+    color: ${cssVar.colorTextSecondary};
   `,
   metrics: css`
     width: min(100%, 360px);
   `,
   referral: css`
     cursor: pointer;
-    color: ${cssVar.colorTextSecondary};
     font-size: 14px;
+    color: ${cssVar.colorTextSecondary};
 
     &:hover {
       color: ${cssVar.colorText};
@@ -53,15 +53,16 @@ const styles = createStaticStyles(({ css }) => ({
   `,
   title: css`
     margin: 0;
-    color: ${cssVar.colorText};
+
     font-size: 22px;
     font-weight: 700;
     line-height: 1.35;
+    color: ${cssVar.colorText};
   `,
   value: css`
-    color: ${cssVar.colorText};
     font-size: 16px;
     font-weight: 700;
+    color: ${cssVar.colorText};
   `,
 }));
 
@@ -103,28 +104,38 @@ export function renderInsufficientCreditsContent(
   params: InsufficientCreditsParams,
   actions: InsufficientCreditsActions = {},
 ) {
+  return <InsufficientCreditsContent actions={actions} params={params} />;
+}
+
+function InsufficientCreditsContent({
+  actions,
+  params,
+}: {
+  actions: InsufficientCreditsActions;
+  params: InsufficientCreditsParams;
+}) {
+  const { t } = useTranslation('subscription');
+
   return (
     <Flexbox align={'center'} className={styles.card} gap={18}>
       <Center className={styles.icon} height={84} width={84}>
         <FluentEmoji emoji={'💰'} size={56} type={'anim'} />
       </Center>
       <Text as={'h3'} className={styles.title}>
-        {t('limitation.insufficientBudget.title', { ns: 'subscription' })}
+        {t('limitation.insufficientBudget.title')}
       </Text>
-      <Text className={styles.desc}>
-        {t('limitation.insufficientBudget.estimatedDesc', { ns: 'subscription' })}
-      </Text>
+      <Text className={styles.desc}>{t('limitation.insufficientBudget.estimatedDesc')}</Text>
       <Flexbox className={styles.metrics} gap={10}>
         {renderMetric(
-          t('limitation.insufficientBudget.available', { ns: 'subscription' }),
+          t('limitation.insufficientBudget.available'),
           formatNumber(params.availableCredits),
         )}
         {renderMetric(
-          t('limitation.insufficientBudget.required', { ns: 'subscription' }),
+          t('limitation.insufficientBudget.required'),
           formatNumber(params.requiredCredits),
         )}
         {renderMetric(
-          t('limitation.insufficientBudget.shortfall', { ns: 'subscription' }),
+          t('limitation.insufficientBudget.shortfall'),
           formatNumber(params.deficitCredits),
           true,
         )}
@@ -132,12 +143,11 @@ export function renderInsufficientCreditsContent(
       <Flexbox className={styles.metrics} gap={10}>
         <Button block className={styles.action} type={'primary'} onClick={actions.onUpgradePlan}>
           {t('limitation.limited.upgradeToPlan', {
-            ns: 'subscription',
-            plan: t('billingNative.plans.planName.starter', { ns: 'subscription' }),
+            plan: t('billingNative.plans.planName.starter'),
           })}
         </Button>
         <Button block className={styles.action} onClick={actions.onTopUpCredits}>
-          {t('limitation.limited.topup', { ns: 'subscription' })}
+          {t('limitation.limited.topup')}
         </Button>
       </Flexbox>
       <Flexbox
@@ -148,7 +158,7 @@ export function renderInsufficientCreditsContent(
         onClick={actions.onInviteFriends}
       >
         <GiftIcon size={16} />
-        {t('limitation.limited.referralTip', { ns: 'subscription', reward: 2 })}
+        {t('limitation.limited.referralTip', { reward: 2 })}
       </Flexbox>
     </Flexbox>
   );
@@ -157,18 +167,28 @@ export function renderInsufficientCreditsContent(
 export function renderPhoneVerificationRequiredContent(
   actions: PhoneVerificationRequiredActions = {},
 ) {
+  return <PhoneVerificationRequiredContent actions={actions} />;
+}
+
+function PhoneVerificationRequiredContent({
+  actions,
+}: {
+  actions: PhoneVerificationRequiredActions;
+}) {
+  const { t } = useTranslation('auth');
+
   return (
     <Flexbox align={'center'} className={styles.card} gap={18}>
       <Center className={styles.icon} height={84} width={84}>
         <FluentEmoji emoji={'📱'} size={56} type={'anim'} />
       </Center>
       <Text as={'h3'} className={styles.title}>
-        {t('profile.phone', { ns: 'auth' })}
+        {t('profile.phone')}
       </Text>
-      <Text className={styles.desc}>{t('profile.phoneTrialHint', { ns: 'auth' })}</Text>
+      <Text className={styles.desc}>{t('profile.phoneTrialHint')}</Text>
       <Flexbox className={styles.metrics}>
         <Button block className={styles.action} type={'primary'} onClick={actions.onVerifyPhone}>
-          {t('profile.phoneVerifyAction', { ns: 'auth' })}
+          {t('profile.phoneVerifyAction')}
         </Button>
       </Flexbox>
     </Flexbox>

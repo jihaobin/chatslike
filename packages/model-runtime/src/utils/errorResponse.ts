@@ -4,6 +4,8 @@ import { ChatErrorType } from '@lobechat/types';
 import type { ILobeAgentRuntimeErrorType } from '../types';
 import { AgentRuntimeErrorType } from '../types';
 
+const FALLBACK_STATUS_CODE = 500;
+
 const getStatus = (errorType: ILobeAgentRuntimeErrorType | ErrorType) => {
   // InvalidAccessCode / InvalidAzureAPIKey / InvalidOpenAIAPIKey / InvalidZhipuAPIKey ....
   if (errorType.toString().includes('Invalid')) return 401;
@@ -50,17 +52,21 @@ const getStatus = (errorType: ILobeAgentRuntimeErrorType | ErrorType) => {
   return errorType as number;
 };
 
+const resolveResponseStatus = (statusCode: unknown) => {
+  if (typeof statusCode === 'number' && statusCode >= 200 && statusCode <= 599) return statusCode;
+
+  console.error(
+    `current StatusCode: \`${statusCode}\` .`,
+    'Please go to `./utils/errorResponse.ts` to defined the statusCode.',
+  );
+
+  return FALLBACK_STATUS_CODE;
+};
+
 export const createErrorResponse = (errorType: ILobeAgentRuntimeErrorType, body?: any) => {
-  const statusCode = getStatus(errorType);
+  const statusCode = resolveResponseStatus(getStatus(errorType));
 
   const data: ErrorResponse = { body, errorType };
-
-  if (typeof statusCode !== 'number' || statusCode < 200 || statusCode > 599) {
-    console.error(
-      `current StatusCode: \`${statusCode}\` .`,
-      'Please go to `./utils/errorResponse.ts` to defined the statusCode.',
-    );
-  }
 
   return new Response(JSON.stringify(data), { status: statusCode });
 };

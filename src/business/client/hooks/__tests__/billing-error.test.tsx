@@ -10,7 +10,26 @@ const navigateMock = vi.fn();
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback ?? key,
+    t: (key: string, params?: Record<string, unknown>) => {
+      const resources: Record<string, string> = {
+        'billingNative.plans.planName.starter': 'Starter',
+        'limitation.insufficientBudget.available': 'Available Credits',
+        'limitation.insufficientBudget.estimatedDesc':
+          'This request is estimated to need more credits. Top up credits or upgrade your plan.',
+        'limitation.insufficientBudget.required': 'Required Credits',
+        'limitation.insufficientBudget.shortfall': 'Credit Shortfall',
+        'limitation.insufficientBudget.title': 'Insufficient Credits',
+        'limitation.limited.referralTip': 'Invite friends, both get {{reward}}M',
+        'limitation.limited.topup': 'Top-Up Credits',
+        'limitation.limited.upgradeToPlan': 'Upgrade to {{plan}}',
+        'profile.phoneTrialHint': 'Verify your phone to claim trial credits.',
+        'profile.phoneVerifyAction': 'Verify Phone',
+      };
+
+      return (resources[key] ?? key).replaceAll(/\{\{(\w+)\}\}/g, (_, name: string) =>
+        String(params?.[name] ?? ''),
+      );
+    },
   }),
 }));
 
@@ -23,13 +42,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('@lobehub/ui', () => ({
-  Button: ({
-    children,
-    onClick,
-  }: {
-    children?: React.ReactNode;
-    onClick?: () => void;
-  }) => (
+  Button: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>
       {children}
     </button>
@@ -52,10 +65,10 @@ describe('billing error content', () => {
       }),
     );
 
-    expect(screen.getByText('limitation.insufficientBudget.title')).toBeInTheDocument();
-    expect(screen.getByText('limitation.insufficientBudget.required')).toBeInTheDocument();
-    expect(screen.getByText('limitation.insufficientBudget.available')).toBeInTheDocument();
-    expect(screen.getByText('limitation.insufficientBudget.shortfall')).toBeInTheDocument();
+    expect(screen.getByText('Insufficient Credits')).toBeInTheDocument();
+    expect(screen.getByText('Required Credits')).toBeInTheDocument();
+    expect(screen.getByText('Available Credits')).toBeInTheDocument();
+    expect(screen.getByText('Credit Shortfall')).toBeInTheDocument();
     expect(screen.getByText('40,000')).toBeInTheDocument();
     expect(screen.getByText('10,000')).toBeInTheDocument();
     expect(screen.getByText('30,000')).toBeInTheDocument();
@@ -77,10 +90,14 @@ describe('billing error content', () => {
       ),
     );
 
-    expect(screen.getByText('limitation.insufficientBudget.estimatedDesc')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('limitation.limited.upgradeToPlan'));
-    fireEvent.click(screen.getByText('limitation.limited.topup'));
-    fireEvent.click(screen.getByText('limitation.limited.referralTip'));
+    expect(
+      screen.getByText(
+        'This request is estimated to need more credits. Top up credits or upgrade your plan.',
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Upgrade to Starter'));
+    fireEvent.click(screen.getByText('Top-Up Credits'));
+    fireEvent.click(screen.getByText('Invite friends, both get 2M'));
 
     expect(onUpgradePlan).toHaveBeenCalledTimes(1);
     expect(onTopUpCredits).toHaveBeenCalledTimes(1);
@@ -92,8 +109,8 @@ describe('billing error content', () => {
 
     render(renderPhoneVerificationRequiredContent({ onVerifyPhone }));
 
-    expect(screen.getByText('profile.phoneTrialHint')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('profile.phoneVerifyAction'));
+    expect(screen.getByText('Verify your phone to claim trial credits.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Verify Phone'));
 
     expect(onVerifyPhone).toHaveBeenCalledTimes(1);
   });

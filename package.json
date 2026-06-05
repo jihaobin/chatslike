@@ -169,6 +169,9 @@
     "stylelint-config-clean-order": "7.0.0"
   },
   "dependencies": {
+    "@alicloud/credentials": "^2.4.4",
+    "@alicloud/dysmsapi20170525": "^4.5.1",
+    "@alicloud/openapi-core": "^1.0.7",
     "@ant-design/icons": "^6.2.1",
     "@ant-design/pro-components": "^2.8.10",
     "@anthropic-ai/sdk": "^0.73.0",

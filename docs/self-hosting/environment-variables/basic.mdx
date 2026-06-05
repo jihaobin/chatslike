@@ -196,6 +196,88 @@ SSRF_ALLOW_IP_ADDRESS_LIST=192.168.1.100,10.0.0.50
 - Default: -
 - Example: `https://cdn.example.com`
 
+## Alibaba Cloud SMS
+
+Phone trial verification uses Alibaba Cloud SMS to send verification codes and Redis to store short-lived OTP state. Configure `REDIS_URL` and keep `KEY_VAULTS_SECRET` or `AUTH_SECRET` set before enabling this flow; otherwise phone verification fails closed and no trial credits are granted.
+
+Use a RAM user or RAM Role with least privilege. The SMS credential only needs permission to call `dysms:SendSms` for your approved SMS signature/template. Never expose these values to the browser.
+
+### `ALIBABA_CLOUD_ACCESS_KEY_ID`
+
+- Type: Optional
+- Description: Alibaba Cloud RAM AccessKey ID used by server-side SMS verification. Required when using phone trial verification.
+- Default: -
+
+### `ALIBABA_CLOUD_ACCESS_KEY_SECRET`
+
+- Type: Optional
+- Description: Alibaba Cloud RAM AccessKey Secret used by server-side SMS verification. Pair it with `ALIBABA_CLOUD_SECURITY_TOKEN` when you already provide temporary STS credentials, or with `ALIBABA_CLOUD_ROLE_ARN` to let the SDK assume a RAM Role.
+- Default: -
+
+### `ALIBABA_CLOUD_SECURITY_TOKEN`
+
+- Type: Optional
+- Description: Temporary STS security token. When this is set with `ALIBABA_CLOUD_ACCESS_KEY_ID` and `ALIBABA_CLOUD_ACCESS_KEY_SECRET`, the SMS provider uses STS credentials for Alibaba Cloud requests.
+- Default: -
+
+### `ALIBABA_CLOUD_ROLE_ARN`
+
+- Type: Optional
+- Description: RAM Role ARN for the Alibaba Cloud Credentials SDK. When set, `ALIBABA_CLOUD_ROLE_SESSION_NAME` is required, and the SDK obtains and refreshes STS credentials automatically.
+- Default: -
+- Example: `acs:ram::1234567890123456:role/lobehub-sms`
+
+### `ALIBABA_CLOUD_ROLE_SESSION_NAME`
+
+- Type: Optional
+- Description: Session name used when assuming `ALIBABA_CLOUD_ROLE_ARN`. Required when `ALIBABA_CLOUD_ROLE_ARN` is configured.
+- Default: -
+- Example: `lobehub-sms`
+
+### `ALIBABA_CLOUD_ROLE_SESSION_EXPIRATION`
+
+- Type: Optional
+- Description: Validity period in seconds for RAM Role STS credentials.
+- Default: -
+- Example: `3600`
+- Range: `900-43200`
+
+### `ALIBABA_CLOUD_STS_POLICY`
+
+- Type: Optional
+- Description: Inline policy used to further limit the permissions of the assumed RAM Role STS token. Keep it limited to Alibaba Cloud SMS send permissions for the configured signature/template.
+- Default: -
+
+### `ALIBABA_CLOUD_STS_ENDPOINT`
+
+- Type: Optional
+- Description: Optional STS endpoint override for the Alibaba Cloud Credentials SDK.
+- Default: -
+
+### `ALIYUN_SMS_SIGN_NAME`
+
+- Type: Optional
+- Description: Approved Alibaba Cloud SMS signature name.
+- Default: -
+
+### `ALIYUN_SMS_TEMPLATE_CODE`
+
+- Type: Optional
+- Description: Approved Alibaba Cloud SMS template code. The template must contain a `code` variable.
+- Default: -
+
+### `ALIYUN_SMS_REGION_ID`
+
+- Type: Optional
+- Description: Alibaba Cloud SMS region ID. Defaults to `cn-hangzhou`.
+- Default: `cn-hangzhou`
+
+### `ALIYUN_SMS_ENDPOINT`
+
+- Type: Optional
+- Description: Optional Alibaba Cloud SMS endpoint override.
+- Default: -
+
 ## Visual Understanding
 
 ### `VISUAL_UNDERSTANDING_PROVIDER`

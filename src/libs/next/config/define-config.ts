@@ -61,7 +61,7 @@ export function defineConfig(config: CustomNextConfig) {
   const nextConfig: NextConfig = {
     ...(isStandaloneMode ? standaloneConfig : {}),
     assetPrefix,
-
+    allowedDevOrigins: ['n6f23e6a.natappfree.cc'],
     compiler: {
       emotion: true,
     },

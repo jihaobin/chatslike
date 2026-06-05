@@ -7,6 +7,7 @@ import { type PartialDeep } from 'type-fest';
 
 import { DEFAULT_PREFERENCE } from '@/const/user';
 import { mutate, useOnlyFetchOnceSWR } from '@/libs/swr';
+import type { VerifyPhoneForTrialResult } from '@/services/user';
 import { userService } from '@/services/user';
 import { type StoreSetter } from '@/store/types';
 import { type UserStore } from '@/store/user';
@@ -62,9 +63,23 @@ export class CommonActionImpl {
     await this.#get().refreshUserState();
   };
 
-  verifyPhoneForTrial = async (phoneNumber: string): Promise<void> => {
-    await userService.verifyPhoneForTrial(phoneNumber);
+  sendPhoneVerificationCode = async (
+    phoneNumber: string,
+  ): Promise<{
+    cooldownSeconds: number;
+    maskedPhone: string;
+  }> => {
+    return userService.sendPhoneVerificationCode(phoneNumber);
+  };
+
+  verifyPhoneForTrial = async (input: {
+    code: string;
+    phoneNumber: string;
+  }): Promise<VerifyPhoneForTrialResult> => {
+    const result = await userService.verifyPhoneForTrial(input);
     await this.#get().refreshUserState();
+
+    return result;
   };
 
   updateKeyVaultConfig = async (provider: string, config: any): Promise<void> => {

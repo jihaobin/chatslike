@@ -72,18 +72,44 @@ describe('createCommonSlice', () => {
   });
 
   describe('verifyPhoneForTrial', () => {
-    it('should verify phone and refresh user state', async () => {
+    it('should send phone verification code through userService', async () => {
+      const { result } = renderHook(() => useUserStore());
+      const sendPhoneVerificationCodeSpy = vi
+        .spyOn(userService, 'sendPhoneVerificationCode')
+        .mockResolvedValue({ cooldownSeconds: 60, maskedPhone: '+86138****0000' });
+
+      const response = await result.current.sendPhoneVerificationCode('+8613800000000');
+
+      expect(sendPhoneVerificationCodeSpy).toHaveBeenCalledWith('+8613800000000');
+      expect(response).toEqual({ cooldownSeconds: 60, maskedPhone: '+86138****0000' });
+    });
+
+    it('should verify phone, return trial result, and refresh user state', async () => {
       const { result } = renderHook(() => useUserStore());
       const spyOn = vi.spyOn(result.current, 'refreshUserState');
+      const verificationResult = {
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+        trial: { granted: false },
+      };
       const verifyPhoneSpy = vi
         .spyOn(userService, 'verifyPhoneForTrial')
-        .mockResolvedValue({ phoneNumberVerified: true } as any);
+        .mockResolvedValue(verificationResult);
+
+      let response: Awaited<ReturnType<typeof result.current.verifyPhoneForTrial>>;
 
       await act(async () => {
-        await result.current.verifyPhoneForTrial('+8613800000000');
+        response = await result.current.verifyPhoneForTrial({
+          code: '123456',
+          phoneNumber: '+8613800000000',
+        });
       });
 
-      expect(verifyPhoneSpy).toHaveBeenCalledWith('+8613800000000');
+      expect(verifyPhoneSpy).toHaveBeenCalledWith({
+        code: '123456',
+        phoneNumber: '+8613800000000',
+      });
+      expect(response!).toEqual(verificationResult);
       expect(spyOn).toHaveBeenCalled();
     });
   });

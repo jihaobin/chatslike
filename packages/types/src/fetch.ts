@@ -5,6 +5,7 @@ export const ChatErrorType = {
 
   InvalidAccessCode: 'InvalidAccessCode', // is in valid password
   FreePlanLimit: 'FreePlanLimit', // Free plan usage limit
+  InsufficientCredits: 'INSUFFICIENT_CREDITS', // Not enough credits for estimated model cost
   SubscriptionPlanLimit: 'SubscriptionPlanLimit', // Subscription user limit exceeded
   InsufficientBudgetForModel: 'InsufficientBudgetForModel', // Has credits but not enough for estimated model cost
   PhoneVerificationRequired: 'PHONE_VERIFICATION_REQUIRED', // Phone verification is required before granting trial credits

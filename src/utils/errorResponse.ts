@@ -10,12 +10,17 @@ import { ChatErrorType } from '@lobechat/types';
  * to signal the client that re-authentication is needed.
  */
 const AUTH_REQUIRED_ERROR_TYPES = new Set<ErrorType>([ChatErrorType.Unauthorized]);
+const FALLBACK_STATUS_CODE = 500;
 
 const getStatus = (errorType: ILobeAgentRuntimeErrorType | ErrorType) => {
   // InvalidAccessCode / InvalidAzureAPIKey / InvalidOpenAIAPIKey / InvalidZhipuAPIKey ....
   if (errorType.toString().includes('Invalid')) return 401;
 
   switch (errorType) {
+    case ChatErrorType.InsufficientCredits: {
+      return 402;
+    }
+
     case ChatErrorType.SubscriptionPlanLimit:
     case ChatErrorType.FreePlanLimit:
     case ChatErrorType.InsufficientBudgetForModel:
@@ -74,20 +79,24 @@ const getStatus = (errorType: ILobeAgentRuntimeErrorType | ErrorType) => {
   return errorType as number;
 };
 
+const resolveResponseStatus = (statusCode: unknown) => {
+  if (typeof statusCode === 'number' && statusCode >= 200 && statusCode <= 599) return statusCode;
+
+  console.error(
+    `current StatusCode: \`${statusCode}\` .`,
+    'Please go to `./src/app/api/errorResponse.ts` to defined the statusCode.',
+  );
+
+  return FALLBACK_STATUS_CODE;
+};
+
 export const createErrorResponse = (
   errorType: ErrorType | ILobeAgentRuntimeErrorType,
   body?: any,
 ) => {
-  const statusCode = getStatus(errorType);
+  const statusCode = resolveResponseStatus(getStatus(errorType));
 
   const data: ErrorResponse = { body, errorType };
-
-  if (typeof statusCode !== 'number' || statusCode < 200 || statusCode > 599) {
-    console.error(
-      `current StatusCode: \`${statusCode}\` .`,
-      'Please go to `./src/app/api/errorResponse.ts` to defined the statusCode.',
-    );
-  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

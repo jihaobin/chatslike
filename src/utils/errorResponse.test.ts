@@ -55,6 +55,24 @@ describe('createErrorResponse', () => {
     expect(response.status).toBe(403);
   });
 
+  it('returns a 402 status for insufficient credits business errors', async () => {
+    const errorType = ChatErrorType.InsufficientCredits;
+    const body = {
+      availableCredits: 0,
+      code: errorType,
+      deficitCredits: 100,
+      requiredCredits: 100,
+    };
+
+    const response = createErrorResponse(errorType, body);
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toEqual({
+      body,
+      errorType,
+    });
+  });
+
   it('returns a 400 status for ExceededContextWindow error type', () => {
     const errorType = AgentRuntimeErrorType.ExceededContextWindow;
     const response = createErrorResponse(errorType);
@@ -100,11 +118,16 @@ describe('createErrorResponse', () => {
   });
 
   // 测试状态码不在200-599范围内的情况
-  it('logs an error when the status code is not a number or not in the range of 200-599', () => {
+  it('falls back to 500 for unknown string error types', async () => {
     const errorType = 'Unknown Error';
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    createErrorResponse(errorType as any);
+    const body = { message: 'Unexpected provider error' };
+
+    const response = Reflect.apply(createErrorResponse, undefined, [errorType, body]);
+
     expect(consoleSpy).toHaveBeenCalled();
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ body, errorType });
     consoleSpy.mockRestore();
   });
 

@@ -15,6 +15,14 @@ import {
 } from '@/types/user';
 import { type UserSettings } from '@/types/user/settings';
 
+export interface VerifyPhoneForTrialResult {
+  phone: string;
+  phoneNumberVerified: boolean;
+  trial: {
+    granted: boolean;
+  };
+}
+
 export class UserService {
   getUserRegistrationDuration = async (): Promise<{
     createdAt: string;
@@ -112,8 +120,20 @@ export class UserService {
     return lambdaClient.user.updateInterests.mutate(interests);
   };
 
-  verifyPhoneForTrial = async (phoneNumber: string) => {
-    return lambdaClient.user.verifyPhoneForTrial.mutate(phoneNumber);
+  sendPhoneVerificationCode = async (
+    phoneNumber: string,
+  ): Promise<{
+    cooldownSeconds: number;
+    maskedPhone: string;
+  }> => {
+    return lambdaClient.user.sendPhoneVerificationCode.mutate(phoneNumber);
+  };
+
+  verifyPhoneForTrial = async (input: {
+    code: string;
+    phoneNumber: string;
+  }): Promise<VerifyPhoneForTrialResult> => {
+    return lambdaClient.user.verifyPhoneForTrial.mutate(input);
   };
 
   updateFullName = async (fullName: string) => {

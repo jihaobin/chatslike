@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { Plans } from '@lobechat/types';
+import { TRPCError } from '@trpc/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as BusinessUserModule from '@/business/server/user';
@@ -13,12 +14,17 @@ import { MessageModel } from '@/database/models/message';
 import { SessionModel } from '@/database/models/session';
 import { UserModel } from '@/database/models/user';
 import { serverDB } from '@/database/server';
+import type * as RedisModule from '@/libs/redis';
 import { getServerGlobalConfig } from '@/server/globalConfig';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 
 import { userRouter } from '../user';
 
 const mockAfterTasks = vi.hoisted((): Promise<void>[] => []);
+const phoneVerificationMocks = vi.hoisted(() => ({
+  sendCode: vi.fn(),
+  verifyCode: vi.fn(),
+}));
 
 // Mock modules
 vi.mock('next/server', () => ({
@@ -48,7 +54,23 @@ vi.mock('@/database/models/user');
 vi.mock('@/server/globalConfig');
 vi.mock('@/server/modules/KeyVaultsEncrypt');
 vi.mock('@/server/modules/S3');
+vi.mock('@/server/services/phoneVerification', () => ({
+  PhoneVerificationService: vi.fn().mockImplementation(() => ({
+    sendCode: phoneVerificationMocks.sendCode,
+    verifyCode: phoneVerificationMocks.verifyCode,
+  })),
+}));
+vi.mock('@/server/services/sms', () => ({
+  createAliyunSmsProvider: vi.fn().mockReturnValue({ sendVerificationCode: vi.fn() }),
+}));
 vi.mock('@/server/services/user');
+vi.mock('@/libs/redis', async (importOriginal) => {
+  const actual = await importOriginal<typeof RedisModule>();
+  return {
+    ...actual,
+    initializeRedisWithPrefix: vi.fn().mockResolvedValue({}),
+  };
+});
 
 describe('userRouter', () => {
   const mockUserId = 'test-user-id';
@@ -68,10 +90,18 @@ describe('userRouter', () => {
 
   beforeEach(() => {
     mockAfterTasks.length = 0;
+    process.env.AUTH_SECRET = 'test-phone-verification-secret';
     vi.clearAllMocks();
     vi.mocked(getReferralStatus).mockResolvedValue(undefined);
     vi.mocked(getSubscriptionPlan).mockResolvedValue(Plans.Free);
     vi.mocked(onUserActivityForBusiness).mockResolvedValue(undefined);
+    phoneVerificationMocks.sendCode.mockResolvedValue({
+      cooldownSeconds: 60,
+      maskedPhone: '+86138****0000',
+    });
+    phoneVerificationMocks.verifyCode.mockResolvedValue({
+      normalizedPhoneNumber: '+8613800000000',
+    });
     vi.mocked(getServerGlobalConfig).mockResolvedValue({
       aiProvider: {},
       commercial: createCommercialConfig(false),
@@ -266,23 +296,74 @@ describe('userRouter', () => {
     });
   });
 
-  describe('verifyPhoneForTrial', () => {
-    it('should update phone verification and return the verification state', async () => {
+  describe('phone trial verification', () => {
+    it('should fail closed when phone verification secret is missing', async () => {
+      const keyVaultSecret = process.env.KEY_VAULTS_SECRET;
+      const authSecret = process.env.AUTH_SECRET;
+      delete process.env.KEY_VAULTS_SECRET;
+      delete process.env.AUTH_SECRET;
+
+      try {
+        await expect(
+          userRouter.createCaller({ ...mockCtx }).sendPhoneVerificationCode('+8613800000000'),
+        ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+        expect(phoneVerificationMocks.sendCode).not.toHaveBeenCalled();
+      } finally {
+        if (keyVaultSecret === undefined) delete process.env.KEY_VAULTS_SECRET;
+        else process.env.KEY_VAULTS_SECRET = keyVaultSecret;
+        if (authSecret === undefined) delete process.env.AUTH_SECRET;
+        else process.env.AUTH_SECRET = authSecret;
+      }
+    });
+
+    it('should send phone verification code without updating user or granting trial credits', async () => {
+      const updateUser = vi.fn();
+      const onBusinessUserPhoneVerifiedSpy = vi.spyOn(businessUser, 'onBusinessUserPhoneVerified');
+      vi.mocked(UserModel).mockImplementation(() => ({ updateUser }) as never);
+
+      const result = await userRouter
+        .createCaller({ ...mockCtx })
+        .sendPhoneVerificationCode('+8613800000000');
+
+      expect(phoneVerificationMocks.sendCode).toHaveBeenCalledWith('+8613800000000');
+      expect(updateUser).not.toHaveBeenCalled();
+      expect(onBusinessUserPhoneVerifiedSpy).not.toHaveBeenCalled();
+      expect(result).toEqual({ cooldownSeconds: 60, maskedPhone: '+86138****0000' });
+    });
+
+    it('should not update user or grant trial credits when code verification fails', async () => {
+      phoneVerificationMocks.verifyCode.mockRejectedValueOnce(
+        new TRPCError({ code: 'BAD_REQUEST', message: 'PHONE_CODE_INVALID' }),
+      );
+      const updateUser = vi.fn();
+      const onBusinessUserPhoneVerifiedSpy = vi.spyOn(businessUser, 'onBusinessUserPhoneVerified');
+      vi.mocked(UserModel).mockImplementation(() => ({ updateUser }) as never);
+
+      await expect(
+        userRouter
+          .createCaller({ ...mockCtx })
+          .verifyPhoneForTrial({ code: '000000', phoneNumber: '+8613800000000' }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+      expect(updateUser).not.toHaveBeenCalled();
+      expect(onBusinessUserPhoneVerifiedSpy).not.toHaveBeenCalled();
+    });
+
+    it('should update phone verification and grant trial credits after code verification succeeds', async () => {
       const updateUser = vi.fn().mockResolvedValue({ rowCount: 1 });
       const onBusinessUserPhoneVerifiedSpy = vi
         .spyOn(businessUser, 'onBusinessUserPhoneVerified')
         .mockResolvedValue({ granted: true });
-      vi.mocked(UserModel).mockImplementation(
-        () =>
-          ({
-            updateUser,
-          }) as any,
-      );
+      vi.mocked(UserModel).mockImplementation(() => ({ updateUser }) as never);
 
       const result = await userRouter
         .createCaller({ ...mockCtx })
-        .verifyPhoneForTrial('+8613800000000');
+        .verifyPhoneForTrial({ code: '123456', phoneNumber: '+86 138 0000 0000' });
 
+      expect(phoneVerificationMocks.verifyCode).toHaveBeenCalledWith({
+        code: '123456',
+        phoneNumber: '+86 138 0000 0000',
+      });
       expect(updateUser).toHaveBeenCalledWith({
         phone: '+8613800000000',
         phoneNumberVerified: true,
@@ -296,6 +377,60 @@ describe('userRouter', () => {
         phone: '+8613800000000',
         phoneNumberVerified: true,
       });
+    });
+
+    it('should return conflict without granting trial credits when phone is already bound', async () => {
+      const updateUser = vi.fn().mockRejectedValue({
+        cause: {
+          code: '23505',
+          constraint: 'users_phone_unique',
+        },
+      });
+      const onBusinessUserPhoneVerifiedSpy = vi.spyOn(businessUser, 'onBusinessUserPhoneVerified');
+      vi.mocked(UserModel).mockImplementation(() => ({ updateUser }) as never);
+
+      await expect(
+        userRouter
+          .createCaller({ ...mockCtx })
+          .verifyPhoneForTrial({ code: '123456', phoneNumber: '+86 138 0000 0000' }),
+      ).rejects.toMatchObject({
+        code: 'CONFLICT',
+        message: 'PHONE_ALREADY_BOUND',
+      });
+
+      expect(phoneVerificationMocks.verifyCode).toHaveBeenCalledWith({
+        code: '123456',
+        phoneNumber: '+86 138 0000 0000',
+      });
+      expect(updateUser).toHaveBeenCalledWith({
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+      });
+      expect(onBusinessUserPhoneVerifiedSpy).not.toHaveBeenCalled();
+    });
+
+    it('should return conflict when duplicate phone error uses constraint_name', async () => {
+      const updateUser = vi.fn().mockRejectedValue({
+        cause: {
+          cause: {
+            code: '23505',
+            constraint_name: 'users_phone_unique',
+          },
+        },
+      });
+      const onBusinessUserPhoneVerifiedSpy = vi.spyOn(businessUser, 'onBusinessUserPhoneVerified');
+      vi.mocked(UserModel).mockImplementation(() => ({ updateUser }) as never);
+
+      await expect(
+        userRouter
+          .createCaller({ ...mockCtx })
+          .verifyPhoneForTrial({ code: '123456', phoneNumber: '+86 138 0000 0000' }),
+      ).rejects.toMatchObject({
+        code: 'CONFLICT',
+        message: 'PHONE_ALREADY_BOUND',
+      });
+
+      expect(onBusinessUserPhoneVerifiedSpy).not.toHaveBeenCalled();
     });
   });
 
