@@ -1,17 +1,21 @@
 import useSWR, { mutate } from 'swr';
 
 import type { ModelPricingListParams, PlatformCatalogFilters } from '@/services/billing';
-import { billingService } from '@/services/billing';
+import {
+  BILLING_BALANCE_KEY,
+  BILLING_GRANT_PACKAGES_KEY,
+  billingService,
+} from '@/services/billing';
 
 const BILLING_PAGE_SIZE = 20;
 
 export const useBillingBalance = () =>
-  useSWR('billing.balance', () => billingService.getBalance(), {
+  useSWR(BILLING_BALANCE_KEY, () => billingService.getBalance(), {
     refreshInterval: 15_000,
   });
 
 export const useBillingGrantPackages = () =>
-  useSWR('billing.grantPackages', () => billingService.listGrantPackages(), {
+  useSWR(BILLING_GRANT_PACKAGES_KEY, () => billingService.listGrantPackages(), {
     refreshInterval: 15_000,
   });
 

@@ -9,7 +9,13 @@ import { type GlobalServerConfig } from '@/types/serverConfig';
 import { type UserInitializationState, type UserPreference } from '@/types/user';
 import { withSWR } from '~test-utils';
 
+const refreshBillingCredits = vi.hoisted(() => vi.fn());
+
 vi.mock('zustand/traditional');
+
+vi.mock('@/services/billing', () => ({
+  refreshBillingCredits,
+}));
 
 vi.mock('swr', async (importOriginal) => {
   const modules = await importOriginal();
@@ -20,6 +26,7 @@ vi.mock('swr', async (importOriginal) => {
 });
 
 afterEach(() => {
+  refreshBillingCredits.mockReset();
   vi.restoreAllMocks();
 });
 
@@ -111,6 +118,25 @@ describe('createCommonSlice', () => {
       });
       expect(response!).toEqual(verificationResult);
       expect(spyOn).toHaveBeenCalled();
+    });
+
+    it('should refresh billing credits when trial credits are granted', async () => {
+      const { result } = renderHook(() => useUserStore());
+      vi.spyOn(result.current, 'refreshUserState').mockResolvedValue();
+      vi.spyOn(userService, 'verifyPhoneForTrial').mockResolvedValue({
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+        trial: { granted: true },
+      });
+
+      await act(async () => {
+        await result.current.verifyPhoneForTrial({
+          code: '123456',
+          phoneNumber: '+8613800000000',
+        });
+      });
+
+      expect(refreshBillingCredits).toHaveBeenCalledTimes(1);
     });
   });
 

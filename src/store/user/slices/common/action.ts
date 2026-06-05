@@ -7,6 +7,7 @@ import { type PartialDeep } from 'type-fest';
 
 import { DEFAULT_PREFERENCE } from '@/const/user';
 import { mutate, useOnlyFetchOnceSWR } from '@/libs/swr';
+import { refreshBillingCredits } from '@/services/billing';
 import type { VerifyPhoneForTrialResult } from '@/services/user';
 import { userService } from '@/services/user';
 import { type StoreSetter } from '@/store/types';
@@ -77,7 +78,10 @@ export class CommonActionImpl {
     phoneNumber: string;
   }): Promise<VerifyPhoneForTrialResult> => {
     const result = await userService.verifyPhoneForTrial(input);
-    await this.#get().refreshUserState();
+    await Promise.all([
+      this.#get().refreshUserState(),
+      result.trial.granted ? refreshBillingCredits() : Promise.resolve(),
+    ]);
 
     return result;
   };
