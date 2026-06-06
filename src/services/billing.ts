@@ -150,6 +150,9 @@ class BillingService {
 
   getOrder = async (orderId: string) => lambdaClient.topUp.getOrder.query({ orderId });
 
+  syncOrderPaymentStatus = async (orderId: string) =>
+    lambdaClient.topUp.syncOrderPaymentStatus.query({ orderId });
+
   getCurrentSubscription = async () => lambdaClient.subscription.getCurrent.query();
 
   listOrders = async (params?: BillingListParams) => lambdaClient.topUp.listOrders.query(params);

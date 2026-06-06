@@ -90,7 +90,7 @@ describe('createCommonSlice', () => {
       const verificationResult = {
         phone: '+8613800000000',
         phoneNumberVerified: true,
-        trial: { granted: false },
+        trial: { credits: 500_000, granted: false },
       };
       const verifyPhoneSpy = vi
         .spyOn(userService, 'verifyPhoneForTrial')
@@ -110,6 +110,29 @@ describe('createCommonSlice', () => {
         phoneNumber: '+8613800000000',
       });
       expect(response!).toEqual(verificationResult);
+      expect(spyOn).toHaveBeenCalled();
+    });
+
+    it('should retry verified phone trial grant and refresh user state', async () => {
+      const { result } = renderHook(() => useUserStore());
+      const spyOn = vi.spyOn(result.current, 'refreshUserState');
+      const retryResult = {
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+        trial: { credits: 500_000, granted: true },
+      };
+      const retrySpy = vi
+        .spyOn(userService, 'retryVerifiedPhoneTrialGrant')
+        .mockResolvedValue(retryResult);
+
+      let response: Awaited<ReturnType<typeof result.current.retryVerifiedPhoneTrialGrant>>;
+
+      await act(async () => {
+        response = await result.current.retryVerifiedPhoneTrialGrant();
+      });
+
+      expect(retrySpy).toHaveBeenCalled();
+      expect(response!).toEqual(retryResult);
       expect(spyOn).toHaveBeenCalled();
     });
   });

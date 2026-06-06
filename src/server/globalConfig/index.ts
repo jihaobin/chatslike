@@ -1,5 +1,6 @@
 import { ENABLE_BUSINESS_FEATURES } from '@lobechat/business-const';
 
+import { TRIAL_CREDITS } from '@/business/server/billing/constants';
 import { getCommercialRuntimeConfig } from '@/business/shared/commercialRuntime';
 import { getPlatformProviderStatus } from '@/business/shared/platformProviderStatus';
 import { klavisEnv } from '@/config/klavis';
@@ -124,6 +125,9 @@ export const getServerGlobalConfig = async () => {
       : undefined),
 
     commercial,
+    billing: {
+      trialCredits: TRIAL_CREDITS,
+    },
     // Expose Agent Gateway URL to client (used by hetero agents; also required for queue mode)
     ...(appEnv.AGENT_GATEWAY_URL ? { agentGatewayUrl: appEnv.AGENT_GATEWAY_URL } : undefined),
 

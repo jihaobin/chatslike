@@ -2,11 +2,11 @@ import { eq } from 'drizzle-orm';
 
 import {
   BillingOrderModel,
-  PaymentTransactionModel,
   type ListBillingOrdersParams,
+  PaymentTransactionModel,
 } from '@/database/models/billing';
+import type { BillingOrderItem, BillingOrderStatus, PaymentChannel } from '@/database/schemas';
 import { billingOrders } from '@/database/schemas';
-import type { BillingOrderItem, PaymentChannel } from '@/database/schemas';
 import type { LobeChatDatabase, Transaction } from '@/database/type';
 
 import {
@@ -18,20 +18,20 @@ import {
 import { CreditsService } from './credits';
 import { BillingError } from './errors';
 import { getPaymentAdapter } from './payments';
-import type { CreatePaymentResult } from './payments/types';
+import type { CreatePaymentResult, PaymentQueryResult } from './payments/types';
 import {
   assertCanRenewSubscription,
   assertCanUpgradeSubscription,
   calculateUpgradePriceDelta,
-  getCurrentSubscription,
-  getSubscriptionCycleCount,
-  getSubscriptionCredits,
-  getSubscriptionPriceCents,
-  getSubscriptionValidUntil,
   type CreateRenewOrderParams,
   type CreateSubscriptionOrderParams,
   type CreateSubscriptionPaymentResult,
   type CreateUpgradeOrderParams,
+  getCurrentSubscription,
+  getSubscriptionCredits,
+  getSubscriptionCycleCount,
+  getSubscriptionPriceCents,
+  getSubscriptionValidUntil,
 } from './subscriptions';
 
 interface CreateTopUpOrderParams {
@@ -42,6 +42,15 @@ interface CreateTopUpOrderParams {
 export interface CreateTopUpOrderResult {
   order: BillingOrderItem;
   payment: CreatePaymentResult;
+}
+
+export interface SyncedOrderPaymentStatus {
+  order: BillingOrderItem;
+  paymentTradeState?: string;
+}
+
+interface InternalSyncedOrderPaymentStatus extends SyncedOrderPaymentStatus {
+  activated: boolean;
 }
 
 interface MarkPaidAndActivateParams {
@@ -73,11 +82,15 @@ const readSubscriptionOrderDate = (
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    throw new BillingError('SUBSCRIPTION_ORDER_METADATA_INVALID', 'Subscription order metadata invalid', {
-      key,
-      orderId: order.id,
-      value,
-    });
+    throw new BillingError(
+      'SUBSCRIPTION_ORDER_METADATA_INVALID',
+      'Subscription order metadata invalid',
+      {
+        key,
+        orderId: order.id,
+        value,
+      },
+    );
   }
 
   return date;
@@ -85,6 +98,17 @@ const readSubscriptionOrderDate = (
 
 const getOrderMetadata = (order: BillingOrderItem) =>
   (order.metadata as Record<string, unknown> | null) ?? {};
+
+const TERMINAL_ORDER_STATUSES = new Set<BillingOrderStatus>([
+  'activated',
+  'closed',
+  'exception',
+  'failed',
+  'refunded',
+]);
+
+const getPaymentTradeState = (result: PaymentQueryResult): string | undefined =>
+  typeof result.tradeState === 'string' ? result.tradeState : undefined;
 
 const getSubscriptionActivationPeriod = (
   order: BillingOrderItem,
@@ -95,9 +119,13 @@ const getSubscriptionActivationPeriod = (
     const validUntil = readSubscriptionOrderDate(order, 'validUntil');
 
     if (!startsAt || !validUntil) {
-      throw new BillingError('SUBSCRIPTION_ORDER_METADATA_INVALID', 'Subscription order metadata invalid', {
-        orderId: order.id,
-      });
+      throw new BillingError(
+        'SUBSCRIPTION_ORDER_METADATA_INVALID',
+        'Subscription order metadata invalid',
+        {
+          orderId: order.id,
+        },
+      );
     }
 
     return { startsAt, validUntil };
@@ -107,10 +135,14 @@ const getSubscriptionActivationPeriod = (
     const currentPeriodEnd = readSubscriptionOrderDate(order, 'currentPeriodEnd');
 
     if (!currentPeriodEnd) {
-      throw new BillingError('SUBSCRIPTION_ORDER_METADATA_INVALID', 'Subscription order metadata invalid', {
-        key: 'currentPeriodEnd',
-        orderId: order.id,
-      });
+      throw new BillingError(
+        'SUBSCRIPTION_ORDER_METADATA_INVALID',
+        'Subscription order metadata invalid',
+        {
+          key: 'currentPeriodEnd',
+          orderId: order.id,
+        },
+      );
     }
 
     return { startsAt: activatedAt, validUntil: currentPeriodEnd };
@@ -145,7 +177,9 @@ const getSubscriptionGrantCycles = (
     return {
       expiresAt: cycleExpiresAt,
       operationId:
-        cycleCount === 1 ? `subscription:${order.id}` : `subscription:${order.id}:cycle:${index + 1}`,
+        cycleCount === 1
+          ? `subscription:${order.id}`
+          : `subscription:${order.id}:cycle:${index + 1}`,
       startsAt: cycleStartsAt,
     };
   });
@@ -364,6 +398,19 @@ export class BillingOrderService {
   };
 
   cancelPendingOrder = async (orderId: string): Promise<BillingOrderItem> => {
+    const existingOrder = await this.orderModel.findById(orderId);
+
+    if (existingOrder?.paymentChannel === 'wechat') {
+      const syncResult = await this.syncWechatPaymentStatusForOrder(existingOrder);
+      if (syncResult.activated) {
+        throw new BillingError('BILLING_ORDER_NOT_CANCELABLE', 'Billing order is not cancelable', {
+          orderId,
+        });
+      }
+
+      await getPaymentAdapter('wechat').closePayment?.({ orderId });
+    }
+
     const order = await this.orderModel.closePending(orderId);
 
     if (!order) {
@@ -375,15 +422,113 @@ export class BillingOrderService {
     return order;
   };
 
-  getOrder = (orderId: string): Promise<BillingOrderItem | null> => this.orderModel.findById(orderId);
+  getOrder = (orderId: string): Promise<BillingOrderItem | null> =>
+    this.orderModel.findById(orderId);
 
   listOrders = (params: ListBillingOrdersParams) => this.orderModel.list(params);
+
+  syncOrderPaymentStatus = async (orderId: string): Promise<SyncedOrderPaymentStatus> => {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new BillingError('BILLING_ORDER_NOT_FOUND', 'Billing order not found', { orderId });
+    }
+
+    if (order.paymentChannel !== 'wechat' || TERMINAL_ORDER_STATUSES.has(order.status)) {
+      return { order };
+    }
+
+    const { activated: _, ...result } = await this.syncOrderPaymentStatusForOrder(order);
+
+    return result;
+  };
+
+  syncWechatPaymentStatus = async (
+    orderId: string,
+  ): Promise<{ activated: boolean; orderId: string }> => {
+    const result = await this.syncOrderPaymentStatusForOrder(await this.requireOrder(orderId));
+
+    return { activated: result.activated, orderId: result.order.id };
+  };
+
+  private syncWechatPaymentStatusForOrder = async (
+    order: BillingOrderItem,
+  ): Promise<{ activated: boolean; orderId: string }> => {
+    const result = await this.syncOrderPaymentStatusForOrder(order);
+
+    return { activated: result.activated, orderId: result.order.id };
+  };
+
+  private syncOrderPaymentStatusForOrder = async (
+    order: BillingOrderItem,
+  ): Promise<InternalSyncedOrderPaymentStatus> => {
+    const result = await getPaymentAdapter('wechat').queryPayment?.({
+      amountCents: order.amountCents,
+      orderId: order.id,
+    });
+
+    if (!result) {
+      return { activated: false, order };
+    }
+
+    const paymentTradeState = getPaymentTradeState(result);
+
+    if (result.succeeded) {
+      const activation = await this.markPaidAndActivate(result);
+      return {
+        activated: activation.activated,
+        order: (await this.orderModel.findById(order.id)) ?? order,
+        paymentTradeState,
+      };
+    }
+
+    if (paymentTradeState === 'CLOSED' || paymentTradeState === 'REVOKED') {
+      await this.orderModel.updateStatus(order.id, { status: 'closed' });
+      return {
+        activated: false,
+        order: (await this.orderModel.findById(order.id)) ?? order,
+        paymentTradeState,
+      };
+    }
+
+    if (paymentTradeState === 'PAYERROR') {
+      await this.orderModel.updateStatus(order.id, { status: 'failed' });
+      return {
+        activated: false,
+        order: (await this.orderModel.findById(order.id)) ?? order,
+        paymentTradeState,
+      };
+    }
+
+    if (paymentTradeState === 'SUCCESS') {
+      await this.orderModel.updateStatus(order.id, { status: 'exception' });
+      return {
+        activated: false,
+        order: (await this.orderModel.findById(order.id)) ?? order,
+        paymentTradeState,
+      };
+    }
+
+    return { activated: false, order, paymentTradeState };
+  };
+
+  private requireOrder = async (orderId: string): Promise<BillingOrderItem> => {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new BillingError('BILLING_ORDER_NOT_FOUND', 'Billing order not found', { orderId });
+    }
+
+    return order;
+  };
 
   markPaidAndActivate = async (
     params: MarkPaidAndActivateParams,
   ): Promise<{ activated: boolean; orderId: string }> => {
     if (isTransactionalDb(this.db)) {
-      return this.db.transaction((tx) => new BillingOrderService(tx, this.userId).activatePaidOrder(params));
+      return this.db.transaction((tx) =>
+        new BillingOrderService(tx, this.userId).activatePaidOrder(params),
+      );
     }
 
     return this.activatePaidOrder(params);
@@ -496,10 +641,14 @@ export class BillingOrderService {
         status: 'exception',
       });
 
-      throw new BillingError('PAYMENT_TRANSACTION_REPLAY_MISMATCH', 'Payment callback replay mismatch', {
-        orderId: order.id,
-        providerTransactionId: params.providerTransactionId,
-      });
+      throw new BillingError(
+        'PAYMENT_TRANSACTION_REPLAY_MISMATCH',
+        'Payment callback replay mismatch',
+        {
+          orderId: order.id,
+          providerTransactionId: params.providerTransactionId,
+        },
+      );
     }
 
     if (!params.signatureVerified || !amountVerified || !params.succeeded) {

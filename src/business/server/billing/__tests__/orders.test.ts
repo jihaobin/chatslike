@@ -5,6 +5,7 @@ import { BillingOrderService } from '../orders';
 
 const {
   closePendingOrder,
+  closePayment,
   createOrder,
   createPayment,
   createPendingTransaction,
@@ -12,10 +13,12 @@ const {
   findTransactionByProviderTransactionId,
   grantSubscriptionCredits,
   grantTopUpCredits,
+  queryPayment,
   recordPaymentCallback,
   updateOrderStatus,
 } = vi.hoisted(() => ({
   closePendingOrder: vi.fn(),
+  closePayment: vi.fn(),
   createOrder: vi.fn(),
   createPayment: vi.fn(),
   createPendingTransaction: vi.fn(),
@@ -23,6 +26,7 @@ const {
   findTransactionByProviderTransactionId: vi.fn(),
   grantSubscriptionCredits: vi.fn(),
   grantTopUpCredits: vi.fn(),
+  queryPayment: vi.fn(),
   recordPaymentCallback: vi.fn(),
   updateOrderStatus: vi.fn(),
 }));
@@ -52,6 +56,8 @@ vi.mock('../credits', () => ({
 vi.mock('../payments', () => ({
   getPaymentAdapter: vi.fn(() => ({
     createPayment,
+    closePayment,
+    queryPayment,
   })),
 }));
 
@@ -75,6 +81,7 @@ const succeededTransaction = {
 describe('BillingOrderService', () => {
   beforeEach(() => {
     closePendingOrder.mockReset();
+    closePayment.mockReset();
     createOrder.mockReset();
     createPayment.mockReset();
     createPendingTransaction.mockReset();
@@ -82,6 +89,7 @@ describe('BillingOrderService', () => {
     findTransactionByProviderTransactionId.mockReset();
     grantSubscriptionCredits.mockReset();
     grantTopUpCredits.mockReset();
+    queryPayment.mockReset();
     recordPaymentCallback.mockReset();
     updateOrderStatus.mockReset();
     createPendingTransaction.mockResolvedValue({ id: 'payment-created' });
@@ -326,6 +334,123 @@ describe('BillingOrderService', () => {
       status: 'closed',
     });
     expect(closePendingOrder).toHaveBeenCalledWith('order-1');
+  });
+
+  it('closes the remote WeChat transaction before closing a local pending order', async () => {
+    findOrderById.mockResolvedValue({ ...pendingOrder, paymentChannel: 'wechat' });
+    queryPayment.mockResolvedValue(null);
+    closePayment.mockResolvedValue(undefined);
+    closePendingOrder.mockResolvedValue({ ...pendingOrder, status: 'closed' });
+
+    const service = new BillingOrderService({} as never, 'user-1');
+
+    await expect(service.cancelPendingOrder('order-1')).resolves.toMatchObject({
+      status: 'closed',
+    });
+    expect(queryPayment).toHaveBeenCalledWith({ amountCents: 600, orderId: 'order-1' });
+    expect(closePayment).toHaveBeenCalledWith({ orderId: 'order-1' });
+    expect(closePendingOrder).toHaveBeenCalledWith('order-1');
+  });
+
+  it('activates instead of closing when WeChat query finds a paid order during cancellation', async () => {
+    findOrderById
+      .mockResolvedValueOnce({ ...pendingOrder, paymentChannel: 'wechat' })
+      .mockResolvedValueOnce(pendingOrder)
+      .mockResolvedValueOnce(pendingOrder);
+    queryPayment.mockResolvedValue({
+      amountCents: 600,
+      channel: 'wechat',
+      orderId: 'order-1',
+      providerTransactionId: 'wx-tx-race',
+      rawCallback: { source: 'query-before-close' },
+      signatureVerified: true,
+      succeeded: true,
+    });
+    recordPaymentCallback.mockResolvedValue({ ...succeededTransaction, channel: 'wechat' });
+    grantTopUpCredits.mockResolvedValue({ id: 'grant-top-up-1' });
+
+    const service = new BillingOrderService({} as never, 'user-1');
+
+    await expect(service.cancelPendingOrder('order-1')).rejects.toMatchObject({
+      code: 'BILLING_ORDER_NOT_CANCELABLE',
+    });
+    expect(closePayment).not.toHaveBeenCalled();
+    expect(closePendingOrder).not.toHaveBeenCalled();
+    expect(grantTopUpCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms a pending WeChat order through active query fallback', async () => {
+    findOrderById
+      .mockResolvedValueOnce({ ...pendingOrder, paymentChannel: 'wechat' })
+      .mockResolvedValueOnce(pendingOrder)
+      .mockResolvedValueOnce(pendingOrder);
+    queryPayment.mockResolvedValue({
+      amountCents: 600,
+      channel: 'wechat',
+      orderId: 'order-1',
+      providerTransactionId: 'wx-tx-1',
+      rawCallback: { source: 'query' },
+      signatureVerified: true,
+      succeeded: true,
+    });
+    recordPaymentCallback.mockResolvedValue({ ...succeededTransaction, channel: 'wechat' });
+    updateOrderStatus.mockResolvedValue({ ...pendingOrder, status: 'paid' });
+    grantTopUpCredits.mockResolvedValue({ id: 'grant-top-up-1' });
+
+    const service = new BillingOrderService({} as never, 'user-1');
+
+    await expect(service.syncWechatPaymentStatus('order-1')).resolves.toEqual({
+      activated: true,
+      orderId: 'order-1',
+    });
+    expect(queryPayment).toHaveBeenCalledWith({ amountCents: 600, orderId: 'order-1' });
+    expect(grantTopUpCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns USERPAYING without changing the pending order status', async () => {
+    findOrderById.mockResolvedValue({ ...pendingOrder, paymentChannel: 'wechat' });
+    queryPayment.mockResolvedValue({
+      amountCents: 0,
+      channel: 'wechat',
+      orderId: 'order-1',
+      providerTransactionId: '',
+      rawCallback: { source: 'query', trade_state: 'USERPAYING' },
+      signatureVerified: true,
+      succeeded: false,
+      tradeState: 'USERPAYING',
+    });
+
+    const service = new BillingOrderService({} as never, 'user-1');
+
+    await expect(service.syncOrderPaymentStatus('order-1')).resolves.toEqual({
+      order: { ...pendingOrder, paymentChannel: 'wechat' },
+      paymentTradeState: 'USERPAYING',
+    });
+    expect(updateOrderStatus).not.toHaveBeenCalled();
+  });
+
+  it('maps a CLOSED WeChat query state to a closed order', async () => {
+    findOrderById
+      .mockResolvedValueOnce({ ...pendingOrder, paymentChannel: 'wechat' })
+      .mockResolvedValueOnce({ ...pendingOrder, paymentChannel: 'wechat', status: 'closed' });
+    queryPayment.mockResolvedValue({
+      amountCents: 0,
+      channel: 'wechat',
+      orderId: 'order-1',
+      providerTransactionId: '',
+      rawCallback: { source: 'query', trade_state: 'CLOSED' },
+      signatureVerified: true,
+      succeeded: false,
+      tradeState: 'CLOSED',
+    });
+
+    const service = new BillingOrderService({} as never, 'user-1');
+
+    await expect(service.syncOrderPaymentStatus('order-1')).resolves.toEqual({
+      order: { ...pendingOrder, paymentChannel: 'wechat', status: 'closed' },
+      paymentTradeState: 'CLOSED',
+    });
+    expect(updateOrderStatus).toHaveBeenCalledWith('order-1', { status: 'closed' });
   });
 
   it('does not activate credits for a closed order callback', async () => {

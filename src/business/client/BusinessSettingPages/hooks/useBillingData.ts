@@ -29,6 +29,16 @@ export const useBillingOrder = (orderId?: string) =>
     refreshInterval: (order) => (order && POLLING_ORDER_STATUSES.has(order.status) ? 3000 : 0),
   });
 
+export const useBillingOrderPaymentStatus = (orderId?: string) =>
+  useSWR(
+    orderId ? ['billing.orderPaymentStatus', orderId] : null,
+    () => billingService.syncOrderPaymentStatus(orderId!),
+    {
+      refreshInterval: (data) =>
+        data?.order && POLLING_ORDER_STATUSES.has(data.order.status) ? 3000 : 0,
+    },
+  );
+
 export const useSubscriptionPlans = () =>
   useSWR('billing.subscription.plans', () => billingService.listSubscriptionPlans());
 

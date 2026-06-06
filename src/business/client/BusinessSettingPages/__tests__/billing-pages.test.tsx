@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +12,8 @@ vi.mock('@lobehub/icons', () => ({
 
 const translationFallbacks: Record<string, string> = {
   'billingNative.billing.creditsUnit': 'Credits',
+  'billingNative.paymentChannel.alipay': 'Alipay',
+  'billingNative.paymentChannel.wechat': 'WeChat Pay',
   'billingNative.plans.pixel.discount.max': 'Up to {{percent}} off',
   'billingNative.plans.pixel.discount.short': 'Save {{percent}}',
   'billingNative.plans.pixel.perMonthAmount': '{{amount}} / month',
@@ -23,6 +25,15 @@ const translationFallbacks: Record<string, string> = {
   'modelPricing.perMillionTokens': '1M Tokens',
   'modelPricing.title': 'Text Model Pricing',
 };
+
+const toastError = vi.hoisted(() => vi.fn());
+const toastInfo = vi.hoisted(() => vi.fn());
+const toastSuccess = vi.hoisted(() => vi.fn());
+const toastWarning = vi.hoisted(() => vi.fn());
+const messageError = vi.hoisted(() => vi.fn());
+const messageInfo = vi.hoisted(() => vi.fn());
+const messageSuccess = vi.hoisted(() => vi.fn());
+const messageWarning = vi.hoisted(() => vi.fn());
 
 vi.mock('react-i18next', () => ({
   Trans: ({
@@ -96,6 +107,29 @@ vi.mock('lucide-react', () => ({
 }));
 
 vi.mock('antd', () => ({
+  message: {
+    error: messageError,
+    info: messageInfo,
+    success: messageSuccess,
+    warning: messageWarning,
+  },
+  QRCode: ({
+    onRefresh,
+    status = 'active',
+    value,
+  }: {
+    onRefresh?: () => void;
+    status?: string;
+    value?: string;
+  }) => (
+    <button
+      data-status={status}
+      data-testid="payment-qr-code"
+      data-value={value}
+      type="button"
+      onClick={onRefresh}
+    />
+  ),
   Radio: ({ checked }: { checked?: boolean; disabled?: boolean }) => (
     <input readOnly checked={checked} type="radio" />
   ),
@@ -103,6 +137,7 @@ vi.mock('antd', () => ({
 
 vi.mock('@lobehub/ui', () => ({
   Button: ({
+    'aria-label': ariaLabel,
     children,
     disabled,
     icon,
@@ -110,14 +145,21 @@ vi.mock('@lobehub/ui', () => ({
     onClick,
     type,
   }: {
-    children?: React.ReactNode;
-    disabled?: boolean;
-    icon?: React.ReactNode;
-    loading?: boolean;
-    onClick?: () => void;
-    type?: string;
+    'aria-label'?: string;
+    'children'?: React.ReactNode;
+    'disabled'?: boolean;
+    'icon'?: React.ReactNode;
+    'loading'?: boolean;
+    'onClick'?: () => void;
+    'type'?: string;
   }) => (
-    <button data-button-type={type} disabled={disabled || loading} type="button" onClick={onClick}>
+    <button
+      aria-label={ariaLabel}
+      data-button-type={type}
+      disabled={disabled || loading}
+      type="button"
+      onClick={onClick}
+    >
       {icon}
       {children}
     </button>
@@ -164,6 +206,20 @@ vi.mock('@lobehub/ui', () => ({
       onChange={(event) => onChange?.(Number(event.currentTarget.value))}
     />
   ),
+  Modal: ({
+    children,
+    open,
+    title,
+  }: {
+    children?: React.ReactNode;
+    open?: boolean;
+    title?: React.ReactNode;
+  }) =>
+    open ? (
+      <div aria-label={String(title)} role="dialog">
+        {children}
+      </div>
+    ) : null,
   Select: ({
     onChange,
     options,
@@ -218,6 +274,12 @@ vi.mock('@lobehub/ui', () => ({
     if (as === 'h2') return <h2>{children}</h2>;
     return <span>{children}</span>;
   },
+  toast: {
+    error: toastError,
+    info: toastInfo,
+    success: toastSuccess,
+    warning: toastWarning,
+  },
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -259,6 +321,7 @@ const refreshBillingOrders = vi.hoisted(() => vi.fn());
 const mutateBalance = vi.hoisted(() => vi.fn());
 const useCurrentSubscription = vi.hoisted(() => vi.fn());
 const useBillingOrder = vi.hoisted(() => vi.fn());
+const useBillingOrderPaymentStatus = vi.hoisted(() => vi.fn());
 const useAdminBillingUsers = vi.hoisted(() => vi.fn());
 const inlineTableRender = vi.hoisted(() => vi.fn());
 
@@ -384,6 +447,7 @@ vi.mock('../hooks/useBillingData', () => ({
     mutate: vi.fn(),
   }),
   useBillingOrder,
+  useBillingOrderPaymentStatus,
   useCurrentSubscription,
   useBillingOrders: () => ({
     data: { items: [] },
@@ -450,8 +514,18 @@ describe('Business billing pages', () => {
     mutateBalance.mockReset();
     refreshBillingOrders.mockReset();
     inlineTableRender.mockClear();
+    toastError.mockClear();
+    toastInfo.mockClear();
+    toastSuccess.mockClear();
+    toastWarning.mockClear();
+    messageError.mockClear();
+    messageInfo.mockClear();
+    messageSuccess.mockClear();
+    messageWarning.mockClear();
     useBillingOrder.mockReset();
     useBillingOrder.mockReturnValue({ data: undefined });
+    useBillingOrderPaymentStatus.mockReset();
+    useBillingOrderPaymentStatus.mockReturnValue({ data: undefined });
     useCurrentSubscription.mockReset();
     useCurrentSubscription.mockReturnValue({ data: null, isLoading: false });
     useAdminBillingUsers.mockReset();
@@ -476,7 +550,7 @@ describe('Business billing pages', () => {
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
   }, 30_000);
 
-  it('creates a top-up payment order from the credits page', async () => {
+  it('creates a WeChat top-up payment order after selecting payment channel', async () => {
     createTopUpOrder.mockResolvedValue({
       order: {
         amountCents: 600,
@@ -486,27 +560,66 @@ describe('Business billing pages', () => {
         status: 'pending',
       },
       payment: {
-        channel: 'alipay',
-        qrCodeUrl: '/api/payments/mock/alipay/order-1',
+        channel: 'wechat',
+        qrCodeUrl: '/api/payments/mock/wechat/order-1',
       },
     });
     const { default: Credits } = await import('../Credits');
 
     render(<Credits />);
     fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    expect(screen.getByRole('dialog', { name: 'Select payment method' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'WeChat Pay' }));
 
     await waitFor(() =>
       expect(createTopUpOrder).toHaveBeenCalledWith({
-        channel: 'alipay',
+        channel: 'wechat',
         productId: 'topup_5m',
       }),
     );
-    expect(await screen.findByText('Pending payment order')).toBeInTheDocument();
-    expect(screen.getByText('order-1')).toBeInTheDocument();
-    expect(screen.getByText('pending')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open payment link/ })).toHaveAttribute(
-      'href',
-      '/api/payments/mock/alipay/order-1',
+    expect(await screen.findByRole('dialog', { name: 'Scan to pay' })).toBeInTheDocument();
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute(
+      'data-value',
+      '/api/payments/mock/wechat/order-1',
+    );
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'active');
+    expect(screen.getByText('Scan to pay')).toBeInTheDocument();
+    expect(screen.queryByText('Pending payment order')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Open payment link/ })).not.toBeInTheDocument();
+  }, 30_000);
+
+  it('shows scanned QR state after the order is scanned but not confirmed', async () => {
+    createTopUpOrder.mockResolvedValue({
+      order: {
+        amountCents: 600,
+        credits: 5_000_000,
+        currency: 'CNY',
+        id: 'order-1',
+        status: 'pending',
+      },
+      payment: {
+        channel: 'wechat',
+        qrCodeUrl: '/api/payments/mock/wechat/order-1',
+      },
+    });
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId
+        ? { order: { id: orderId, status: 'pending' }, paymentTradeState: 'USERPAYING' }
+        : undefined,
+    }));
+    const { default: Credits } = await import('../Credits');
+
+    render(<Credits />);
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'WeChat Pay' }));
+
+    expect(
+      await screen.findByText('Scanned. Confirm the payment on your phone.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Scan to pay' })).toBeInTheDocument();
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'scanned');
+    await waitFor(() =>
+      expect(messageInfo).toHaveBeenCalledWith('Scanned. Confirm the payment on your phone.'),
     );
   }, 30_000);
 
@@ -548,17 +661,132 @@ describe('Business billing pages', () => {
         qrCodeUrl: '/api/payments/mock/alipay/order-1',
       },
     });
-    useBillingOrder.mockImplementation((orderId?: string) => ({
-      data: orderId ? { id: orderId, status: 'activated' } : undefined,
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId ? { order: { id: orderId, status: 'activated' } } : undefined,
     }));
     const { default: Credits } = await import('../Credits');
 
     render(<Credits />);
     fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
 
-    expect(await screen.findByText('activated')).toBeInTheDocument();
     await waitFor(() => expect(mutateBalance).toHaveBeenCalled());
     expect(refreshBillingOrders).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Scan to pay' })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText('Payment successful. Credits have been added.')).toBeInTheDocument();
+    expect(messageSuccess).toHaveBeenCalledWith('Payment successful. Credits have been added.');
+    expect(screen.queryByText('Pending payment order')).not.toBeInTheDocument();
+  }, 30_000);
+
+  it('shows failed and canceled payment toasts and closes the QR modal', async () => {
+    createTopUpOrder.mockResolvedValue({
+      order: {
+        amountCents: 600,
+        credits: 5_000_000,
+        currency: 'CNY',
+        id: 'order-1',
+        status: 'pending',
+      },
+      payment: {
+        channel: 'alipay',
+        qrCodeUrl: '/api/payments/mock/alipay/order-1',
+      },
+    });
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId ? { order: { id: orderId, status: 'failed' } } : undefined,
+    }));
+    const { default: Credits } = await import('../Credits');
+
+    const { rerender } = render(<Credits />);
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
+
+    await waitFor(() =>
+      expect(messageError).toHaveBeenCalledWith('Payment failed. Please try again.'),
+    );
+    expect(screen.queryByRole('dialog', { name: 'Scan to pay' })).not.toBeInTheDocument();
+
+    toastError.mockClear();
+    toastInfo.mockClear();
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId ? { order: { id: orderId, status: 'closed' } } : undefined,
+    }));
+    rerender(<Credits />);
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
+
+    await waitFor(() => expect(messageInfo).toHaveBeenCalledWith('Payment cancelled'));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Scan to pay' })).not.toBeInTheDocument(),
+    );
+  }, 30_000);
+
+  it('marks QR code expired after 15 minutes and refreshes it when clicked', async () => {
+    createTopUpOrder
+      .mockResolvedValueOnce({
+        order: {
+          amountCents: 600,
+          credits: 5_000_000,
+          currency: 'CNY',
+          id: 'order-1',
+          status: 'pending',
+        },
+        payment: {
+          channel: 'wechat',
+          qrCodeUrl: '/api/payments/mock/wechat/order-1',
+        },
+      })
+      .mockResolvedValueOnce({
+        order: {
+          amountCents: 600,
+          credits: 5_000_000,
+          currency: 'CNY',
+          id: 'order-2',
+          status: 'pending',
+        },
+        payment: {
+          channel: 'wechat',
+          qrCodeUrl: '/api/payments/mock/wechat/order-2',
+        },
+      });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { default: Credits } = await import('../Credits');
+
+    try {
+      render(<Credits />);
+      fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'WeChat Pay' }));
+      expect(await screen.findByTestId('payment-qr-code')).toHaveAttribute(
+        'data-value',
+        '/api/payments/mock/wechat/order-1',
+      );
+      act(() => {
+        vi.advanceTimersByTime(15 * 60 * 1000);
+      });
+
+      expect(
+        await screen.findByText('The QR code has expired. Refresh to try again.'),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'expired');
+      expect(messageWarning).toHaveBeenCalledWith('The QR code has expired. Refresh to try again.');
+    } finally {
+      vi.useRealTimers();
+    }
+
+    fireEvent.click(screen.getByTestId('payment-qr-code'));
+
+    await waitFor(() => expect(createTopUpOrder).toHaveBeenCalledTimes(2));
+    expect(createTopUpOrder).toHaveBeenLastCalledWith({
+      channel: 'wechat',
+      productId: 'topup_5m',
+    });
+    expect(await screen.findByTestId('payment-qr-code')).toHaveAttribute(
+      'data-value',
+      '/api/payments/mock/wechat/order-2',
+    );
+    expect(screen.getByText('Scan to pay')).toBeInTheDocument();
   }, 30_000);
 
   it('shows an error when top-up payment order creation fails', async () => {
@@ -567,12 +795,14 @@ describe('Business billing pages', () => {
 
     render(<Credits />);
     fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
 
     expect(
-      await screen.findByText(
-        'Could not create the payment order. Check payment configuration and try again.',
-      ),
+      await screen.findByText('Failed to create the order. Please try again later.'),
     ).toBeInTheDocument();
+    expect(messageError).toHaveBeenCalledWith(
+      'Failed to create the order. Please try again later.',
+    );
   }, 30_000);
 
   it('renders native billing empty state instead of subscription iframe', async () => {
@@ -615,7 +845,7 @@ describe('Business billing pages', () => {
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
   }, 30_000);
 
-  it('creates a subscription payment order from the plans page', async () => {
+  it('creates a WeChat subscription payment order after selecting payment channel', async () => {
     createSubscriptionOrder.mockResolvedValue({
       order: {
         amountCents: 9900,
@@ -625,28 +855,37 @@ describe('Business billing pages', () => {
         status: 'pending',
       },
       payment: {
-        channel: 'alipay',
-        qrCodeUrl: '/api/payments/mock/alipay/subscription-order-1',
+        channel: 'wechat',
+        qrCodeUrl: '/api/payments/mock/wechat/subscription-order-1',
       },
     });
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId
+        ? { order: { id: orderId, status: 'pending' }, paymentTradeState: 'USERPAYING' }
+        : undefined,
+    }));
     const { default: Plans } = await import('../Plans');
 
     render(<Plans />);
     fireEvent.click(screen.getAllByRole('button', { name: 'Purchase' })[0]);
+    expect(screen.getByRole('dialog', { name: 'Select payment method' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'WeChat Pay' }));
 
     await waitFor(() =>
       expect(createSubscriptionOrder).toHaveBeenCalledWith({
-        channel: 'alipay',
+        channel: 'wechat',
         period: 'year',
         planId: 'starter',
       }),
     );
-    expect(await screen.findByText('Pending subscription order')).toBeInTheDocument();
-    expect(screen.getByText('subscription-order-1')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open payment link' })).toHaveAttribute(
-      'href',
-      '/api/payments/mock/alipay/subscription-order-1',
+    expect(await screen.findByRole('dialog', { name: 'Scan to pay' })).toBeInTheDocument();
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute(
+      'data-value',
+      '/api/payments/mock/wechat/subscription-order-1',
     );
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'scanned');
+    expect(screen.queryByText('Pending subscription order')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open payment link' })).not.toBeInTheDocument();
   }, 30_000);
 
   it('creates a renewal order for the active current plan', async () => {
@@ -677,6 +916,7 @@ describe('Business billing pages', () => {
 
     render(<Plans />);
     fireEvent.click(screen.getAllByRole('button', { name: 'Renew' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
 
     await waitFor(() =>
       expect(createSubscriptionRenewOrder).toHaveBeenCalledWith({
@@ -724,6 +964,7 @@ describe('Business billing pages', () => {
     expect(delayedButtons[0]).toBeDisabled();
     expect(delayedButtons[1]).toBeDisabled();
     fireEvent.click(screen.getAllByRole('button', { name: 'Upgrade' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
 
     await waitFor(() =>
       expect(createSubscriptionUpgradeOrder).toHaveBeenCalledWith({

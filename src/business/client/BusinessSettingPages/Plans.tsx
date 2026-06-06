@@ -2,6 +2,7 @@
 
 import { ModelIcon } from '@lobehub/icons';
 import { Button, Flexbox, Icon, Skeleton, Text } from '@lobehub/ui';
+import { message } from 'antd';
 import { createStaticStyles, cssVar } from 'antd-style';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -9,18 +10,21 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CircleHelpIcon,
-  ExternalLinkIcon,
   SparklesIcon,
   ZapIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { billingService } from '@/services/billing';
 import { formatNumber } from '@/utils/format';
 
+import { type PaymentChannel, PaymentChannelModal } from './components/PaymentChannelModal';
+import { PaymentQrCodeModal, type PaymentQrCodeStatus } from './components/PaymentQrCodeModal';
 import {
+  refreshBillingOrders,
+  useBillingOrderPaymentStatus,
   useCurrentSubscription,
   useSubscriptionPlans,
   useTextModelPricing,
@@ -28,7 +32,6 @@ import {
 
 const CLOUD_NAME = 'LobeHub Cloud';
 
-type PaymentChannel = 'alipay' | 'wechat';
 type PlanAction = 'availableAfterExpiry' | 'purchase' | 'renew' | 'unavailable' | 'upgrade';
 type BillingMode = 'month' | 'oneTime' | 'year';
 type OneTimeDuration = 'halfYear' | 'month' | 'quarter' | 'year';
@@ -868,15 +871,75 @@ const Plans = memo(() => {
   const { data: currentSubscription, isLoading: isCurrentSubscriptionLoading } =
     useCurrentSubscription();
   const { data: textModelPricing = [] } = useTextModelPricing();
-  const [channel, setChannel] = useState<PaymentChannel>('alipay');
   const [createdOrder, setCreatedOrder] = useState<CreatedSubscriptionOrder>();
   const [createOrderError, setCreateOrderError] = useState<string>();
   const [isCreatingOrder, setIsCreatingOrder] = useState<string>();
+  const [isPaymentQrCodeModalOpen, setIsPaymentQrCodeModalOpen] = useState(false);
+  const [pendingPaymentPlan, setPendingPaymentPlan] = useState<HeroPlan>();
   const [mode, setMode] = useState<BillingMode>('year');
   const [openOneTimePlanId, setOpenOneTimePlanId] = useState<SubscriptionPlanId>();
   const [oneTimeDurations, setOneTimeDurations] = useState<
     Partial<Record<SubscriptionPlanId, OneTimeDuration>>
   >({});
+  const { data: paymentStatus } = useBillingOrderPaymentStatus(createdOrder?.order.id);
+  const polledOrder = paymentStatus?.order;
+  const paymentTradeState = paymentStatus?.paymentTradeState;
+  const lastNotifiedOrderStateRef = useRef<string | undefined>(undefined);
+
+  const paymentQrCodeStatus: PaymentQrCodeStatus =
+    paymentTradeState === 'USERPAYING'
+      ? 'paying'
+      : polledOrder?.status === 'paid' || paymentTradeState === 'SUCCESS'
+        ? 'loading'
+        : polledOrder?.status === 'closed' ||
+            paymentTradeState === 'CLOSED' ||
+            paymentTradeState === 'REVOKED'
+          ? 'expired'
+          : 'waiting';
+
+  useEffect(() => {
+    if (!createdOrder || !polledOrder?.status) return;
+
+    const notifiedKey = `${createdOrder.order.id}:${polledOrder.status}:${paymentTradeState ?? ''}`;
+    if (lastNotifiedOrderStateRef.current === notifiedKey) return;
+    lastNotifiedOrderStateRef.current = notifiedKey;
+
+    if (paymentTradeState === 'USERPAYING') {
+      message.info(
+        t('billingNative.paymentStatus.paying', 'Scanned. Confirm the payment on your phone.'),
+      );
+      return;
+    }
+
+    if (polledOrder.status === 'paid') {
+      message.info(
+        t('billingNative.paymentStatus.paying', 'Scanned. Confirm the payment on your phone.'),
+      );
+      return;
+    }
+
+    if (polledOrder.status === 'activated') {
+      setIsPaymentQrCodeModalOpen(false);
+      message.success(
+        t('billingNative.paymentStatus.success', 'Payment successful. Credits have been added.'),
+      );
+      void refreshBillingOrders();
+      return;
+    }
+
+    if (polledOrder.status === 'failed' || polledOrder.status === 'exception') {
+      setIsPaymentQrCodeModalOpen(false);
+      message.error(t('billingNative.paymentStatus.failed', 'Payment failed. Please try again.'));
+      void refreshBillingOrders();
+      return;
+    }
+
+    if (polledOrder.status === 'closed') {
+      setIsPaymentQrCodeModalOpen(false);
+      message.info(t('billingNative.paymentStatus.cancelled', 'Payment cancelled'));
+      void refreshBillingOrders();
+    }
+  }, [createdOrder, paymentTradeState, polledOrder?.status, t]);
 
   if ((isLoading && !data) || (isCurrentSubscriptionLoading && currentSubscription === undefined))
     return <Skeleton active paragraph={{ rows: 6 }} title={false} />;
@@ -935,10 +998,11 @@ const Plans = memo(() => {
     return 'year';
   };
 
-  const handleCreateOrder = async (plan: HeroPlan) => {
+  const handleCreateOrder = async (plan: HeroPlan, channel: PaymentChannel) => {
     const { action, id: planId } = plan;
     if (action === 'availableAfterExpiry' || action === 'unavailable') return;
 
+    setPendingPaymentPlan(undefined);
     setIsCreatingOrder(`${action}:${planId}`);
     setCreateOrderError(undefined);
 
@@ -954,8 +1018,17 @@ const Plans = memo(() => {
                 targetPlanId: planId,
               });
       setCreatedOrder(result);
+      setIsPaymentQrCodeModalOpen(Boolean(result.payment.qrCodeUrl));
+      lastNotifiedOrderStateRef.current = undefined;
+      await refreshBillingOrders();
     } catch (error) {
       setCreateOrderError(error instanceof Error ? error.message : String(error));
+      message.error(
+        t(
+          'billingNative.paymentStatus.createFailed',
+          'Failed to create the order. Please try again later.',
+        ),
+      );
     } finally {
       setIsCreatingOrder(undefined);
     }
@@ -1038,24 +1111,12 @@ const Plans = memo(() => {
             >
               <Flexbox horizontal className={styles.paymentBadge}>
                 <span>{t('billingNative.plans.pixel.payOnce', 'One-time')}</span>
-                <button
-                  aria-label={t('billingNative.paymentChannel.alipay', 'Alipay')}
-                  className={styles.channelIcon}
-                  style={{ background: '#14a8f5' }}
-                  type="button"
-                  onClick={() => setChannel('alipay')}
-                >
+                <span className={styles.channelIcon} style={{ background: '#14a8f5' }}>
                   {t('billingNative.plans.pixel.payment.alipayMark', 'Ali')}
-                </button>
-                <button
-                  aria-label={t('billingNative.paymentChannel.wechat', 'WeChat Pay')}
-                  className={styles.channelIcon}
-                  style={{ background: '#08bf22' }}
-                  type="button"
-                  onClick={() => setChannel('wechat')}
-                >
+                </span>
+                <span className={styles.channelIcon} style={{ background: '#08bf22' }}>
                   ✓
-                </button>
+                </span>
               </Flexbox>
             </Flexbox>
           </div>
@@ -1245,7 +1306,7 @@ const Plans = memo(() => {
                     disabled={
                       plan.action === 'availableAfterExpiry' || plan.action === 'unavailable'
                     }
-                    onClick={() => void handleCreateOrder(plan)}
+                    onClick={() => setPendingPaymentPlan(plan)}
                   >
                     {getPrimaryActionLabel(plan.action)}
                   </Button>
@@ -1319,32 +1380,6 @@ const Plans = memo(() => {
             'Could not create the subscription order. Check payment configuration and try again.',
           )}
         </Text>
-      ) : null}
-
-      {createdOrder ? (
-        <Flexbox
-          gap={8}
-          padding={16}
-          style={{ border: `1px solid ${cssVar.colorBorderSecondary}`, borderRadius: 8 }}
-        >
-          <Text weight={700}>
-            {t('billingNative.plans.pendingOrder', 'Pending subscription order')}
-          </Text>
-          <Text code>{createdOrder.order.id}</Text>
-          <Text>{formatAmount(createdOrder.order.amountCents, createdOrder.order.currency)}</Text>
-          {createdOrder.payment.qrCodeUrl || createdOrder.payment.paymentUrl ? (
-            <a
-              href={createdOrder.payment.qrCodeUrl ?? createdOrder.payment.paymentUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <Flexbox horizontal align={'center'} gap={6}>
-                {t('billingNative.credits.topUp.openPayment', 'Open payment link')}
-                <Icon icon={ExternalLinkIcon} size={14} />
-              </Flexbox>
-            </a>
-          ) : null}
-        </Flexbox>
       ) : null}
 
       <div className={styles.priceLayout}>
@@ -1445,7 +1480,7 @@ const Plans = memo(() => {
                   disabled={plan.action === 'availableAfterExpiry' || plan.action === 'unavailable'}
                   size={'small'}
                   type={'primary'}
-                  onClick={() => void handleCreateOrder(plan)}
+                  onClick={() => setPendingPaymentPlan(plan)}
                 >
                   {getActionLabel(plan.action)}
                 </Button>
@@ -1508,6 +1543,27 @@ const Plans = memo(() => {
           ))}
         </Flexbox>
       </Flexbox>
+
+      <PaymentChannelModal
+        open={Boolean(pendingPaymentPlan)}
+        onOpenChange={(open) => {
+          if (!open) setPendingPaymentPlan(undefined);
+        }}
+        onSelect={(selectedChannel) => {
+          if (pendingPaymentPlan) void handleCreateOrder(pendingPaymentPlan, selectedChannel);
+        }}
+      />
+      {createdOrder ? (
+        <PaymentQrCodeModal
+          amountCents={createdOrder.order.amountCents}
+          currency={createdOrder.order.currency}
+          open={isPaymentQrCodeModalOpen}
+          orderId={createdOrder.order.id}
+          qrCodeUrl={createdOrder.payment.qrCodeUrl ?? createdOrder.payment.paymentUrl}
+          status={paymentQrCodeStatus}
+          onOpenChange={setIsPaymentQrCodeModalOpen}
+        />
+      ) : null}
     </Flexbox>
   );
 });

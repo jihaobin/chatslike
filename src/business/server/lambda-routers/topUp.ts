@@ -35,6 +35,10 @@ export const topUpRouter = router({
     .input(z.object({ orderId: z.string().min(1) }))
     .query(({ ctx, input }) => ctx.billingOrderService.getOrder(input.orderId)),
 
+  syncOrderPaymentStatus: topUpProcedure
+    .input(z.object({ orderId: z.string().min(1) }))
+    .query(({ ctx, input }) => ctx.billingOrderService.syncOrderPaymentStatus(input.orderId)),
+
   listOrders: topUpProcedure
     .input(
       z

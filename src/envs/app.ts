@@ -90,6 +90,8 @@ export const getAppConfig = () => {
       WECHAT_PAY_APP_ID: z.string().optional(),
       WECHAT_PAY_API_V3_KEY: z.string().optional(),
       WECHAT_PAY_PRIVATE_KEY: z.string().optional(),
+      WECHAT_PAY_PUBLIC_KEY: z.string().optional(),
+      WECHAT_PAY_PUBLIC_KEY_ID: z.string().optional(),
       WECHAT_PAY_SERIAL_NO: z.string().optional(),
       WECHAT_PAY_NOTIFY_URL: z.string().optional(),
 
@@ -159,6 +161,8 @@ export const getAppConfig = () => {
       WECHAT_PAY_APP_ID: process.env.WECHAT_PAY_APP_ID,
       WECHAT_PAY_API_V3_KEY: process.env.WECHAT_PAY_API_V3_KEY,
       WECHAT_PAY_PRIVATE_KEY: process.env.WECHAT_PAY_PRIVATE_KEY,
+      WECHAT_PAY_PUBLIC_KEY: process.env.WECHAT_PAY_PUBLIC_KEY,
+      WECHAT_PAY_PUBLIC_KEY_ID: process.env.WECHAT_PAY_PUBLIC_KEY_ID,
       WECHAT_PAY_SERIAL_NO: process.env.WECHAT_PAY_SERIAL_NO,
       WECHAT_PAY_NOTIFY_URL: process.env.WECHAT_PAY_NOTIFY_URL,
 

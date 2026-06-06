@@ -11,12 +11,11 @@ import {
   Tag,
   Text,
 } from '@lobehub/ui';
-import { Radio } from 'antd';
+import { message, Radio } from 'antd';
 import { createStaticStyles, cssVar } from 'antd-style';
 import {
   BoxIcon,
   ChevronRightIcon,
-  ExternalLinkIcon,
   PencilIcon,
   ReceiptTextIcon,
   RefreshCwIcon,
@@ -37,17 +36,17 @@ import { userProfileSelectors } from '@/store/user/selectors';
 import { formatNumber } from '@/utils/format';
 
 import CreditAmount from './components/CreditAmount';
+import { type PaymentChannel, PaymentChannelModal } from './components/PaymentChannelModal';
+import { PaymentQrCodeModal, type PaymentQrCodeStatus } from './components/PaymentQrCodeModal';
 import StatusTag from './components/StatusTag';
 import {
   refreshBillingOrders,
   useBillingBalance,
   useBillingGrantPackages,
-  useBillingOrder,
+  useBillingOrderPaymentStatus,
   useCurrentSubscription,
 } from './hooks/useBillingData';
-import { billingPageStyles as sharedStyles } from './styles';
 
-type PaymentChannel = 'alipay' | 'wechat';
 type PackageTab = 'active' | 'depleted' | 'expired';
 
 interface CreatedTopUpOrder {
@@ -63,6 +62,7 @@ interface TabIndicatorStyle {
 
 const MILLION = 1_000_000;
 const CUSTOM_PRODUCT_ID = 'custom';
+const QR_CODE_EXPIRE_MS = 15 * 60 * 1000;
 
 const styles = createStaticStyles(({ css, cssVar: token }) => ({
   autoTopUpAction: css`
@@ -362,10 +362,15 @@ const Credits = memo(() => {
   } = useBillingGrantPackages();
   const { data: currentSubscription } = useCurrentSubscription();
   const displayName = useUserStore(userProfileSelectors.displayUserName);
-  const [channel] = useState<PaymentChannel>('alipay');
   const [createdOrder, setCreatedOrder] = useState<CreatedTopUpOrder>();
   const [createOrderError, setCreateOrderError] = useState<string>();
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [isPaymentChannelModalOpen, setIsPaymentChannelModalOpen] = useState(false);
+  const [isPaymentQrCodeModalOpen, setIsPaymentQrCodeModalOpen] = useState(false);
+  const [isPaymentSuccessful, setIsPaymentSuccessful] = useState(false);
+  const [isQrCodeExpired, setIsQrCodeExpired] = useState(false);
+  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel>();
+  const [paymentQrCodeCreatedAt, setPaymentQrCodeCreatedAt] = useState<number>();
   const [productId, setProductId] = useState<TopUpProductId>(TOP_UP_PRODUCTS[0].id);
   const [customCreditsMillion, setCustomCreditsMillion] = useState(1);
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -382,7 +387,10 @@ const Credits = memo(() => {
   });
   const [sourceFilter, setSourceFilter] = useState('all');
   const [sortFilter, setSortFilter] = useState('newest');
-  const { data: polledOrder } = useBillingOrder(createdOrder?.order.id);
+  const { data: paymentStatus } = useBillingOrderPaymentStatus(createdOrder?.order.id);
+  const polledOrder = paymentStatus?.order;
+  const paymentTradeState = paymentStatus?.paymentTradeState;
+  const lastNotifiedOrderStateRef = useRef<string | undefined>(undefined);
 
   const activeSummary = grantSummary?.active ?? {
     rechargeCredits: balance?.availableCredits ?? 0,
@@ -403,6 +411,24 @@ const Credits = memo(() => {
     ? t(`billingNative.plans.planName.${currentSubscription.planId}`, currentSubscription.planId)
     : t('billingNative.plans.free.name', 'Free');
   const currentPlanLabel = currentPlanName.toUpperCase();
+  const isPaymentQrCodeExpired =
+    isQrCodeExpired ||
+    Boolean(
+      isPaymentQrCodeModalOpen &&
+      paymentQrCodeCreatedAt !== undefined &&
+      Date.now() - paymentQrCodeCreatedAt >= QR_CODE_EXPIRE_MS,
+    );
+  const paymentQrCodeStatus: PaymentQrCodeStatus = isPaymentQrCodeExpired
+    ? 'expired'
+    : paymentTradeState === 'USERPAYING'
+      ? 'paying'
+      : polledOrder?.status === 'paid' || paymentTradeState === 'SUCCESS'
+        ? 'loading'
+        : polledOrder?.status === 'closed' ||
+            paymentTradeState === 'CLOSED' ||
+            paymentTradeState === 'REVOKED'
+          ? 'expired'
+          : 'waiting';
 
   const visiblePackages = useMemo(() => {
     const grants = grantSummary?.packages ?? [];
@@ -423,10 +449,71 @@ const Credits = memo(() => {
   }, [grantSummary?.packages, packageTab, sortFilter, sourceFilter]);
 
   useEffect(() => {
-    if (polledOrder?.status !== 'activated') return;
+    if (!createdOrder || !polledOrder?.status) return;
 
-    void Promise.all([mutateBalance(), mutateGrants(), refreshBillingOrders()]);
-  }, [mutateBalance, mutateGrants, polledOrder?.status]);
+    const notifiedKey = `${createdOrder.order.id}:${polledOrder.status}:${paymentTradeState ?? ''}`;
+    if (lastNotifiedOrderStateRef.current === notifiedKey) return;
+    lastNotifiedOrderStateRef.current = notifiedKey;
+
+    if (paymentTradeState === 'USERPAYING') {
+      message.info(
+        t('billingNative.paymentStatus.paying', 'Scanned. Confirm the payment on your phone.'),
+      );
+      return;
+    }
+
+    if (polledOrder.status === 'paid') {
+      message.info(
+        t('billingNative.paymentStatus.paying', 'Scanned. Confirm the payment on your phone.'),
+      );
+      return;
+    }
+
+    if (polledOrder.status === 'activated') {
+      setIsPaymentQrCodeModalOpen(false);
+      setIsPaymentSuccessful(true);
+      message.success(
+        t('billingNative.paymentStatus.success', 'Payment successful. Credits have been added.'),
+      );
+      void Promise.all([mutateBalance(), mutateGrants(), refreshBillingOrders()]);
+      return;
+    }
+
+    if (polledOrder.status === 'failed' || polledOrder.status === 'exception') {
+      setIsPaymentQrCodeModalOpen(false);
+      message.error(t('billingNative.paymentStatus.failed', 'Payment failed. Please try again.'));
+      void refreshBillingOrders();
+      return;
+    }
+
+    if (polledOrder.status === 'closed') {
+      setIsPaymentQrCodeModalOpen(false);
+      message.info(t('billingNative.paymentStatus.cancelled', 'Payment cancelled'));
+      void refreshBillingOrders();
+    }
+  }, [createdOrder, mutateBalance, mutateGrants, paymentTradeState, polledOrder?.status, t]);
+
+  useEffect(() => {
+    if (!isPaymentQrCodeModalOpen || paymentQrCodeCreatedAt === undefined) return;
+
+    const remainingMs = paymentQrCodeCreatedAt + QR_CODE_EXPIRE_MS - Date.now();
+    if (remainingMs <= 0) {
+      setIsQrCodeExpired(true);
+      message.warning(
+        t('billingNative.paymentStatus.expired', 'The QR code has expired. Refresh to try again.'),
+      );
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsQrCodeExpired(true);
+      message.warning(
+        t('billingNative.paymentStatus.expired', 'The QR code has expired. Refresh to try again.'),
+      );
+    }, remainingMs);
+
+    return () => window.clearTimeout(timer);
+  }, [isPaymentQrCodeModalOpen, paymentQrCodeCreatedAt, t]);
 
   useEffect(() => {
     if (!showCustomInput) return;
@@ -483,16 +570,56 @@ const Credits = memo(() => {
     if (nearestProduct) setProductId(nearestProduct.id);
   };
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = async (channel: PaymentChannel) => {
+    setIsPaymentChannelModalOpen(false);
     setIsCreatingOrder(true);
     setCreateOrderError(undefined);
+    setIsPaymentSuccessful(false);
+    setIsQrCodeExpired(false);
+    setPaymentChannel(channel);
 
     try {
       const result = await billingService.createTopUpOrder({ channel, productId });
       setCreatedOrder(result);
+      setIsPaymentQrCodeModalOpen(Boolean(result.payment.qrCodeUrl));
+      setPaymentQrCodeCreatedAt(Date.now());
+      lastNotifiedOrderStateRef.current = undefined;
       await refreshBillingOrders();
     } catch (error) {
       setCreateOrderError(error instanceof Error ? error.message : String(error));
+      message.error(
+        t(
+          'billingNative.paymentStatus.createFailed',
+          'Failed to create the order. Please try again later.',
+        ),
+      );
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  };
+
+  const handleRefreshQrCode = async () => {
+    if (!paymentChannel) return;
+
+    setIsCreatingOrder(true);
+    setCreateOrderError(undefined);
+
+    try {
+      const result = await billingService.createTopUpOrder({ channel: paymentChannel, productId });
+      setCreatedOrder(result);
+      setIsQrCodeExpired(false);
+      setIsPaymentQrCodeModalOpen(Boolean(result.payment.qrCodeUrl));
+      setPaymentQrCodeCreatedAt(Date.now());
+      lastNotifiedOrderStateRef.current = undefined;
+      await refreshBillingOrders();
+    } catch (error) {
+      setCreateOrderError(error instanceof Error ? error.message : String(error));
+      message.error(
+        t(
+          'billingNative.paymentStatus.createFailed',
+          'Failed to create the order. Please try again later.',
+        ),
+      );
     } finally {
       setIsCreatingOrder(false);
     }
@@ -651,40 +778,18 @@ const Credits = memo(() => {
           {createOrderError ? (
             <Text type={'danger'}>
               {t(
-                'billingNative.credits.topUp.createOrderFailed',
-                'Could not create the payment order. Check payment configuration and try again.',
+                'billingNative.paymentStatus.createFailed',
+                'Failed to create the order. Please try again later.',
               )}
             </Text>
           ) : null}
-
-          {createdOrder ? (
-            <Flexbox className={sharedStyles.card} gap={8} padding={12}>
-              <Flexbox horizontal align={'center'} gap={8} wrap={'wrap'}>
-                <Text weight={700}>
-                  {t('billingNative.credits.topUp.pendingOrder', 'Pending payment order')}
-                </Text>
-                <StatusTag
-                  status={polledOrder?.status ?? createdOrder.order.status}
-                  type={'order'}
-                />
-              </Flexbox>
-              <Text code>{createdOrder.order.id}</Text>
-              <Text>
-                {formatAmount(createdOrder.order.amountCents, createdOrder.order.currency)}
-              </Text>
-              {createdOrder.payment.qrCodeUrl || createdOrder.payment.paymentUrl ? (
-                <a
-                  href={createdOrder.payment.qrCodeUrl ?? createdOrder.payment.paymentUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  <Flexbox horizontal align={'center'} gap={6}>
-                    {t('billingNative.credits.topUp.openPayment', 'Open payment link')}
-                    <Icon icon={ExternalLinkIcon} size={14} />
-                  </Flexbox>
-                </a>
-              ) : null}
-            </Flexbox>
+          {isPaymentSuccessful ? (
+            <Text type={'success'}>
+              {t(
+                'billingNative.paymentStatus.success',
+                'Payment successful. Credits have been added.',
+              )}
+            </Text>
           ) : null}
 
           <Flexbox
@@ -705,7 +810,7 @@ const Credits = memo(() => {
               icon={<Icon icon={ShoppingCartIcon} />}
               loading={isCreatingOrder}
               type={'primary'}
-              onClick={() => void handleCreateOrder()}
+              onClick={() => setIsPaymentChannelModalOpen(true)}
             >
               {t('billingNative.credits.purchase.buyNow', 'Buy Now')}
             </Button>
@@ -935,6 +1040,25 @@ const Credits = memo(() => {
           {t('billingNative.credits.refresh', 'Refresh')}
         </Button>
       </Flexbox>
+
+      <PaymentChannelModal
+        open={isPaymentChannelModalOpen}
+        onOpenChange={setIsPaymentChannelModalOpen}
+        onSelect={(selectedChannel) => void handleCreateOrder(selectedChannel)}
+      />
+      {createdOrder ? (
+        <PaymentQrCodeModal
+          amountCents={createdOrder.order.amountCents}
+          currency={createdOrder.order.currency}
+          open={isPaymentQrCodeModalOpen}
+          orderId={createdOrder.order.id}
+          qrCodeUrl={createdOrder.payment.qrCodeUrl ?? createdOrder.payment.paymentUrl}
+          refreshing={isCreatingOrder}
+          status={paymentQrCodeStatus}
+          onOpenChange={setIsPaymentQrCodeModalOpen}
+          onRefresh={() => void handleRefreshQrCode()}
+        />
+      ) : null}
     </Flexbox>
   );
 });

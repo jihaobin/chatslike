@@ -80,6 +80,9 @@ export interface GlobalServerConfig {
    */
   agentGatewayUrl?: string;
   aiProvider: ServerLanguageModel;
+  billing?: {
+    trialCredits: number;
+  };
   commercial?: CommercialRuntimeConfig;
   defaultAgent?: PartialDeep<UserDefaultAgent>;
   disableEmailPassword?: boolean;

@@ -57,17 +57,21 @@ export class CreditReservationModel {
   }
 
   private async ensureAccount(db: BillingDb) {
+    const [created] = await db
+      .insert(creditAccounts)
+      .values({ userId: this.userId })
+      .onConflictDoNothing({ target: creditAccounts.userId })
+      .returning();
+
+    if (created) return created;
+
     const [existing] = await db
       .select()
       .from(creditAccounts)
       .where(eq(creditAccounts.userId, this.userId))
       .limit(1);
 
-    if (existing) return existing;
-
-    const [created] = await db.insert(creditAccounts).values({ userId: this.userId }).returning();
-
-    return created;
+    return assertSingleRowUpdated(existing, 'Credit account ensure conflict');
   }
 
   private async insertLedgerEntry(
