@@ -1,4 +1,5 @@
 import * as runtimeModule from '@lobechat/model-runtime';
+import { renderHook, waitFor } from '@testing-library/react';
 import type {
   AIImageModelCard,
   AiProviderModelListItem,
@@ -10,7 +11,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { aiProviderService } from '@/services/aiProvider';
 import { useAiInfraStore as useStore } from '@/store/aiInfra/store';
+import { useUserStore } from '@/store/user';
 import { AiProviderSourceEnum } from '@/types/aiProvider';
+import { withSWR } from '~test-utils';
 
 import {
   getChatModelList,
@@ -81,22 +84,22 @@ describe('aiProvider action helpers', () => {
       expect(serviceSpy).toHaveBeenCalledWith('newapi-openai-relay', true, { scope: 'global' });
     });
 
-    it('sets active provider config scope and clears provider caches', () => {
+    it('sets active provider config scope without clearing runtime enabled model lists', () => {
       const runtimeConfig = {
         openai: { config: {}, keyVaults: {}, settings: {} },
       };
       const enabledModel = createChatModel({ id: 'stale-enabled-model' });
-       const enabledProvider = {
-         id: 'openai',
-         name: 'OpenAI',
-         source: AiProviderSourceEnum.Builtin,
-       };
-       const enabledProviderWithModels = {
-         children: [enabledModel],
-         id: 'openai',
-         name: 'OpenAI',
-         source: AiProviderSourceEnum.Builtin,
-       };
+      const enabledProvider = {
+        id: 'openai',
+        name: 'OpenAI',
+        source: AiProviderSourceEnum.Builtin,
+      };
+      const enabledProviderWithModels = {
+        children: [enabledModel],
+        id: 'openai',
+        name: 'OpenAI',
+        source: AiProviderSourceEnum.Builtin,
+      };
 
       useStore.setState({
         activeAiProvider: 'openai',
@@ -136,15 +139,41 @@ describe('aiProvider action helpers', () => {
         aiProviderList: [],
         aiProviderModelList: [],
         aiProviderRuntimeConfig: {},
-        enabledAiModels: undefined,
-        enabledAiProviders: undefined,
-        enabledChatModelList: undefined,
-        enabledImageModelList: undefined,
-        enabledVideoModelList: undefined,
+        enabledAiModels: [enabledModel],
+        enabledAiProviders: [enabledProvider],
+        enabledChatModelList: [enabledProviderWithModels],
+        enabledImageModelList: [enabledProviderWithModels],
+        enabledVideoModelList: [enabledProviderWithModels],
         initAiProviderList: false,
         isAiModelListInit: false,
-        isInitAiProviderRuntimeState: false,
+        isInitAiProviderRuntimeState: true,
       });
+    });
+
+    it('keeps runtime state fetch on user scope while global provider settings are active', async () => {
+      useStore.setState({ activeProviderConfigScope: 'global' });
+      useUserStore.setState({ isLoaded: true });
+
+      const runtimeStateSpy = vi
+        .spyOn(aiProviderService, 'getAiProviderRuntimeState')
+        .mockResolvedValue({
+          enabledAiModels: [],
+          enabledAiProviders: [],
+          enabledChatAiProviders: [],
+          enabledImageAiProviders: [],
+          enabledVideoAiProviders: [],
+          runtimeConfig: {},
+        });
+
+      const { result } = renderHook(() => useStore((s) => s.useFetchAiProviderRuntimeState)(true), {
+        wrapper: withSWR,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(runtimeStateSpy).toHaveBeenCalledWith(undefined, { scope: 'user' });
     });
   });
 

@@ -27,6 +27,7 @@ import {
 } from './hooks/useBillingData';
 import PlatformCatalog from './PlatformCatalog';
 import { billingPageStyles as styles } from './styles';
+import { formatBillingAmount } from './utils';
 
 const ADMIN_BILLING_TABS = ['users', 'orders', 'ledger', 'audit', 'platform-models'] as const;
 
@@ -43,10 +44,7 @@ const ADMIN_BILLING_TAB_LABEL_FALLBACKS = {
 const formatAmount = (amountCents?: number | null, currency?: string | null) => {
   if (typeof amountCents !== 'number') return '-';
 
-  return `${currency ?? 'CNY'} ${(amountCents / 100).toLocaleString('en-US', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-  })}`;
+  return formatBillingAmount(amountCents, currency ?? 'CNY');
 };
 
 const AdminActions = memo(() => {

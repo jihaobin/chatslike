@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, or } from 'drizzle-orm';
 
 import type { BillingOrderItem, BillingOrderStatus, NewBillingOrder } from '../../schemas';
 import { billingOrders } from '../../schemas';
@@ -9,6 +9,7 @@ type BillingDb = LobeChatDatabase | Transaction;
 export interface ListBillingOrdersParams {
   cursor?: string;
   pageSize: number;
+  statuses?: BillingOrderStatus[];
 }
 
 export class BillingOrderModel {
@@ -60,6 +61,10 @@ export class BillingOrderModel {
   ): Promise<{ items: BillingOrderItem[]; nextCursor?: string }> => {
     const conditions = [eq(billingOrders.userId, this.userId)];
 
+    if (params.statuses && params.statuses.length > 0) {
+      conditions.push(inArray(billingOrders.status, params.statuses));
+    }
+
     if (params.cursor) {
       const [cursorOrder] = await this.db
         .select({ createdAt: billingOrders.createdAt, id: billingOrders.id })
@@ -71,7 +76,10 @@ export class BillingOrderModel {
         conditions.push(
           or(
             lt(billingOrders.createdAt, cursorOrder.createdAt),
-            and(eq(billingOrders.createdAt, cursorOrder.createdAt), lt(billingOrders.id, cursorOrder.id)),
+            and(
+              eq(billingOrders.createdAt, cursorOrder.createdAt),
+              lt(billingOrders.id, cursorOrder.id),
+            ),
           )!,
         );
       }

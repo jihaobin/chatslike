@@ -29,6 +29,7 @@ import {
   useSubscriptionPlans,
   useTextModelPricing,
 } from './hooks/useBillingData';
+import { formatBillingAmount } from './utils';
 
 const CLOUD_NAME = 'LobeHub Cloud';
 
@@ -63,8 +64,8 @@ interface HeroPlan {
   monthlyPrice: string;
   name: string;
   oneTimeOptions: OneTimeOption[];
-  originalYearly: string;
-  yearlyDiscount: string;
+  yearlyDiscount?: string;
+  yearlyOriginalPrice: string;
 }
 
 interface OneTimeOption {
@@ -98,6 +99,13 @@ const translateString = (
   values?: TranslationValues,
 ) => t(key, { ...values, defaultValue: fallback });
 
+const PaymentChannelMarks = memo(() => (
+  <>
+    <img alt="Alipay" className={styles.channelIcon} src="/icons/Alipay.svg" />
+    <img alt="WeChat Pay" className={styles.channelIcon} src="/icons/Wechat.svg" />
+  </>
+));
+
 const PLAN_RANK = {
   premium: 1,
   starter: 0,
@@ -106,67 +114,45 @@ const PLAN_RANK = {
 
 const DISPLAY_PRICE_META = {
   premium: {
-    monthlyPrice: '$24.9',
     oneTimeOptions: [
-      { labelKey: 'recurring.oneMonth', period: 'month', price: '$24.9', value: 'month' },
-      { labelKey: 'recurring.threeMonth', period: 'month', price: '$74.7', value: 'quarter' },
-      { labelKey: 'recurring.sixMonth', period: 'month', price: '$149.4', value: 'halfYear' },
+      { labelKey: 'recurring.oneMonth', period: 'month', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', value: 'halfYear' },
       {
-        discount: '20%',
         labelKey: 'recurring.oneYear',
         period: 'year',
-        price: '$238.8',
         value: 'year',
       },
     ],
-    originalYearly: '$238.8',
-    yearlyDiscount: '20%',
-    yearlyMonthly: '$19.9',
   },
   starter: {
-    monthlyPrice: '$12.9',
     oneTimeOptions: [
-      { labelKey: 'recurring.oneMonth', period: 'month', price: '$12.9', value: 'month' },
-      { labelKey: 'recurring.threeMonth', period: 'month', price: '$38.7', value: 'quarter' },
-      { labelKey: 'recurring.sixMonth', period: 'month', price: '$77.4', value: 'halfYear' },
+      { labelKey: 'recurring.oneMonth', period: 'month', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', value: 'halfYear' },
       {
-        discount: '23%',
         labelKey: 'recurring.oneYear',
         period: 'year',
-        price: '$118.8',
         value: 'year',
       },
     ],
-    originalYearly: '$118.8',
-    yearlyDiscount: '23%',
-    yearlyMonthly: '$9.9',
   },
   ultimate: {
-    monthlyPrice: '$49.9',
     oneTimeOptions: [
-      { labelKey: 'recurring.oneMonth', period: 'month', price: '$49.9', value: 'month' },
-      { labelKey: 'recurring.threeMonth', period: 'month', price: '$149.7', value: 'quarter' },
-      { labelKey: 'recurring.sixMonth', period: 'month', price: '$299.4', value: 'halfYear' },
+      { labelKey: 'recurring.oneMonth', period: 'month', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', value: 'halfYear' },
       {
-        discount: '20%',
         labelKey: 'recurring.oneYear',
         period: 'year',
-        price: '$478.8',
         value: 'year',
       },
     ],
-    originalYearly: '$478.8',
-    yearlyDiscount: '20%',
-    yearlyMonthly: '$39.9',
   },
 } as const satisfies Record<
   SubscriptionPlanId,
   {
-    monthlyPrice: string;
-    oneTimeOptions: OneTimeOption[];
-    originalYearly: string;
-    yearlyDiscount: string;
-    yearlyMonthly: string;
+    oneTimeOptions: Array<Omit<OneTimeOption, 'discount' | 'price'>>;
   }
 >;
 
@@ -361,17 +347,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     margin-block-start: 16px;
   `,
   channelIcon: css`
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
     width: 16px;
     height: 16px;
-    border-radius: 5px;
-
-    font-size: 11px;
-    font-weight: 800;
-    color: #fff;
+    border-radius: 4px;
   `,
   discountBadge: css`
     border-radius: 5px;
@@ -615,6 +593,7 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   paymentBadge: css`
     gap: 4px;
     align-items: center;
+    justify-content: center;
     font-size: 15px;
   `,
   planIntro: css`
@@ -801,6 +780,12 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     font-size: 12px;
   `,
   toggleButton: css`
+    cursor: pointer;
+
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+
     height: 54px;
     border: 0 !important;
     border-radius: 10px;
@@ -820,11 +805,29 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
 
 const isSubscriptionPlanId = (value: string): value is SubscriptionPlanId => value in PLAN_RANK;
 
-const formatAmount = (amountCents: number, currency = 'CNY') =>
-  `${currency} ${(amountCents / 100).toLocaleString('en-US', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-  })}`;
+const formatPlanAmount = (amountCents: number, currency = 'CNY') =>
+  formatBillingAmount(amountCents, currency, {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 1,
+  });
+
+const calculateDiscountPercent = (originalAmountCents: number, discountedAmountCents: number) => {
+  if (originalAmountCents <= 0 || discountedAmountCents >= originalAmountCents) return undefined;
+
+  return `${Math.round(((originalAmountCents - discountedAmountCents) / originalAmountCents) * 100)}%`;
+};
+
+const getPlanOptionAmountCents = (params: {
+  monthlyAmountCents: number;
+  option: Pick<OneTimeOption, 'period' | 'value'>;
+  yearlyAmountCents: number;
+}) => {
+  if (params.option.value === 'quarter') return params.monthlyAmountCents * 3;
+  if (params.option.value === 'halfYear') return params.monthlyAmountCents * 6;
+  if (params.option.period === 'year') return params.yearlyAmountCents;
+
+  return params.monthlyAmountCents;
+};
 
 const formatCreditsPerMillionTokens = (credits: number) => {
   const millions = credits / 1_000_000;
@@ -960,6 +963,12 @@ const Plans = memo(() => {
     if (!isSubscriptionPlanId(planId)) return [];
 
     const priceMeta = DISPLAY_PRICE_META[planId];
+    const monthlyAmountCents = plan.amountCents?.month ?? 0;
+    const yearlyAmountCents = plan.amountCents?.year ?? 0;
+    const yearlyMonthlyAmountCents = Math.round(yearlyAmountCents / 12);
+    const yearlyOriginalAmountCents = monthlyAmountCents * 12;
+    const yearlyDiscount = calculateDiscountPercent(yearlyOriginalAmountCents, yearlyAmountCents);
+    const currency = plan.currency ?? 'CNY';
 
     return [
       {
@@ -977,15 +986,35 @@ const Plans = memo(() => {
         ),
         icon: getPlanIcon(planId),
         id: planId,
-        monthlyEquivalent: priceMeta.yearlyMonthly,
-        monthlyPrice: priceMeta.monthlyPrice,
+        monthlyEquivalent: formatPlanAmount(yearlyMonthlyAmountCents, currency),
+        monthlyPrice: formatPlanAmount(monthlyAmountCents, currency),
         name: t(`plans.plan.${planId}.title`, plan.name),
-        oneTimeOptions: [...priceMeta.oneTimeOptions],
-        originalYearly: priceMeta.originalYearly,
-        yearlyDiscount: priceMeta.yearlyDiscount,
+        oneTimeOptions: priceMeta.oneTimeOptions.map((option) => {
+          const optionAmountCents = getPlanOptionAmountCents({
+            monthlyAmountCents,
+            option,
+            yearlyAmountCents,
+          });
+
+          return {
+            ...option,
+            discount:
+              option.period === 'year'
+                ? calculateDiscountPercent(yearlyOriginalAmountCents, optionAmountCents)
+                : undefined,
+            price: formatPlanAmount(optionAmountCents, currency),
+          };
+        }),
+        yearlyDiscount,
+        yearlyOriginalPrice: formatPlanAmount(yearlyOriginalAmountCents, currency),
       },
     ];
   });
+
+  const maxYearlyDiscount = planCards
+    .map((plan) => plan.yearlyDiscount)
+    .filter((discount): discount is string => Boolean(discount))
+    .sort((a, b) => Number.parseInt(b) - Number.parseInt(a))[0];
 
   const getSelectedOneTimeOption = (plan: HeroPlan) =>
     plan.oneTimeOptions.find((option) => option.value === (oneTimeDurations[plan.id] ?? 'year')) ??
@@ -1078,17 +1107,19 @@ const Plans = memo(() => {
               onClick={() => setMode('year')}
             >
               {t('billingNative.plans.pixel.period.yearly', 'Yearly')}
-              <Text
-                as={'span'}
-                className={styles.discountBadge}
-                style={{
-                  marginInlineStart: 8,
-                  paddingBlock: 2,
-                  paddingInline: 6,
-                }}
-              >
-                {t('billingNative.plans.pixel.discount.max', { percent: '37%' })}
-              </Text>
+              {maxYearlyDiscount ? (
+                <Text
+                  as={'span'}
+                  className={styles.discountBadge}
+                  style={{
+                    marginInlineStart: 8,
+                    paddingBlock: 2,
+                    paddingInline: 6,
+                  }}
+                >
+                  {t('billingNative.plans.pixel.discount.max', { percent: maxYearlyDiscount })}
+                </Text>
+              ) : null}
             </Button>
             <Button
               className={styles.toggleButton}
@@ -1111,12 +1142,7 @@ const Plans = memo(() => {
             >
               <Flexbox horizontal className={styles.paymentBadge}>
                 <span>{t('billingNative.plans.pixel.payOnce', 'One-time')}</span>
-                <span className={styles.channelIcon} style={{ background: '#14a8f5' }}>
-                  {t('billingNative.plans.pixel.payment.alipayMark', 'Ali')}
-                </span>
-                <span className={styles.channelIcon} style={{ background: '#08bf22' }}>
-                  ✓
-                </span>
+                <PaymentChannelMarks />
               </Flexbox>
             </Flexbox>
           </div>
@@ -1254,12 +1280,7 @@ const Plans = memo(() => {
                         'billingNative.plans.pixel.payment.supports',
                         'Supports credit card / Alipay / WeChat Pay',
                       )}
-                      <span className={styles.channelIcon} style={{ background: '#14a8f5' }}>
-                        {t('billingNative.plans.pixel.payment.alipayMark', 'Ali')}
-                      </span>
-                      <span className={styles.channelIcon} style={{ background: '#08bf22' }}>
-                        ✓
-                      </span>
+                      <PaymentChannelMarks />
                     </Flexbox>
                   </Flexbox>
                 ) : (
@@ -1279,21 +1300,23 @@ const Plans = memo(() => {
                       <Flexbox horizontal align={'center'} gap={8}>
                         <Text className={styles.priceCaption}>
                           {t('billingNative.plans.pixel.price.perYear', {
-                            price: plan.originalYearly,
+                            price: plan.yearlyOriginalPrice,
                           })}
                         </Text>
-                        <Text
-                          as={'span'}
-                          className={styles.discountBadge}
-                          style={{
-                            paddingBlock: 2,
-                            paddingInline: 7,
-                          }}
-                        >
-                          {t('billingNative.plans.pixel.discount.short', {
-                            percent: plan.yearlyDiscount,
-                          })}
-                        </Text>
+                        {plan.yearlyDiscount ? (
+                          <Text
+                            as={'span'}
+                            className={styles.discountBadge}
+                            style={{
+                              paddingBlock: 2,
+                              paddingInline: 7,
+                            }}
+                          >
+                            {t('billingNative.plans.pixel.discount.short', {
+                              percent: plan.yearlyDiscount,
+                            })}
+                          </Text>
+                        ) : null}
                       </Flexbox>
                     ) : null}
                   </Flexbox>

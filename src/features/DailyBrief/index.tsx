@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 
 import TopicChatDrawer from '@/features/AgentTasks/AgentTaskDetail/TopicChatDrawer';
 import DocumentPreviewModal from '@/features/DocumentModal/Preview';
-import Recommendations, { useRecommendationsVisible } from '@/features/Recommendations';
 import GroupBlock from '@/routes/(main)/home/features/components/GroupBlock';
 import { useBriefStore } from '@/store/brief';
 import { briefListSelectors } from '@/store/brief/selectors';
@@ -25,7 +24,6 @@ const DailyBrief = memo(() => {
 
   const briefs = useBriefStore(briefListSelectors.briefs);
   const isInit = useBriefStore(briefListSelectors.isBriefsInit);
-  const recommendationsVisible = useRecommendationsVisible();
 
   if (!isLogin) return null;
 
@@ -35,14 +33,13 @@ const DailyBrief = memo(() => {
         <Flexbox gap={12}>
           <BriefCardSkeleton />
           <BriefCardSkeleton />
-          <Recommendations />
         </Flexbox>
       </GroupBlock>
     );
   }
 
   if (briefs.length === 0) {
-    return recommendationsVisible ? <Recommendations /> : null;
+    return null;
   }
 
   return (
@@ -60,7 +57,6 @@ const DailyBrief = memo(() => {
         {briefs.map((brief) => (
           <BriefCard brief={brief} key={brief.id} />
         ))}
-        <Recommendations />
       </Flexbox>
       {briefs.length > 0 && (
         <>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { SUBSCRIPTION_PLANS, SUBSCRIPTION_PRICE_CENTS } from '../constants';
 import {
   calculateUpgradeCreditDelta,
   calculateUpgradePriceDelta,
@@ -13,7 +14,8 @@ describe('subscriptions', () => {
   it('returns starter premium ultimate credits in RMB display mode', () => {
     expect(listSubscriptionPlans()).toEqual([
       expect.objectContaining({
-        creditsPerMonth: 5_000_000,
+        amountCents: SUBSCRIPTION_PRICE_CENTS.starter,
+        creditsPerMonth: SUBSCRIPTION_PLANS.starter.creditsPerMonth,
         currency: 'CNY',
         id: 'starter',
         name: 'Starter',
@@ -21,8 +23,8 @@ describe('subscriptions', () => {
         purchasable: true,
       }),
       expect.objectContaining({
-        amountCents: { month: 24_900, year: 249_000 },
-        creditsPerMonth: 15_000_000,
+        amountCents: SUBSCRIPTION_PRICE_CENTS.premium,
+        creditsPerMonth: SUBSCRIPTION_PLANS.premium.creditsPerMonth,
         currency: 'CNY',
         id: 'premium',
         name: 'Premium',
@@ -30,8 +32,8 @@ describe('subscriptions', () => {
         purchasable: true,
       }),
       expect.objectContaining({
-        amountCents: { month: 49_900, year: 499_000 },
-        creditsPerMonth: 35_000_000,
+        amountCents: SUBSCRIPTION_PRICE_CENTS.ultimate,
+        creditsPerMonth: SUBSCRIPTION_PLANS.ultimate.creditsPerMonth,
         currency: 'CNY',
         id: 'ultimate',
         name: 'Ultimate',
@@ -42,9 +44,15 @@ describe('subscriptions', () => {
   });
 
   it('uses temporary RMB prices and monthly subscription credits', () => {
-    expect(getSubscriptionPriceCents('starter', 'month')).toBe(9900);
-    expect(getSubscriptionPriceCents('starter', 'year')).toBe(99_000);
-    expect(getSubscriptionCredits('premium', 'year')).toBe(15_000_000);
+    expect(getSubscriptionPriceCents('starter', 'month')).toBe(
+      SUBSCRIPTION_PRICE_CENTS.starter.month,
+    );
+    expect(getSubscriptionPriceCents('starter', 'year')).toBe(
+      SUBSCRIPTION_PRICE_CENTS.starter.year,
+    );
+    expect(getSubscriptionCredits('premium', 'year')).toBe(
+      SUBSCRIPTION_PLANS.premium.creditsPerMonth,
+    );
   });
 
   it('calculates upgrade deltas for credits and price', () => {
@@ -53,14 +61,14 @@ describe('subscriptions', () => {
         currentPlanId: 'starter',
         targetPlanId: 'premium',
       }),
-    ).toBe(10_000_000);
+    ).toBe(SUBSCRIPTION_PLANS.premium.creditsPerMonth - SUBSCRIPTION_PLANS.starter.creditsPerMonth);
     expect(
       calculateUpgradePriceDelta({
         currentPlanId: 'starter',
         period: 'month',
         targetPlanId: 'premium',
       }),
-    ).toBe(15_000);
+    ).toBe(SUBSCRIPTION_PRICE_CENTS.premium.month - SUBSCRIPTION_PRICE_CENTS.starter.month);
   });
 
   it('extends renewal validity from the current period end', () => {

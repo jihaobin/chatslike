@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SUBSCRIPTION_PLANS, SUBSCRIPTION_PRICE_CENTS } from '@/business/server/billing/constants';
+
 vi.mock('@lobechat/const', () => ({
   isDesktop: true,
 }));
@@ -12,6 +14,16 @@ vi.mock('@lobehub/icons', () => ({
 
 const translationFallbacks: Record<string, string> = {
   'billingNative.billing.creditsUnit': 'Credits',
+  'billingNative.usage.createdAt': 'Created',
+  'billingNative.usage.credits': 'Credits',
+  'billingNative.usage.details': 'Compute Credits Usage Details',
+  'billingNative.usage.duration': 'Duration',
+  'billingNative.usage.model': 'Model',
+  'billingNative.usage.modality.text': 'Text Generation',
+  'billingNative.usage.tokenUsage': 'Token Usage',
+  'billingNative.usage.trigger': 'Trigger',
+  'billingNative.usage.trigger.chat': 'Chat Message',
+  'billingNative.usage.type': 'Type',
   'billingNative.paymentChannel.alipay': 'Alipay',
   'billingNative.paymentChannel.wechat': 'WeChat Pay',
   'billingNative.plans.pixel.discount.max': 'Up to {{percent}} off',
@@ -93,7 +105,11 @@ vi.mock('lucide-react', () => ({
   CircleHelpIcon: () => <svg data-testid="circle-help-icon" />,
   CreditCardIcon: () => <svg data-testid="credit-card-icon" />,
   ExternalLinkIcon: () => <svg data-testid="external-link-icon" />,
+  ArrowDownIcon: () => <svg data-testid="arrow-down-icon" />,
+  ArrowUpIcon: () => <svg data-testid="arrow-up-icon" />,
+  FileTextIcon: () => <svg data-testid="file-text-icon" />,
   GiftIcon: () => <svg data-testid="gift-icon" />,
+  ImageIcon: () => <svg data-testid="image-icon" />,
   LockOpenIcon: () => <svg data-testid="lock-open-icon" />,
   MinusCircleIcon: () => <svg data-testid="minus-circle-icon" />,
   PencilIcon: () => <svg data-testid="pencil-icon" />,
@@ -101,6 +117,7 @@ vi.mock('lucide-react', () => ({
   RefreshCwIcon: () => <svg data-testid="refresh-icon" />,
   ShoppingCartIcon: () => <svg data-testid="shopping-cart-icon" />,
   SparklesIcon: () => <svg data-testid="sparkles-icon" />,
+  VideoIcon: () => <svg data-testid="video-icon" />,
   WalletCardsIcon: () => <svg data-testid="wallet-icon" />,
   WifiIcon: () => <svg data-testid="wifi-icon" />,
   ZapIcon: () => <svg data-testid="zap-icon" />,
@@ -322,8 +339,20 @@ const mutateBalance = vi.hoisted(() => vi.fn());
 const useCurrentSubscription = vi.hoisted(() => vi.fn());
 const useBillingOrder = vi.hoisted(() => vi.fn());
 const useBillingOrderPaymentStatus = vi.hoisted(() => vi.fn());
+const useBillingOrders = vi.hoisted(() => vi.fn());
+const useBillingUsageRecords = vi.hoisted(() => vi.fn());
 const useAdminBillingUsers = vi.hoisted(() => vi.fn());
 const inlineTableRender = vi.hoisted(() => vi.fn());
+const subscriptionPlanFixtures = vi.hoisted(() => vi.fn());
+
+const formatTestPlanAmount = (amountCents: number) => `¥ ${(amountCents / 100).toFixed(1)}`;
+const subscriptionPlanFixture = (planId: keyof typeof SUBSCRIPTION_PLANS) => ({
+  ...SUBSCRIPTION_PLANS[planId],
+  amountCents: SUBSCRIPTION_PRICE_CENTS[planId],
+  currency: 'CNY',
+  priceSource: 'temporary_test',
+  purchasable: true,
+});
 
 vi.mock('@/services/billing', () => ({
   billingService: {
@@ -339,6 +368,7 @@ vi.mock('@/components/InlineTable', () => ({
     columns,
     dataSource,
     locale,
+    pagination,
   }: {
     columns?: {
       dataIndex?: string;
@@ -348,8 +378,14 @@ vi.mock('@/components/InlineTable', () => ({
     }[];
     dataSource?: unknown[];
     locale?: { emptyText?: React.ReactNode };
+    pagination?: {
+      current?: number;
+      onChange?: (page: number, pageSize: number) => void;
+      pageSize?: number;
+      showSizeChanger?: boolean;
+    };
   }) => {
-    inlineTableRender({ columns, dataSource, locale });
+    inlineTableRender({ columns, dataSource, locale, pagination });
 
     return (
       <div data-testid="inline-table">
@@ -370,6 +406,11 @@ vi.mock('@/components/InlineTable', () => ({
               </div>
             ))
           : locale?.emptyText}
+        {pagination ? (
+          <button type="button" onClick={() => pagination.onChange?.(2, pagination.pageSize ?? 20)}>
+            next orders page
+          </button>
+        ) : null}
       </div>
     );
   },
@@ -386,6 +427,8 @@ vi.mock('../PlatformCatalog', () => ({
 }));
 
 vi.mock('../hooks/useBillingData', () => ({
+  BILLING_PAGE_SIZE: 20,
+  PAID_BILLING_ORDER_STATUSES: ['paid', 'activated'],
   useAdminBillingAuditLogs: () => ({
     data: { items: [] },
     isLoading: false,
@@ -449,40 +492,9 @@ vi.mock('../hooks/useBillingData', () => ({
   useBillingOrder,
   useBillingOrderPaymentStatus,
   useCurrentSubscription,
-  useBillingOrders: () => ({
-    data: { items: [] },
-    isLoading: false,
-  }),
+  useBillingOrders,
   useSubscriptionPlans: () => ({
-    data: [
-      {
-        amountCents: { month: 9900, year: 99_000 },
-        creditsPerMonth: 5_000_000,
-        currency: 'CNY',
-        id: 'starter',
-        name: 'Starter',
-        priceSource: 'temporary_test',
-        purchasable: true,
-      },
-      {
-        amountCents: { month: 24_900, year: 249_000 },
-        creditsPerMonth: 15_000_000,
-        currency: 'CNY',
-        id: 'premium',
-        name: 'Premium',
-        priceSource: 'temporary_test',
-        purchasable: true,
-      },
-      {
-        amountCents: { month: 49_900, year: 499_000 },
-        creditsPerMonth: 35_000_000,
-        currency: 'CNY',
-        id: 'ultimate',
-        name: 'Ultimate',
-        priceSource: 'temporary_test',
-        purchasable: true,
-      },
-    ],
+    data: subscriptionPlanFixtures(),
     isLoading: false,
   }),
   useTextModelPricing: () => ({
@@ -499,10 +511,7 @@ vi.mock('../hooks/useBillingData', () => ({
     ],
     isLoading: false,
   }),
-  useBillingUsageRecords: () => ({
-    data: { items: [] },
-    isLoading: false,
-  }),
+  useBillingUsageRecords,
 }));
 
 describe('Business billing pages', () => {
@@ -526,6 +535,16 @@ describe('Business billing pages', () => {
     useBillingOrder.mockReturnValue({ data: undefined });
     useBillingOrderPaymentStatus.mockReset();
     useBillingOrderPaymentStatus.mockReturnValue({ data: undefined });
+    useBillingOrders.mockReset();
+    useBillingOrders.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+    });
+    useBillingUsageRecords.mockReset();
+    useBillingUsageRecords.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+    });
     useCurrentSubscription.mockReset();
     useCurrentSubscription.mockReturnValue({ data: null, isLoading: false });
     useAdminBillingUsers.mockReset();
@@ -533,6 +552,11 @@ describe('Business billing pages', () => {
       data: { items: [] },
       isLoading: false,
     });
+    subscriptionPlanFixtures.mockReturnValue(
+      ['starter', 'premium', 'ultimate'].map((planId) =>
+        subscriptionPlanFixture(planId as keyof typeof SUBSCRIPTION_PLANS),
+      ),
+    );
   });
 
   it('renders native credits balance instead of subscription iframe', async () => {
@@ -584,6 +608,7 @@ describe('Business billing pages', () => {
     );
     expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'active');
     expect(screen.getByText('Scan to pay')).toBeInTheDocument();
+    expect(screen.getByText('¥ 6')).toBeInTheDocument();
     expect(screen.queryByText('Pending payment order')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Open payment link/ })).not.toBeInTheDocument();
   }, 30_000);
@@ -636,12 +661,12 @@ describe('Business billing pages', () => {
 
     fireEvent.change(customInput, { target: { value: '3' } });
 
-    expect(screen.getByText('$ 3.6')).toBeInTheDocument();
+    expect(screen.getByText('¥ 3.6')).toBeInTheDocument();
 
     fireEvent.mouseDown(screen.getByText('My Credits Packages'));
 
     expect(screen.queryByPlaceholderText('1')).not.toBeInTheDocument();
-    expect(screen.getByText('$ 3.6')).toBeInTheDocument();
+    expect(screen.getByText('¥ 3.6')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Custom/ }));
     expect(screen.getByPlaceholderText('1')).toBeInTheDocument();
@@ -810,8 +835,59 @@ describe('Business billing pages', () => {
 
     render(<Billing />);
 
+    expect(useBillingOrders).toHaveBeenCalledWith({
+      pageSize: 20,
+      statuses: ['paid', 'activated'],
+    });
     expect(screen.getByText('No orders yet')).toBeInTheDocument();
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
+  }, 30_000);
+
+  it('enables cursor pagination for native billing orders', async () => {
+    useBillingOrders
+      .mockReturnValueOnce({
+        data: {
+          items: [
+            {
+              amountCents: 9900,
+              createdAt: new Date('2026-06-01T00:00:00.000Z'),
+              credits: 1_000_000,
+              currency: 'CNY',
+              id: 'order-page-1',
+              orderType: 'top_up',
+              paymentChannel: 'alipay',
+              status: 'paid',
+            },
+          ],
+          nextCursor: 'order-page-1',
+        },
+        isLoading: false,
+      })
+      .mockReturnValue({
+        data: { items: [], nextCursor: undefined },
+        isLoading: false,
+      });
+    const { default: Billing } = await import('../Billing');
+
+    render(<Billing />);
+    fireEvent.click(screen.getByRole('button', { name: 'next orders page' }));
+
+    await waitFor(() =>
+      expect(useBillingOrders).toHaveBeenLastCalledWith({
+        cursor: 'order-page-1',
+        pageSize: 20,
+        statuses: ['paid', 'activated'],
+      }),
+    );
+    expect(inlineTableRender).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        pagination: expect.objectContaining({
+          current: 2,
+          pageSize: 20,
+          showSizeChanger: true,
+        }),
+      }),
+    );
   }, 30_000);
 
   it('renders native usage empty state instead of subscription iframe', async () => {
@@ -823,6 +899,57 @@ describe('Business billing pages', () => {
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
   }, 30_000);
 
+  it('renders the native usage detail table with token breakdown and duration', async () => {
+    useBillingUsageRecords.mockReturnValue({
+      data: {
+        items: [
+          {
+            actualCredits: 621,
+            createdAt: new Date('2026-05-23T03:23:55.000Z'),
+            id: 'usage-1',
+            inputTokens: 42_008,
+            metadata: { durationMs: 13_460 },
+            modality: 'text',
+            model: 'deepseek-v4-flash',
+            outputTokens: 1115,
+            provider: 'deepseek',
+            status: 'captured',
+          },
+        ],
+      },
+      isLoading: false,
+    });
+    const { default: Usage } = await import('../Usage');
+
+    render(<Usage />);
+
+    expect(screen.getByText('Usage')).toBeInTheDocument();
+    expect(screen.getByText('Compute Credits Usage Details')).toBeInTheDocument();
+    expect(inlineTableRender).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        columns: expect.arrayContaining([
+          expect.objectContaining({ title: 'Created' }),
+          expect.objectContaining({ title: 'Type' }),
+          expect.objectContaining({ title: 'Trigger' }),
+          expect.objectContaining({ title: 'Model' }),
+          expect.objectContaining({ title: 'Token Usage' }),
+          expect.objectContaining({ title: 'Credits' }),
+          expect.objectContaining({ title: 'Duration' }),
+        ]),
+      }),
+    );
+    expect(screen.getByText('Text Generation')).toBeInTheDocument();
+    expect(screen.getByText('Chat Message')).toBeInTheDocument();
+    expect(screen.getByText('deepseek-v4-flash')).toBeInTheDocument();
+    expect(screen.getByText('43,123')).toBeInTheDocument();
+    expect(screen.getByText('=')).toBeInTheDocument();
+    expect(screen.getByText('42,008')).toBeInTheDocument();
+    expect(screen.getByText('+')).toBeInTheDocument();
+    expect(screen.getByText('1,115')).toBeInTheDocument();
+    expect(screen.getByText('621')).toBeInTheDocument();
+    expect(screen.getByText('13.46s')).toBeInTheDocument();
+  }, 30_000);
+
   it('renders purchasable native subscription plans', async () => {
     const { default: Plans } = await import('../Plans');
 
@@ -830,11 +957,22 @@ describe('Business billing pages', () => {
 
     expect(screen.getByText('Plans')).toBeInTheDocument();
     expect(screen.getByText('Yearly')).toBeInTheDocument();
-    expect(screen.getByText('Up to 37% off')).toBeInTheDocument();
+    expect(screen.getByText('Up to 17% off')).toBeInTheDocument();
+    expect(
+      screen.getByText(formatTestPlanAmount(SUBSCRIPTION_PRICE_CENTS.starter.year / 12)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        `${formatTestPlanAmount(SUBSCRIPTION_PRICE_CENTS.starter.month * 12)} / year`,
+      ),
+    ).toBeInTheDocument();
     expect(screen.getAllByText('Starter').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Premium').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Ultimate').length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/5,000,000/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(new RegExp(SUBSCRIPTION_PLANS.starter.creditsPerMonth.toLocaleString()))
+        .length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText('Text Model Pricing')).toBeInTheDocument();
     expect(screen.getByText('DeepSeek V4 Pro (1M)')).toBeInTheDocument();
     expect(screen.getByText('0.435M')).toBeInTheDocument();
@@ -843,6 +981,31 @@ describe('Business billing pages', () => {
     expect(screen.getByText('FAQ')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Purchase' })[0]).toBeEnabled();
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
+  }, 30_000);
+
+  it('derives yearly discount labels and original yearly price from current plan prices', async () => {
+    subscriptionPlanFixtures.mockReturnValue([
+      {
+        ...subscriptionPlanFixture('starter'),
+        amountCents: { month: 10_000, year: 90_000 },
+      },
+      {
+        ...subscriptionPlanFixture('premium'),
+        amountCents: { month: 20_000, year: 216_000 },
+      },
+      {
+        ...subscriptionPlanFixture('ultimate'),
+        amountCents: { month: 30_000, year: 240_000 },
+      },
+    ]);
+    const { default: Plans } = await import('../Plans');
+
+    render(<Plans />);
+
+    expect(screen.getByText('Up to 33% off')).toBeInTheDocument();
+    expect(screen.getAllByText('Save 10%').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Save 33%').length).toBeGreaterThan(0);
+    expect(screen.getByText('¥ 3,600.0 / year')).toBeInTheDocument();
   }, 30_000);
 
   it('creates a WeChat subscription payment order after selecting payment channel', async () => {
@@ -884,6 +1047,7 @@ describe('Business billing pages', () => {
       '/api/payments/mock/wechat/subscription-order-1',
     );
     expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'scanned');
+    expect(screen.getByText('¥ 99')).toBeInTheDocument();
     expect(screen.queryByText('Pending subscription order')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open payment link' })).not.toBeInTheDocument();
   }, 30_000);

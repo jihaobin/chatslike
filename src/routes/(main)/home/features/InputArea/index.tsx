@@ -22,7 +22,7 @@ import StarterList from './StarterList';
 import { useSend } from './useSend';
 
 const leftActions: ActionKeys[] = ['agentMode', 'plus'];
-const rightActions: ActionKeys[] = ['modelLabel'];
+const rightActions: ActionKeys[] = [];
 
 type BannerKind = 'skill' | 'botIntegration' | 'messenger';
 

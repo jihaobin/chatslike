@@ -6,6 +6,15 @@ import { serverDatabase } from '@/libs/trpc/lambda/middleware/serverDatabase';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
+const billingOrderStatusSchema = z.enum([
+  'pending',
+  'paid',
+  'activated',
+  'closed',
+  'failed',
+  'refunded',
+  'exception',
+]);
 
 const topUpProcedure = authedProcedure.use(serverDatabase).use((opts) => {
   const { ctx } = opts;
@@ -45,6 +54,7 @@ export const topUpRouter = router({
         .object({
           cursor: z.string().optional(),
           pageSize: z.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
+          statuses: z.array(billingOrderStatusSchema).optional(),
         })
         .optional(),
     )
@@ -52,6 +62,7 @@ export const topUpRouter = router({
       ctx.billingOrderService.listOrders({
         cursor: input?.cursor,
         pageSize: input?.pageSize ?? DEFAULT_PAGE_SIZE,
+        statuses: input?.statuses,
       }),
     ),
 });

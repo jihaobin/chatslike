@@ -3,7 +3,15 @@ import useSWR, { mutate } from 'swr';
 import type { ModelPricingListParams, PlatformCatalogFilters } from '@/services/billing';
 import { billingService } from '@/services/billing';
 
-const BILLING_PAGE_SIZE = 20;
+export const BILLING_PAGE_SIZE = 20;
+export const PAID_BILLING_ORDER_STATUSES = ['paid', 'activated'] as const;
+const BILLING_ORDERS_KEY = 'billing.orders';
+
+export interface BillingOrdersParams {
+  cursor?: string;
+  pageSize?: number;
+  statuses?: ReadonlyArray<(typeof PAID_BILLING_ORDER_STATUSES)[number]>;
+}
 
 export const useBillingBalance = () =>
   useSWR('billing.balance', () => billingService.getBalance(), {
@@ -15,12 +23,17 @@ export const useBillingGrantPackages = () =>
     refreshInterval: 15_000,
   });
 
-export const useBillingOrders = () =>
-  useSWR(['billing.orders', BILLING_PAGE_SIZE], () =>
-    billingService.listOrders({ pageSize: BILLING_PAGE_SIZE }),
-  );
+export const useBillingOrders = (params: BillingOrdersParams = {}) => {
+  const pageSize = params.pageSize ?? BILLING_PAGE_SIZE;
+  const statuses = params.statuses ?? PAID_BILLING_ORDER_STATUSES;
 
-export const refreshBillingOrders = () => mutate(['billing.orders', BILLING_PAGE_SIZE]);
+  return useSWR([BILLING_ORDERS_KEY, pageSize, params.cursor, statuses], () =>
+    billingService.listOrders({ cursor: params.cursor, pageSize, statuses }),
+  );
+};
+
+export const refreshBillingOrders = () =>
+  mutate((key) => Array.isArray(key) && key[0] === BILLING_ORDERS_KEY);
 
 const POLLING_ORDER_STATUSES = new Set(['paid', 'pending']);
 

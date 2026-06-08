@@ -5,7 +5,7 @@ import { QRCode } from 'antd';
 import { createStaticStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 
-import { formatNumber } from '@/utils/format';
+import { formatBillingAmount } from '../utils';
 
 export type PaymentQrCodeStatus = 'expired' | 'loading' | 'paying' | 'waiting';
 
@@ -46,9 +46,6 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     color: ${cssVar.colorTextSecondary};
   `,
 }));
-
-const formatAmount = (amountCents: number, currency = 'CNY') =>
-  `${currency === 'CNY' ? '$' : currency} ${formatNumber(amountCents / 100, 1)}`;
 
 export const PaymentQrCodeModal = ({
   amountCents,
@@ -95,7 +92,12 @@ export const PaymentQrCodeModal = ({
             <QRCode size={220} status={qrCodeStatus} value={qrCodeUrl} onRefresh={onRefresh} />
           </div>
         ) : null}
-        <Text className={styles.amount}>{formatAmount(amountCents, currency)}</Text>
+        <Text className={styles.amount}>
+          {formatBillingAmount(amountCents, currency, {
+            maximumFractionDigits: 1,
+            minimumFractionDigits: 0,
+          })}
+        </Text>
         <Text code className={styles.secondary}>
           {orderId}
         </Text>

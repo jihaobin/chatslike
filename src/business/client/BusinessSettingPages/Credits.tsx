@@ -46,6 +46,7 @@ import {
   useBillingOrderPaymentStatus,
   useCurrentSubscription,
 } from './hooks/useBillingData';
+import { formatBillingAmount } from './utils';
 
 type PackageTab = 'active' | 'depleted' | 'expired';
 
@@ -325,12 +326,6 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     width: 160px;
   `,
 }));
-
-const formatAmount = (amountCents: number, currency = 'CNY') =>
-  `${currency === 'CNY' ? '$' : currency} ${(amountCents / 100).toLocaleString('en-US', {
-    maximumFractionDigits: 1,
-    minimumFractionDigits: 1,
-  })}`;
 
 const formatMillionAmount = (credits: number) => {
   const value = credits / MILLION;
@@ -756,7 +751,10 @@ const Credits = memo(() => {
           <Flexbox gap={8}>
             <Text type={'secondary'}>
               {t('billingNative.credits.purchase.pricePerMillion', '{{price}} / million Credits', {
-                price: `$${selectedPricePerMillion.toFixed(2)}`,
+                price: formatBillingAmount(Math.round(selectedPricePerMillion * 100), 'CNY', {
+                  maximumFractionDigits: 2,
+                  minimumFractionDigits: 2,
+                }),
               })}{' '}
               {t('billingNative.credits.purchase.validity', '(valid for 6 months)')}
             </Text>
@@ -768,7 +766,10 @@ const Credits = memo(() => {
                   plan: <Link className={styles.inlineLink} to="/settings/plans" />,
                 }}
                 values={{
-                  amount: '$1.00',
+                  amount: formatBillingAmount(100, 'CNY', {
+                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 2,
+                  }),
                   planName: t('billingNative.plans.planName.starter', 'Starter'),
                 }}
               />
@@ -802,7 +803,10 @@ const Credits = memo(() => {
             <Flexbox horizontal align={'baseline'} gap={8}>
               <Text weight={700}>{t('billingNative.credits.purchase.total', 'Total')}</Text>
               <Text fontSize={24} weight={800}>
-                {formatAmount(totalAmountCents)}
+                {formatBillingAmount(totalAmountCents, 'CNY', {
+                  maximumFractionDigits: 1,
+                  minimumFractionDigits: 1,
+                })}
               </Text>
             </Flexbox>
             <Button

@@ -16,7 +16,7 @@ export const SUBSCRIPTION_PLANS = {
 } as const;
 
 export const SUBSCRIPTION_PRICE_CENTS = {
-  premium: { month: 24_900, year: 249_000 },
-  starter: { month: 9900, year: 99_000 },
-  ultimate: { month: 49_900, year: 499_000 },
+  premium: { month: 3990, year: 39_900 },
+  starter: { month: 1990, year: 19_900 },
+  ultimate: { month: 7990, year: 79_900 },
 } as const;
