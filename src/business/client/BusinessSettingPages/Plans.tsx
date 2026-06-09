@@ -1,7 +1,7 @@
 'use client';
 
 import { ModelIcon } from '@lobehub/icons';
-import { Button, Flexbox, Icon, Skeleton, Text } from '@lobehub/ui';
+import { Button, Flexbox, Icon, Skeleton, Text, Tooltip } from '@lobehub/ui';
 import { message } from 'antd';
 import { createStaticStyles, cssVar } from 'antd-style';
 import type { LucideIcon } from 'lucide-react';
@@ -32,6 +32,7 @@ import {
 import { formatBillingAmount } from './utils';
 
 const CLOUD_NAME = 'LobeHub Cloud';
+const MESSAGE_ESTIMATE_TOKENS = 2500;
 
 type PlanAction = 'availableAfterExpiry' | 'purchase' | 'renew' | 'unavailable' | 'upgrade';
 type BillingMode = 'month' | 'oneTime' | 'year';
@@ -79,10 +80,21 @@ interface OneTimeOption {
 interface ModelAllowance {
   iconClassName: string;
   kind: 'image' | 'message';
+  model?: string;
   name: string;
   premium: string;
+  pricingDisplayName?: string;
+  provider?: string;
   starter: string;
   ultimate: string;
+}
+
+interface TextModelPricing {
+  displayName: string;
+  inputCreditsPerMillionTokens: number;
+  model: string;
+  outputCreditsPerMillionTokens: number;
+  provider: string;
 }
 
 type TranslationValues = { defaultValue?: string } & Record<string, number | string | undefined>;
@@ -160,7 +172,10 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'deepseek',
     kind: 'message',
+    model: 'deepseek-v4-pro',
     name: 'DeepSeek V4 Pro',
+    pricingDisplayName: 'DeepSeek V4 Pro',
+    provider: 'deepseek',
     premium: '10,600',
     starter: '3,500',
     ultimate: '24,800',
@@ -168,7 +183,9 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'claude',
     kind: 'message',
+    model: 'claude-opus-4.8',
     name: 'Claude Opus 4.8',
+    pricingDisplayName: 'Claude Opus 4.8',
     premium: '500',
     starter: '200',
     ultimate: '1,300',
@@ -176,7 +193,9 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'gpt',
     kind: 'message',
+    model: 'gpt-5.5',
     name: 'GPT-5.5',
+    pricingDisplayName: 'GPT-5.5',
     premium: '500',
     starter: '200',
     ultimate: '1,100',
@@ -184,7 +203,9 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'gemini',
     kind: 'message',
+    model: 'gemini-3.1-pro-preview',
     name: 'Gemini 3.1 Pro Preview',
+    pricingDisplayName: 'Gemini 3.1 Pro Preview',
     premium: '1,200',
     starter: '400',
     ultimate: '2,800',
@@ -192,7 +213,9 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'gemini',
     kind: 'message',
+    model: 'gemini-3.1-flash-lite',
     name: 'Gemini 3.1 Flash-Lite',
+    pricingDisplayName: 'Gemini 3.1 Flash-Lite',
     premium: '9,400',
     starter: '3,200',
     ultimate: '22,400',
@@ -643,29 +666,13 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   priceCaption: css`
     font-size: 14px;
   `,
-  priceDocsButton: css`
-    width: min(100%, 300px);
-    height: 44px;
-    border-radius: 8px;
-  `,
   priceLayout: css`
-    display: grid;
-    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
-    gap: clamp(28px, 4vw, 70px);
-    align-items: flex-start;
-
-    @media (width <= 1180px) {
-      grid-template-columns: 1fr;
-      gap: 24px;
-    }
-  `,
-  priceSectionTitle: css`
-    font-size: 24px;
-    font-weight: 800;
+    display: block;
   `,
   priceTable: css`
     table-layout: fixed;
     border-collapse: collapse;
+    width: 100%;
 
     th,
     td {
@@ -684,8 +691,10 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
 
       font-size: 16px;
       font-weight: 800;
+      line-height: 1;
       color: ${token.colorText};
       white-space: nowrap;
+      vertical-align: middle;
 
       background: ${token.colorBgContainer};
       box-shadow: inset 0 -1px ${token.colorBorderSecondary};
@@ -738,6 +747,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     background: ${token.colorFillQuaternary};
   `,
   priceTokenBadge: css`
+    display: inline-flex;
+    align-items: center;
+
     margin-inline-start: 8px;
     padding-block: 3px;
     padding-inline: 8px;
@@ -745,7 +757,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
 
     font-size: 14px;
     font-weight: 700;
+    line-height: 1;
     color: ${token.colorTextSecondary};
+    vertical-align: middle;
 
     background: ${token.colorFillQuaternary};
   `,
@@ -839,6 +853,53 @@ const formatContextWindow = (tokens: number) => {
   if (tokens >= 1_000_000) return `${tokens / 1_000_000}M`;
 
   return `${Math.round(tokens / 1000)}K`;
+};
+
+const calculateEstimatedMessages = (credits: number, pricing?: TextModelPricing) => {
+  if (!pricing) return undefined;
+
+  const creditsPerMessage =
+    (pricing.inputCreditsPerMillionTokens * MESSAGE_ESTIMATE_TOKENS) / 1_000_000;
+
+  if (creditsPerMessage <= 0) return undefined;
+
+  return Math.floor(credits / creditsPerMessage);
+};
+
+const findAllowancePricing = (item: ModelAllowance, pricingRows: TextModelPricing[]) => {
+  if (item.kind !== 'message') return undefined;
+
+  return pricingRows.find((pricing) => {
+    if (item.provider && pricing.provider !== item.provider) return false;
+
+    return (
+      pricing.displayName === item.name ||
+      pricing.displayName === item.pricingDisplayName ||
+      pricing.model === item.model
+    );
+  });
+};
+
+const getPlanCredits = (planId: SubscriptionPlanId, planCards: HeroPlan[]) =>
+  planCards.find((plan) => plan.id === planId)?.credits;
+
+const getFallbackAllowanceAmount = (item: ModelAllowance, planId: SubscriptionPlanId) =>
+  planId === 'starter' ? item.starter : planId === 'premium' ? item.premium : item.ultimate;
+
+const getEstimatedAllowanceAmount = (params: {
+  item: ModelAllowance;
+  planCards: HeroPlan[];
+  planId: SubscriptionPlanId;
+  pricing?: TextModelPricing;
+}) => {
+  const fallback = getFallbackAllowanceAmount(params.item, params.planId);
+  if (params.item.kind !== 'message') return fallback;
+
+  const credits = getPlanCredits(params.planId, params.planCards);
+  const messages =
+    credits === undefined ? undefined : calculateEstimatedMessages(credits, params.pricing);
+
+  return messages === undefined ? fallback : formatNumber(messages);
 };
 
 const getPlanAccent = (planId: SubscriptionPlanId) => {
@@ -1081,8 +1142,12 @@ const Plans = memo(() => {
   };
 
   const formatAllowance = (item: ModelAllowance, planId: SubscriptionPlanId) => {
-    const amount =
-      planId === 'starter' ? item.starter : planId === 'premium' ? item.premium : item.ultimate;
+    const amount = getEstimatedAllowanceAmount({
+      item,
+      planCards,
+      planId,
+      pricing: findAllowancePricing(item, textModelPricing),
+    });
     const key =
       item.kind === 'image'
         ? 'billingNative.plans.pixel.approxImages'
@@ -1090,6 +1155,9 @@ const Plans = memo(() => {
 
     return t(key, { amount });
   };
+  const messageEstimateTooltip = t('plans.message.tooltip', {
+    number: MESSAGE_ESTIMATE_TOKENS,
+  });
 
   return (
     <Flexbox className={styles.page} gap={44}>
@@ -1358,7 +1426,9 @@ const Plans = memo(() => {
                         <Text color={cssVar.colorTextSecondary} fontSize={15}>
                           {item.name}
                         </Text>
-                        <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={13} />
+                        <Tooltip title={messageEstimateTooltip}>
+                          <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={13} />
+                        </Tooltip>
                       </Flexbox>
                       <Text fontSize={15}>{formatAllowance(item, plan.id)}</Text>
                     </Flexbox>
@@ -1406,13 +1476,6 @@ const Plans = memo(() => {
       ) : null}
 
       <div className={styles.priceLayout}>
-        <Flexbox flex={1} gap={12} style={{ minWidth: 280 }}>
-          <Text className={styles.priceSectionTitle}>{t('modelPricing.title')}</Text>
-          <Text color={cssVar.colorTextSecondary} fontSize={18} style={{ lineHeight: 1.6 }}>
-            {t('modelPricing.desc', { name: CLOUD_NAME })}
-          </Text>
-          <Button className={styles.priceDocsButton}>{t('modelPricing.button')}</Button>
-        </Flexbox>
         <div className={styles.priceTablePanel}>
           <table className={styles.priceTable}>
             <colgroup>
@@ -1516,7 +1579,13 @@ const Plans = memo(() => {
           ))}
 
           {MODEL_ALLOWANCES.map((item) => (
-            <MemoCompareAllowance item={item} key={item.name} t={t} />
+            <MemoCompareAllowance
+              item={item}
+              key={item.name}
+              planCards={planCards}
+              pricing={findAllowancePricing(item, textModelPricing)}
+              t={t}
+            />
           ))}
         </div>
       </Flexbox>
@@ -1648,12 +1717,17 @@ MemoCompareFeature.displayName = 'MemoCompareFeature';
 
 const MemoCompareAllowance = memo<{
   item: ModelAllowance;
+  planCards: HeroPlan[];
+  pricing?: TextModelPricing;
   t: TranslateString;
-}>(({ item, t }) => {
+}>(({ item, planCards, pricing, t }) => {
   const key =
     item.kind === 'image'
       ? 'billingNative.plans.pixel.approxImages'
       : 'billingNative.plans.pixel.approxMessages';
+  const starter = getEstimatedAllowanceAmount({ item, planCards, planId: 'starter', pricing });
+  const premium = getEstimatedAllowanceAmount({ item, planCards, planId: 'premium', pricing });
+  const ultimate = getEstimatedAllowanceAmount({ item, planCards, planId: 'ultimate', pricing });
 
   return (
     <>
@@ -1664,13 +1738,13 @@ const MemoCompareAllowance = memo<{
         </Flexbox>
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, item.starter, { amount: item.starter })}
+        {translateString(t, key, starter, { amount: starter })}
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, item.premium, { amount: item.premium })}
+        {translateString(t, key, premium, { amount: premium })}
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, item.ultimate, { amount: item.ultimate })}
+        {translateString(t, key, ultimate, { amount: ultimate })}
       </Flexbox>
     </>
   );

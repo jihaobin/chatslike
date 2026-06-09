@@ -314,6 +314,58 @@ describe('ProviderPricing', () => {
     });
   });
 
+  it('allows decimal manual token rates before submit', async () => {
+    const createSpy = vi
+      .spyOn(providerPricingService, 'createModelPricingVersion')
+      .mockResolvedValue({
+        id: 'mpr_manual_decimal',
+        model: 'gpt-5.5',
+        provider: 'amux',
+      } as ProviderPricingRecord);
+
+    render(
+      <PriceVersionModal
+        open
+        model="gpt-5.5"
+        modelType="chat"
+        provider="amux"
+        scope="global"
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    const inputPrice = screen.getByPlaceholderText(
+      'providerPricing.price.inputCredits.placeholder',
+    );
+    const outputPrice = screen.getByPlaceholderText(
+      'providerPricing.price.outputCredits.placeholder',
+    );
+
+    expect(inputPrice).toHaveAttribute('min', '0.001');
+    expect(inputPrice).toHaveAttribute('step', '0.001');
+    expect(inputPrice).toHaveAttribute('data-precision', '6');
+
+    fireEvent.change(inputPrice, {
+      target: { value: '0.435' },
+    });
+    fireEvent.change(outputPrice, {
+      target: { value: '1.4' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('providerPricing.reason.placeholder'), {
+      target: { value: 'manual decimal rates' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ok' }));
+
+    await waitFor(() => {
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputCreditsPerMillionTokens: 435_000,
+          outputCreditsPerMillionTokens: 1_400_000,
+        }),
+      );
+    });
+  });
+
   it('shows readonly summary without create controls', async () => {
     vi.spyOn(providerPricingService, 'listModelPricing').mockResolvedValue([
       {
@@ -438,9 +490,9 @@ describe('ProviderPricing', () => {
       'providerPricing.price.inputCredits.placeholder',
     );
 
-    expect(inputPrice).toHaveAttribute('min', '1');
-    expect(inputPrice).toHaveAttribute('step', '1');
-    expect(inputPrice).toHaveAttribute('data-precision', '0');
+    expect(inputPrice).toHaveAttribute('min', '0.001');
+    expect(inputPrice).toHaveAttribute('step', '0.001');
+    expect(inputPrice).toHaveAttribute('data-precision', '6');
 
     fireEvent.change(inputPrice, {
       target: { value: '0' },

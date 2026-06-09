@@ -246,17 +246,18 @@ const DailyTypewriter = memo<DailyTypewriterProps>(
 
     return (
       <Flexbox
+        align={'center'}
+        justify={'center'}
         style={{
-          fontSize: 16,
-          // Strict 2-line height so the layout never jumps between empty,
-          // single-line, and full sentences. The typewriter pre-fills the
-          // box so cycling between sentences also doesn't reflow.
-          height: '3.2em',
-          lineHeight: 1.6,
-          // Clip the rare 3-line generation rather than push the layout.
+          color: cssVar.colorText,
+          fontSize: 24,
+          fontWeight: 600,
+          height: '2.4em',
+          lineHeight: 1.2,
           overflow: 'hidden',
-          paddingInlineStart: 5,
-          whiteSpace: 'pre-wrap',
+          paddingInline: 16,
+          textAlign: 'center',
+          width: '100%',
           wordBreak: 'break-word',
         }}
       >
@@ -317,11 +318,13 @@ const WelcomeText = memo(() => {
   if (sentences.length === 0) return null;
 
   return (
-    <DailyTypewriter
-      sentenceIndex={sentenceIndex}
-      sentences={sentences}
-      onSentenceComplete={onAdvance}
-    />
+    <Flexbox align={'center'} justify={'center'} width={'100%'}>
+      <DailyTypewriter
+        sentenceIndex={sentenceIndex}
+        sentences={sentences}
+        onSentenceComplete={onAdvance}
+      />
+    </Flexbox>
   );
 });
 

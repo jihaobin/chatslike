@@ -118,6 +118,16 @@ beforeEach(() => {
 });
 
 describe('DailyBrief', () => {
+  it('renders nothing while briefs are loading', () => {
+    mocks.state.isBriefsInit = false;
+
+    const { container } = render(<DailyBrief />);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByTestId('group-block')).not.toBeInTheDocument();
+    expect(screen.queryByText('Brief skeleton')).not.toBeInTheDocument();
+  });
+
   it('renders nothing when no briefs are available', () => {
     const { container } = render(<DailyBrief />);
 

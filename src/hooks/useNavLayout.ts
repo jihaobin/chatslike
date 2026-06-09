@@ -91,6 +91,12 @@ export const useNavLayout = (): NavLayout => {
           url: '/resource',
         },
         {
+          icon: getRouteById('settings')!.icon,
+          key: SidebarTabKey.Setting,
+          title: t('tab.setting'),
+          url: '/settings',
+        },
+        {
           icon: getRouteById('memory')!.icon,
           key: SidebarTabKey.Memory,
           title: t('tab.memory'),

@@ -43,6 +43,8 @@ interface PriceVersionModalProps {
 const defaultCurrency = 'CNY';
 const defaultMultiplier = 1;
 const minCreditValue = 1;
+const minMillionCreditValue = 0.001;
+const millionCreditPrecision = 6;
 
 type PricingModality = 'text' | 'image' | 'video';
 type ImagePricingMode = 'fixed' | 'token';
@@ -361,10 +363,10 @@ const PriceVersionModal = memo<PriceVersionModalProps>(
                   {t('providerPricing.price.inputCredits')}
                 </Text>
                 <InputNumber
-                  min={minCreditValue}
+                  min={minMillionCreditValue}
                   placeholder={t('providerPricing.price.inputCredits.placeholder')}
-                  precision={0}
-                  step={1}
+                  precision={millionCreditPrecision}
+                  step={minMillionCreditValue}
                   value={inputCreditsPerMillionTokens}
                   onChange={(value) => setInputCreditsPerMillionTokens(normalizeNumber(value))}
                 />
@@ -374,10 +376,10 @@ const PriceVersionModal = memo<PriceVersionModalProps>(
                   {t('providerPricing.price.outputCredits')}
                 </Text>
                 <InputNumber
-                  min={minCreditValue}
+                  min={minMillionCreditValue}
                   placeholder={t('providerPricing.price.outputCredits.placeholder')}
-                  precision={0}
-                  step={1}
+                  precision={millionCreditPrecision}
+                  step={minMillionCreditValue}
                   value={outputCreditsPerMillionTokens}
                   onChange={(value) => setOutputCreditsPerMillionTokens(normalizeNumber(value))}
                 />

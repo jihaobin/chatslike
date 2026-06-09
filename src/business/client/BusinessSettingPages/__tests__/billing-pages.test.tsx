@@ -28,6 +28,8 @@ const translationFallbacks: Record<string, string> = {
   'billingNative.paymentChannel.wechat': 'WeChat Pay',
   'billingNative.plans.pixel.discount.max': 'Up to {{percent}} off',
   'billingNative.plans.pixel.discount.short': 'Save {{percent}}',
+  'billingNative.plans.pixel.approxImages': 'Approx. {{amount}} images',
+  'billingNative.plans.pixel.approxMessages': 'Approx. {{amount}} messages',
   'billingNative.plans.pixel.perMonthAmount': '{{amount}} / month',
   'billingNative.plans.pixel.period.yearly': 'Yearly',
   'billingNative.plans.pixel.price.perMonthYearly': '/ month (yearly)',
@@ -36,6 +38,7 @@ const translationFallbacks: Record<string, string> = {
   'compare.title': 'Plan Comparison',
   'modelPricing.perMillionTokens': '1M Tokens',
   'modelPricing.title': 'Text Model Pricing',
+  'plans.message.tooltip': 'Estimated based on average {{number}} tokens per message',
 };
 
 const toastError = vi.hoisted(() => vi.fn());
@@ -278,6 +281,12 @@ vi.mock('@lobehub/ui', () => ({
     </div>
   ),
   Tag: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
+  Tooltip: ({ children, title }: { children?: React.ReactNode; title?: React.ReactNode }) => (
+    <span>
+      {children}
+      <span>{title}</span>
+    </span>
+  ),
   Text: ({
     as,
     children,
@@ -344,6 +353,7 @@ const useBillingUsageRecords = vi.hoisted(() => vi.fn());
 const useAdminBillingUsers = vi.hoisted(() => vi.fn());
 const inlineTableRender = vi.hoisted(() => vi.fn());
 const subscriptionPlanFixtures = vi.hoisted(() => vi.fn());
+const textModelPricingFixtures = vi.hoisted(() => vi.fn());
 
 const formatTestPlanAmount = (amountCents: number) => `¥ ${(amountCents / 100).toFixed(1)}`;
 const subscriptionPlanFixture = (planId: keyof typeof SUBSCRIPTION_PLANS) => ({
@@ -498,17 +508,7 @@ vi.mock('../hooks/useBillingData', () => ({
     isLoading: false,
   }),
   useTextModelPricing: () => ({
-    data: [
-      {
-        contextWindowTokens: 1_000_000,
-        displayName: 'DeepSeek V4 Pro',
-        id: 'text:deepseek-v4-pro',
-        inputCreditsPerMillionTokens: 435_000,
-        model: 'deepseek-v4-pro',
-        outputCreditsPerMillionTokens: 870_000,
-        provider: 'deepseek',
-      },
-    ],
+    data: textModelPricingFixtures(),
     isLoading: false,
   }),
   useBillingUsageRecords,
@@ -552,6 +552,18 @@ describe('Business billing pages', () => {
       data: { items: [] },
       isLoading: false,
     });
+    textModelPricingFixtures.mockReset();
+    textModelPricingFixtures.mockReturnValue([
+      {
+        contextWindowTokens: 1_000_000,
+        displayName: 'DeepSeek V4 Pro',
+        id: 'text:deepseek-v4-pro',
+        inputCreditsPerMillionTokens: 435_000,
+        model: 'deepseek-v4-pro',
+        outputCreditsPerMillionTokens: 870_000,
+        provider: 'deepseek',
+      },
+    ]);
     subscriptionPlanFixtures.mockReturnValue(
       ['starter', 'premium', 'ultimate'].map((planId) =>
         subscriptionPlanFixture(planId as keyof typeof SUBSCRIPTION_PLANS),
@@ -973,7 +985,10 @@ describe('Business billing pages', () => {
       screen.getAllByText(new RegExp(SUBSCRIPTION_PLANS.starter.creditsPerMonth.toLocaleString()))
         .length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText('Text Model Pricing')).toBeInTheDocument();
+    expect(screen.getAllByText('Approx. 4,597 messages').length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText('Estimated based on average 2500 tokens per message').length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText('DeepSeek V4 Pro (1M)')).toBeInTheDocument();
     expect(screen.getByText('0.435M')).toBeInTheDocument();
     expect(screen.getByText('0.87M')).toBeInTheDocument();

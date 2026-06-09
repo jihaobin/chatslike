@@ -13,7 +13,6 @@ import { useUserStore } from '@/store/user';
 import { authSelectors } from '@/store/user/slices/auth/selectors';
 
 import BriefCard from './BriefCard';
-import { BriefCardSkeleton } from './BriefCardSkeleton';
 
 const DailyBrief = memo(() => {
   const { t } = useTranslation('home');
@@ -27,16 +26,7 @@ const DailyBrief = memo(() => {
 
   if (!isLogin) return null;
 
-  if (!isInit) {
-    return (
-      <GroupBlock icon={Newspaper} title={t('brief.title')}>
-        <Flexbox gap={12}>
-          <BriefCardSkeleton />
-          <BriefCardSkeleton />
-        </Flexbox>
-      </GroupBlock>
-    );
-  }
+  if (!isInit) return null;
 
   if (briefs.length === 0) {
     return null;

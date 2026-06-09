@@ -30,11 +30,14 @@ vi.mock('./WelcomeText', () => ({
 }));
 
 describe('HomeContent', () => {
-  it('keeps the main content free of the model selector', () => {
+  it('renders a ChatGPT-like centered welcome above the input', () => {
     render(<HomeContent />);
 
+    const hero = screen.getByTestId('home-welcome-hero');
+
     expect(screen.queryByTestId('home-model-selector')).not.toBeInTheDocument();
-    expect(screen.getByTestId('agent-select')).toBeInTheDocument();
+    expect(screen.queryByTestId('agent-select')).not.toBeInTheDocument();
+    expect(hero).toContainElement(screen.getByTestId('welcome-text'));
     expect(screen.getByTestId('input-area')).toBeInTheDocument();
   });
 });

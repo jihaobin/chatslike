@@ -74,7 +74,7 @@ describe('subscriptionRouter', () => {
   });
 
   it('lists text model pricing rows', async () => {
-    listPublicTextModelPricingRows.mockReturnValue([
+    listPublicTextModelPricingRows.mockResolvedValue([
       {
         contextWindowTokens: 1_000_000,
         displayName: 'DeepSeek V4 Pro',
@@ -98,6 +98,7 @@ describe('subscriptionRouter', () => {
         provider: 'deepseek',
       },
     ]);
+    expect(listPublicTextModelPricingRows).toHaveBeenCalledWith(mockDb);
   });
 
   it('creates a new subscription order', async () => {
