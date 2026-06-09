@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm';
 
 import { creditGrants } from '@/database/schemas';
-import type { LobeChatDatabase } from '@/database/type';
+import type { LobeChatDatabase, Transaction } from '@/database/type';
 
+import { TRIAL_CREDITS } from './constants';
 import { CreditsService } from './credits';
 
 const normalizeTrialPhoneNumber = (phoneNumber: string) => {
@@ -26,9 +27,9 @@ const normalizeTrialPhoneNumber = (phoneNumber: string) => {
 };
 
 export async function grantTrialCreditsAfterPhoneVerified(
-  db: LobeChatDatabase,
+  db: LobeChatDatabase | Transaction,
   params: { phoneNumber: string; userId: string },
-): Promise<{ granted: boolean }> {
+): Promise<{ credits: number; granted: boolean }> {
   const normalizedPhoneNumber = normalizeTrialPhoneNumber(params.phoneNumber);
   const operationId = `trial:phone:${normalizedPhoneNumber}`;
   const existing = await db
@@ -37,10 +38,10 @@ export async function grantTrialCreditsAfterPhoneVerified(
     .where(eq(creditGrants.operationId, operationId))
     .limit(1);
 
-  if (existing[0]) return { granted: false };
+  if (existing[0]) return { credits: TRIAL_CREDITS, granted: false };
 
   const service = new CreditsService(db, params.userId);
   await service.grantTrialCredits({ operationId, phoneNumber: normalizedPhoneNumber });
 
-  return { granted: true };
+  return { credits: TRIAL_CREDITS, granted: true };
 }

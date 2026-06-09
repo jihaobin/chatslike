@@ -209,6 +209,40 @@ describe('AiInfraRepos', () => {
       });
     });
 
+    it('filters enabled models by enabled providers in runtime state', async () => {
+      vi.spyOn(repo.aiProviderModel, 'getAiProviderRuntimeConfig').mockResolvedValue({
+        openai: createRuntimeConfig('test-openai-key'),
+      });
+
+      vi.spyOn(repo, 'getUserEnabledProviderList').mockResolvedValue([
+        { id: 'openai', name: 'OpenAI', source: 'builtin' },
+      ]);
+
+      vi.spyOn(repo, 'getEnabledModels').mockResolvedValue([
+        {
+          abilities: {},
+          enabled: true,
+          id: 'gpt-4',
+          providerId: 'openai',
+          type: 'chat',
+        },
+        {
+          abilities: {},
+          enabled: true,
+          id: 'deepseek-v3',
+          providerId: 'xinference',
+          type: 'chat',
+        },
+      ]);
+
+      const result = await repo.getAiProviderRuntimeState();
+
+      expect(result.enabledAiModels.map((model) => `${model.providerId}:${model.id}`)).toEqual([
+        'openai:gpt-4',
+      ]);
+      expect(result.enabledChatAiProviders.map((provider) => provider.id)).toEqual(['openai']);
+    });
+
     it('uses all enabled global providers in platform hosted mode', async () => {
       await serverDB.insert(users).values([{ id: GLOBAL_PROVIDER_CONFIG_USER_ID }, { id: userId }]);
       await serverDB.insert(aiProviders).values([
@@ -293,6 +327,54 @@ describe('AiInfraRepos', () => {
         'newapi-openai-relay',
         'newapi-claude-relay',
       ]);
+    });
+
+    it('excludes models from disabled global providers in platform hosted runtime state', async () => {
+      await serverDB.insert(users).values([{ id: GLOBAL_PROVIDER_CONFIG_USER_ID }, { id: userId }]);
+      await serverDB.insert(aiProviders).values([
+        {
+          enabled: false,
+          id: 'xinference',
+          name: 'Xinference',
+          source: 'builtin',
+          sort: 1,
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+      ]);
+      await serverDB.insert(aiModels).values([
+        {
+          enabled: true,
+          id: 'deepseek-v3',
+          providerId: 'xinference',
+          source: 'builtin',
+          type: 'chat',
+          userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+        },
+      ]);
+
+      const platformRepo = new AiInfraRepos(
+        serverDB,
+        userId,
+        {
+          xinference: {
+            enabled: true,
+            serverModelLists: [
+              {
+                enabled: true,
+                id: 'deepseek-v3',
+                type: 'chat',
+              },
+            ],
+          },
+        },
+        { platformHostedModelsEnabled: true },
+      );
+
+      const result = await platformRepo.getAiProviderRuntimeState();
+
+      expect(result.enabledAiProviders).toEqual([]);
+      expect(result.enabledAiModels).toEqual([]);
+      expect(result.enabledChatAiProviders).toEqual([]);
     });
 
     it('uses enabled builtin provider server model lists in platform hosted mode', async () => {

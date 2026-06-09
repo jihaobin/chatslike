@@ -10,6 +10,7 @@ import {
   getSubscriptionPlan,
   onUserActivityForBusiness,
 } from '@/business/server/user';
+import { getServerDB } from '@/database/core/db-adaptor';
 import { MessageModel } from '@/database/models/message';
 import { SessionModel } from '@/database/models/session';
 import { UserModel } from '@/database/models/user';
@@ -46,6 +47,9 @@ vi.mock('@/business/server/user', async (importOriginal) => {
 
 vi.mock('@/database/server', () => ({
   serverDB: {},
+}));
+vi.mock('@/database/core/db-adaptor', () => ({
+  getServerDB: vi.fn(),
 }));
 
 vi.mock('@/database/models/message');
@@ -92,6 +96,12 @@ describe('userRouter', () => {
     mockAfterTasks.length = 0;
     process.env.AUTH_SECRET = 'test-phone-verification-secret';
     vi.clearAllMocks();
+    Object.assign(serverDB, {
+      transaction: vi.fn(async (callback: (tx: typeof serverDB) => Promise<unknown>) =>
+        callback(serverDB),
+      ),
+    });
+    vi.mocked(getServerDB).mockResolvedValue(serverDB as never);
     vi.mocked(getReferralStatus).mockResolvedValue(undefined);
     vi.mocked(getSubscriptionPlan).mockResolvedValue(Plans.Free);
     vi.mocked(onUserActivityForBusiness).mockResolvedValue(undefined);
@@ -350,10 +360,15 @@ describe('userRouter', () => {
     });
 
     it('should update phone verification and grant trial credits after code verification succeeds', async () => {
+      const txDB = { tx: true };
+      const transaction = vi.fn(async (callback: (tx: typeof txDB) => Promise<unknown>) =>
+        callback(txDB),
+      );
+      Object.assign(serverDB, { transaction });
       const updateUser = vi.fn().mockResolvedValue({ rowCount: 1 });
       const onBusinessUserPhoneVerifiedSpy = vi
         .spyOn(businessUser, 'onBusinessUserPhoneVerified')
-        .mockResolvedValue({ granted: true });
+        .mockResolvedValue({ credits: 500_000, granted: true });
       vi.mocked(UserModel).mockImplementation(() => ({ updateUser }) as never);
 
       const result = await userRouter
@@ -364,12 +379,14 @@ describe('userRouter', () => {
         code: '123456',
         phoneNumber: '+86 138 0000 0000',
       });
+      expect(transaction).toHaveBeenCalledTimes(1);
+      expect(UserModel).toHaveBeenCalledWith(txDB, mockUserId);
       expect(updateUser).toHaveBeenCalledWith({
         phone: '+8613800000000',
         phoneNumberVerified: true,
       });
       expect(onBusinessUserPhoneVerifiedSpy).toHaveBeenCalledWith({
-        db: serverDB,
+        db: txDB,
         phoneNumber: '+8613800000000',
         userId: mockUserId,
       });
@@ -377,6 +394,74 @@ describe('userRouter', () => {
         phone: '+8613800000000',
         phoneNumberVerified: true,
       });
+    });
+
+    it('should roll back phone verification when trial credit grant fails', async () => {
+      const txDB = { tx: true };
+      const transaction = vi.fn(async (callback: (tx: typeof txDB) => Promise<unknown>) =>
+        callback(txDB),
+      );
+      Object.assign(serverDB, { transaction });
+      const updateUser = vi.fn().mockResolvedValue({ rowCount: 1 });
+      const onBusinessUserPhoneVerifiedSpy = vi
+        .spyOn(businessUser, 'onBusinessUserPhoneVerified')
+        .mockRejectedValue(new Error('credit account conflict'));
+      vi.mocked(UserModel).mockImplementation(() => ({ updateUser }) as never);
+
+      await expect(
+        userRouter
+          .createCaller({ ...mockCtx })
+          .verifyPhoneForTrial({ code: '123456', phoneNumber: '+86 138 0000 0000' }),
+      ).rejects.toThrow('credit account conflict');
+
+      expect(transaction).toHaveBeenCalledTimes(1);
+      expect(updateUser).toHaveBeenCalledWith({
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+      });
+      expect(onBusinessUserPhoneVerifiedSpy).toHaveBeenCalledWith({
+        db: txDB,
+        phoneNumber: '+8613800000000',
+        userId: mockUserId,
+      });
+    });
+
+    it('should retry trial credit grant for an already verified phone', async () => {
+      const getUserState = vi.fn().mockResolvedValue({
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+      });
+      const onBusinessUserPhoneVerifiedSpy = vi
+        .spyOn(businessUser, 'onBusinessUserPhoneVerified')
+        .mockResolvedValue({ credits: 500_000, granted: true });
+      vi.mocked(UserModel).mockImplementation(() => ({ getUserState }) as never);
+
+      const result = await userRouter.createCaller({ ...mockCtx }).retryVerifiedPhoneTrialGrant();
+
+      expect(onBusinessUserPhoneVerifiedSpy).toHaveBeenCalledWith({
+        db: serverDB,
+        phoneNumber: '+8613800000000',
+        userId: mockUserId,
+      });
+      expect(result).toEqual({
+        phone: '+8613800000000',
+        phoneNumberVerified: true,
+        trial: { credits: 500_000, granted: true },
+      });
+    });
+
+    it('should not retry trial grant when phone is not verified', async () => {
+      const getUserState = vi.fn().mockResolvedValue({
+        phone: '+8613800000000',
+        phoneNumberVerified: false,
+      });
+      const onBusinessUserPhoneVerifiedSpy = vi.spyOn(businessUser, 'onBusinessUserPhoneVerified');
+      vi.mocked(UserModel).mockImplementation(() => ({ getUserState }) as never);
+
+      await expect(
+        userRouter.createCaller({ ...mockCtx }).retryVerifiedPhoneTrialGrant(),
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED', message: 'PHONE_NOT_VERIFIED' });
+      expect(onBusinessUserPhoneVerifiedSpy).not.toHaveBeenCalled();
     });
 
     it('should return conflict without granting trial credits when phone is already bound', async () => {

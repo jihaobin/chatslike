@@ -37,7 +37,11 @@ describe('billing env', () => {
         WECHAT_PAY_APP_ID: 'wechat-app',
         WECHAT_PAY_MCH_ID: 'wechat-mch',
         WECHAT_PAY_NOTIFY_URL: 'https://example.com/api/webhooks/payments/wechat',
-        WECHAT_PAY_PRIVATE_KEY: 'wechat-private',
+        WECHAT_PAY_PRIVATE_KEY:
+          '-----BEGIN PRIVATE KEY-----\\nwechat-private\\n-----END PRIVATE KEY-----',
+        WECHAT_PAY_PUBLIC_KEY:
+          '-----BEGIN PUBLIC KEY-----\\nwechat-public\\n-----END PUBLIC KEY-----',
+        WECHAT_PAY_PUBLIC_KEY_ID: 'PUB_KEY_ID_011423',
         WECHAT_PAY_SERIAL_NO: 'wechat-serial',
       }),
     ).toMatchObject({
@@ -62,7 +66,9 @@ describe('billing env', () => {
         appId: 'wechat-app',
         mchId: 'wechat-mch',
         notifyUrl: 'https://example.com/api/webhooks/payments/wechat',
-        privateKey: 'wechat-private',
+        privateKey: '-----BEGIN PRIVATE KEY-----\nwechat-private\n-----END PRIVATE KEY-----',
+        publicKey: '-----BEGIN PUBLIC KEY-----\nwechat-public\n-----END PUBLIC KEY-----',
+        publicKeyId: 'PUB_KEY_ID_011423',
         serialNo: 'wechat-serial',
       },
     });
@@ -80,5 +86,7 @@ describe('billing env', () => {
     expect(config.BILLING_ALLOW_MOCK_PAYMENTS).toBe(false);
     expect(config.ALIPAY_PRIVATE_KEY).toBeUndefined();
     expect(config.WECHAT_PAY_API_V3_KEY).toBeUndefined();
+    expect(config.WECHAT_PAY_PUBLIC_KEY).toBeUndefined();
+    expect(config.WECHAT_PAY_PUBLIC_KEY_ID).toBeUndefined();
   });
 });

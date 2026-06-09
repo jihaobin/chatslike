@@ -15,6 +15,8 @@ export interface BillingRuntimeEnv extends Record<string, number | string | unde
   WECHAT_PAY_MCH_ID?: string;
   WECHAT_PAY_NOTIFY_URL?: string;
   WECHAT_PAY_PRIVATE_KEY?: string;
+  WECHAT_PAY_PUBLIC_KEY?: string;
+  WECHAT_PAY_PUBLIC_KEY_ID?: string;
   WECHAT_PAY_SERIAL_NO?: string;
 }
 
@@ -30,6 +32,8 @@ const parsePositiveInteger = (value: number | string | undefined, fallback: numb
 
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
+
+const normalizePem = (value: string | undefined) => value?.replaceAll('\\n', '\n');
 
 export const getBillingEnv = (env: BillingRuntimeEnv = process.env) => ({
   alipay: {
@@ -53,7 +57,9 @@ export const getBillingEnv = (env: BillingRuntimeEnv = process.env) => ({
     apiV3Key: env.WECHAT_PAY_API_V3_KEY,
     mchId: env.WECHAT_PAY_MCH_ID,
     notifyUrl: env.WECHAT_PAY_NOTIFY_URL,
-    privateKey: env.WECHAT_PAY_PRIVATE_KEY,
+    privateKey: normalizePem(env.WECHAT_PAY_PRIVATE_KEY),
+    publicKey: normalizePem(env.WECHAT_PAY_PUBLIC_KEY),
+    publicKeyId: env.WECHAT_PAY_PUBLIC_KEY_ID,
     serialNo: env.WECHAT_PAY_SERIAL_NO,
   },
 });

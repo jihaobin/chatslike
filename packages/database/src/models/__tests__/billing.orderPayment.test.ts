@@ -67,6 +67,121 @@ describe('billing order and payment transaction models', () => {
     expect(closed).toBeNull();
   });
 
+  it('lists only billing orders matching requested statuses', async () => {
+    const model = new BillingOrderModel(serverDB, userId);
+
+    const pendingOrder = await model.create({
+      amountCents: 9900,
+      credits: 1_000_000,
+      currency: 'CNY',
+      orderType: 'top_up',
+      paymentChannel: 'alipay',
+      status: 'pending',
+    });
+    const paidOrder = await model.create({
+      amountCents: 9900,
+      credits: 1_000_000,
+      currency: 'CNY',
+      orderType: 'top_up',
+      paymentChannel: 'alipay',
+      status: 'paid',
+    });
+    const activatedOrder = await model.create({
+      amountCents: 9900,
+      credits: 1_000_000,
+      currency: 'CNY',
+      orderType: 'subscription_new',
+      paymentChannel: 'wechat',
+      status: 'activated',
+    });
+    const closedOrder = await model.create({
+      amountCents: 9900,
+      credits: 1_000_000,
+      currency: 'CNY',
+      orderType: 'top_up',
+      paymentChannel: 'alipay',
+      status: 'closed',
+    });
+
+    const listed = await model.list({ pageSize: 10, statuses: ['paid', 'activated'] });
+
+    expect(listed.items.map((item) => item.id).sort()).toEqual(
+      [activatedOrder.id, paidOrder.id].sort(),
+    );
+    expect(listed.items.map((item) => item.id)).not.toContain(pendingOrder.id);
+    expect(listed.items.map((item) => item.id)).not.toContain(closedOrder.id);
+    expect(
+      listed.items.every((item) => item.status === 'paid' || item.status === 'activated'),
+    ).toBe(true);
+  });
+
+  it('applies status filters while paginating billing orders by cursor', async () => {
+    const model = new BillingOrderModel(serverDB, userId);
+
+    await serverDB.insert(billingOrders).values([
+      {
+        amountCents: 9900,
+        createdAt: new Date('2026-06-04T00:00:00.000Z'),
+        credits: 1_000_000,
+        currency: 'CNY',
+        id: 'order-pending-newer',
+        orderType: 'top_up',
+        paymentChannel: 'alipay',
+        status: 'pending',
+        userId,
+      },
+      {
+        amountCents: 9900,
+        createdAt: new Date('2026-06-03T00:00:00.000Z'),
+        credits: 1_000_000,
+        currency: 'CNY',
+        id: 'order-paid-first',
+        orderType: 'top_up',
+        paymentChannel: 'alipay',
+        status: 'paid',
+        userId,
+      },
+      {
+        amountCents: 9900,
+        createdAt: new Date('2026-06-02T00:00:00.000Z'),
+        credits: 1_000_000,
+        currency: 'CNY',
+        id: 'order-activated-second',
+        orderType: 'subscription_new',
+        paymentChannel: 'wechat',
+        status: 'activated',
+        userId,
+      },
+      {
+        amountCents: 9900,
+        createdAt: new Date('2026-06-01T00:00:00.000Z'),
+        credits: 1_000_000,
+        currency: 'CNY',
+        id: 'order-closed-older',
+        orderType: 'top_up',
+        paymentChannel: 'alipay',
+        status: 'closed',
+        userId,
+      },
+    ]);
+
+    const firstPage = await model.list({ pageSize: 1, statuses: ['paid', 'activated'] });
+    const secondPage = await model.list({
+      cursor: firstPage.nextCursor,
+      pageSize: 1,
+      statuses: ['paid', 'activated'],
+    });
+
+    expect(firstPage).toMatchObject({
+      items: [{ id: 'order-paid-first', status: 'paid' }],
+      nextCursor: 'order-paid-first',
+    });
+    expect(secondPage).toMatchObject({
+      items: [{ id: 'order-activated-second', status: 'activated' }],
+      nextCursor: undefined,
+    });
+  });
+
   it('closes only pending billing orders', async () => {
     const model = new BillingOrderModel(serverDB, userId);
 

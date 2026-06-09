@@ -3,20 +3,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { message } from '@/components/AntdStaticMethods';
 
+import enUSAuth from '../../../../../../locales/en-US/auth.json';
+import zhCNAuth from '../../../../../../locales/zh-CN/auth.json';
 import PhoneVerificationRow from './PhoneVerificationRow';
 
 const sendPhoneVerificationCode = vi.fn();
+const retryVerifiedPhoneTrialGrant = vi.fn();
 const verifyPhoneForTrial = vi.fn();
+let phoneNumberVerified = false;
 
 vi.mock('@/components/AntdStaticMethods', () => ({
-  message: { success: vi.fn() },
+  message: { error: vi.fn(), success: vi.fn() },
 }));
 
 vi.mock('@/store/user', () => ({
   useUserStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
       phone: '',
-      phoneNumberVerified: false,
+      phoneNumberVerified,
+      retryVerifiedPhoneTrialGrant,
       sendPhoneVerificationCode,
       verifyPhoneForTrial,
     }),
@@ -34,6 +39,7 @@ vi.mock('react-i18next', () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === 'profile.phoneCodeSent') return `sent ${params?.phone}`;
       if (key === 'profile.phoneResendCountdown') return `resend ${params?.seconds}`;
+      if (key === 'profile.phoneTrialGranted') return `granted ${params?.credits}`;
       return key;
     },
   }),
@@ -42,11 +48,13 @@ vi.mock('react-i18next', () => ({
 describe('PhoneVerificationRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    phoneNumberVerified = false;
+    retryVerifiedPhoneTrialGrant.mockResolvedValue({ trial: { credits: 500_000, granted: true } });
     sendPhoneVerificationCode.mockResolvedValue({
       cooldownSeconds: 60,
       maskedPhone: '+86138****0000',
     });
-    verifyPhoneForTrial.mockResolvedValue({ trial: { granted: true } });
+    verifyPhoneForTrial.mockResolvedValue({ trial: { credits: 500_000, granted: true } });
   });
 
   it('should send code first, then verify phone with code', async () => {
@@ -76,7 +84,7 @@ describe('PhoneVerificationRow', () => {
   });
 
   it('should not say trial credits were issued when the grant was already claimed', async () => {
-    verifyPhoneForTrial.mockResolvedValue({ trial: { granted: false } });
+    verifyPhoneForTrial.mockResolvedValue({ trial: { credits: 500_000, granted: false } });
     render(<PhoneVerificationRow />);
 
     fireEvent.change(screen.getByPlaceholderText('profile.phonePlaceholder'), {
@@ -92,6 +100,42 @@ describe('PhoneVerificationRow', () => {
       target: { value: '123456' },
     });
     fireEvent.click(screen.getByText('profile.phoneVerifyCodeAction'));
+
+    await waitFor(() => {
+      expect(message.success).toHaveBeenCalledWith('profile.phoneVerifiedTrialAlreadyClaimed');
+    });
+    expect(message.success).not.toHaveBeenCalledWith('profile.phoneTrialGranted');
+  });
+
+  it('should include non-grant trial verification copy in runtime locale resources', () => {
+    const expectedEnUS =
+      'Phone verified. Trial Credits were already claimed for this phone number.';
+    const expectedZhCN = '手机已验证。该手机号已领取过试用积分，本次不会重复发放。';
+
+    expect(enUSAuth['profile.phoneVerifiedTrialAlreadyClaimed']).toBe(expectedEnUS);
+    expect(zhCNAuth['profile.phoneVerifiedTrialAlreadyClaimed']).toBe(expectedZhCN);
+    expect(zhCNAuth['profile.phoneVerifiedTrialAlreadyClaimed']).not.toContain('已发放');
+  });
+
+  it('should retry trial grant for an already verified phone', async () => {
+    phoneNumberVerified = true;
+    retryVerifiedPhoneTrialGrant.mockResolvedValue({ trial: { credits: 600_000, granted: true } });
+    render(<PhoneVerificationRow />);
+
+    fireEvent.click(screen.getByText('profile.phoneRetryTrialGrantAction'));
+
+    await waitFor(() => {
+      expect(retryVerifiedPhoneTrialGrant).toHaveBeenCalled();
+    });
+    expect(message.success).toHaveBeenCalledWith('granted 600,000');
+  });
+
+  it('should not say credits were issued when retry finds the trial grant already claimed', async () => {
+    phoneNumberVerified = true;
+    retryVerifiedPhoneTrialGrant.mockResolvedValue({ trial: { credits: 500_000, granted: false } });
+    render(<PhoneVerificationRow />);
+
+    fireEvent.click(screen.getByText('profile.phoneRetryTrialGrantAction'));
 
     await waitFor(() => {
       expect(message.success).toHaveBeenCalledWith('profile.phoneVerifiedTrialAlreadyClaimed');

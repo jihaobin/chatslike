@@ -171,4 +171,21 @@ describe('AdminBillingService', () => {
       .where(eq(adminAuditLogs.targetUserId, targetUserId));
     expect(audits.map((audit) => audit.action)).toEqual(['freeze_account', 'unfreeze_account']);
   });
+
+  it('creates the credit account idempotently when first admin mutations run concurrently', async () => {
+    const service = new AdminBillingService(serverDB, adminUserId);
+
+    await expect(
+      Promise.all([
+        service.freezeAccount({ reason: 'risk review', targetUserId }),
+        service.unfreezeAccount({ reason: 'risk cleared', targetUserId }),
+      ]),
+    ).resolves.toHaveLength(2);
+
+    const accounts = await serverDB
+      .select()
+      .from(creditAccounts)
+      .where(eq(creditAccounts.userId, targetUserId));
+    expect(accounts).toHaveLength(1);
+  });
 });

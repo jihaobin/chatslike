@@ -2,7 +2,7 @@
 import type { ReferralStatusString } from '@lobechat/types';
 import { Plans } from '@lobechat/types';
 
-import type { LobeChatDatabase } from '@/database/type';
+import type { LobeChatDatabase, Transaction } from '@/database/type';
 
 import { grantTrialCreditsAfterPhoneVerified } from './billing/trial';
 
@@ -14,7 +14,7 @@ export interface OnUserActivityForBusinessParams {
 }
 
 export interface OnBusinessUserPhoneVerifiedParams {
-  db: LobeChatDatabase;
+  db: LobeChatDatabase | Transaction;
   phoneNumber: string;
   userId: string;
 }

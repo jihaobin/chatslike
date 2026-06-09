@@ -63,6 +63,7 @@ export const DEFAULT_SIDEBAR_ITEMS: string[] = [
   'image',
   'community',
   'resource',
+  'settings',
   'memory',
 ];
 

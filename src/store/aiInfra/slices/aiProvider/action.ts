@@ -332,15 +332,8 @@ export class AiProviderActionImpl {
         aiProviderDetailMap: {},
         aiProviderList: [],
         aiProviderModelList: [],
-        aiProviderRuntimeConfig: {},
-        enabledAiModels: undefined,
-        enabledAiProviders: undefined,
-        enabledChatModelList: undefined,
-        enabledImageModelList: undefined,
-        enabledVideoModelList: undefined,
         initAiProviderList: false,
         isAiModelListInit: false,
-        isInitAiProviderRuntimeState: false,
       },
       false,
       'setActiveProviderConfigScope',
@@ -478,7 +471,9 @@ export class AiProviderActionImpl {
     const { activeProviderConfigScope } = this.#get();
 
     return useClientDataSWR<AiProviderListItem[]>(
-      opts?.enabled === false ? null : [AiProviderSwrKey.fetchAiProviderList, activeProviderConfigScope],
+      opts?.enabled === false
+        ? null
+        : [AiProviderSwrKey.fetchAiProviderList, activeProviderConfigScope],
       () => aiProviderService.getAiProviderList({ scope: activeProviderConfigScope }),
       {
         fallbackData: [],
@@ -505,13 +500,15 @@ export class AiProviderActionImpl {
     void isSyncActive;
     const isLogin = isLoginOnInit;
     const isAuthLoaded = useUserStore(authSelectors.isLoaded);
-    const { activeProviderConfigScope } = this.#get();
+    const runtimeStateScope = 'user';
     // Only fetch when auth is loaded and login status is explicitly defined (true or false)
     // Prevents unnecessary requests when login state is null/undefined
     const shouldFetch = isAuthLoaded && isLogin !== null && isLogin !== undefined;
 
     return useClientDataSWR<AiProviderRuntimeStateWithBuiltinModels | undefined>(
-      shouldFetch ? [AiProviderSwrKey.fetchAiProviderRuntimeState, activeProviderConfigScope, isLogin] : null,
+      shouldFetch
+        ? [AiProviderSwrKey.fetchAiProviderRuntimeState, runtimeStateScope, isLogin]
+        : null,
       async ([, , isLogin]) => {
         const [{ loadModels }, { DEFAULT_MODEL_PROVIDER_LIST }] = await Promise.all([
           import('@/business/client/model-bank/loadModels'),
@@ -521,7 +518,7 @@ export class AiProviderActionImpl {
 
         if (isLogin) {
           const data = await aiProviderService.getAiProviderRuntimeState(undefined, {
-            scope: activeProviderConfigScope,
+            scope: runtimeStateScope,
           });
 
           // Build model lists with proper async handling

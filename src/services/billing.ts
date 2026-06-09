@@ -1,3 +1,4 @@
+import type { BillingOrderStatus } from '@/database/schemas';
 import { lambdaClient } from '@/libs/trpc/client';
 import { mutate } from '@/libs/swr';
 
@@ -17,6 +18,10 @@ interface EstimateTextCreditsParams {
 interface BillingListParams {
   cursor?: string;
   pageSize?: number;
+}
+
+interface BillingOrderListParams extends BillingListParams {
+  statuses?: readonly BillingOrderStatus[];
 }
 
 interface CreateTopUpOrderParams {
@@ -157,9 +162,20 @@ class BillingService {
 
   getOrder = async (orderId: string) => lambdaClient.topUp.getOrder.query({ orderId });
 
+  syncOrderPaymentStatus = async (orderId: string) =>
+    lambdaClient.topUp.syncOrderPaymentStatus.query({ orderId });
+
   getCurrentSubscription = async () => lambdaClient.subscription.getCurrent.query();
 
-  listOrders = async (params?: BillingListParams) => lambdaClient.topUp.listOrders.query(params);
+  listOrders = async (params?: BillingOrderListParams) =>
+    lambdaClient.topUp.listOrders.query(
+      params
+        ? {
+            ...params,
+            statuses: params.statuses ? [...params.statuses] : undefined,
+          }
+        : undefined,
+    );
 
   listSubscriptionPlans = async () => lambdaClient.subscription.listPlans.query();
 

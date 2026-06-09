@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { SUBSCRIPTION_PLANS, SUBSCRIPTION_PRICE_CENTS } from '@/business/server/billing/constants';
 
 vi.mock('@lobechat/const', () => ({
   isDesktop: true,
@@ -12,8 +14,22 @@ vi.mock('@lobehub/icons', () => ({
 
 const translationFallbacks: Record<string, string> = {
   'billingNative.billing.creditsUnit': 'Credits',
+  'billingNative.usage.createdAt': 'Created',
+  'billingNative.usage.credits': 'Credits',
+  'billingNative.usage.details': 'Compute Credits Usage Details',
+  'billingNative.usage.duration': 'Duration',
+  'billingNative.usage.model': 'Model',
+  'billingNative.usage.modality.text': 'Text Generation',
+  'billingNative.usage.tokenUsage': 'Token Usage',
+  'billingNative.usage.trigger': 'Trigger',
+  'billingNative.usage.trigger.chat': 'Chat Message',
+  'billingNative.usage.type': 'Type',
+  'billingNative.paymentChannel.alipay': 'Alipay',
+  'billingNative.paymentChannel.wechat': 'WeChat Pay',
   'billingNative.plans.pixel.discount.max': 'Up to {{percent}} off',
   'billingNative.plans.pixel.discount.short': 'Save {{percent}}',
+  'billingNative.plans.pixel.approxImages': 'Approx. {{amount}} images',
+  'billingNative.plans.pixel.approxMessages': 'Approx. {{amount}} messages',
   'billingNative.plans.pixel.perMonthAmount': '{{amount}} / month',
   'billingNative.plans.pixel.period.yearly': 'Yearly',
   'billingNative.plans.pixel.price.perMonthYearly': '/ month (yearly)',
@@ -22,7 +38,17 @@ const translationFallbacks: Record<string, string> = {
   'compare.title': 'Plan Comparison',
   'modelPricing.perMillionTokens': '1M Tokens',
   'modelPricing.title': 'Text Model Pricing',
+  'plans.message.tooltip': 'Estimated based on average {{number}} tokens per message',
 };
+
+const toastError = vi.hoisted(() => vi.fn());
+const toastInfo = vi.hoisted(() => vi.fn());
+const toastSuccess = vi.hoisted(() => vi.fn());
+const toastWarning = vi.hoisted(() => vi.fn());
+const messageError = vi.hoisted(() => vi.fn());
+const messageInfo = vi.hoisted(() => vi.fn());
+const messageSuccess = vi.hoisted(() => vi.fn());
+const messageWarning = vi.hoisted(() => vi.fn());
 
 vi.mock('react-i18next', () => ({
   Trans: ({
@@ -82,7 +108,11 @@ vi.mock('lucide-react', () => ({
   CircleHelpIcon: () => <svg data-testid="circle-help-icon" />,
   CreditCardIcon: () => <svg data-testid="credit-card-icon" />,
   ExternalLinkIcon: () => <svg data-testid="external-link-icon" />,
+  ArrowDownIcon: () => <svg data-testid="arrow-down-icon" />,
+  ArrowUpIcon: () => <svg data-testid="arrow-up-icon" />,
+  FileTextIcon: () => <svg data-testid="file-text-icon" />,
   GiftIcon: () => <svg data-testid="gift-icon" />,
+  ImageIcon: () => <svg data-testid="image-icon" />,
   LockOpenIcon: () => <svg data-testid="lock-open-icon" />,
   MinusCircleIcon: () => <svg data-testid="minus-circle-icon" />,
   PencilIcon: () => <svg data-testid="pencil-icon" />,
@@ -90,12 +120,36 @@ vi.mock('lucide-react', () => ({
   RefreshCwIcon: () => <svg data-testid="refresh-icon" />,
   ShoppingCartIcon: () => <svg data-testid="shopping-cart-icon" />,
   SparklesIcon: () => <svg data-testid="sparkles-icon" />,
+  VideoIcon: () => <svg data-testid="video-icon" />,
   WalletCardsIcon: () => <svg data-testid="wallet-icon" />,
   WifiIcon: () => <svg data-testid="wifi-icon" />,
   ZapIcon: () => <svg data-testid="zap-icon" />,
 }));
 
 vi.mock('antd', () => ({
+  message: {
+    error: messageError,
+    info: messageInfo,
+    success: messageSuccess,
+    warning: messageWarning,
+  },
+  QRCode: ({
+    onRefresh,
+    status = 'active',
+    value,
+  }: {
+    onRefresh?: () => void;
+    status?: string;
+    value?: string;
+  }) => (
+    <button
+      data-status={status}
+      data-testid="payment-qr-code"
+      data-value={value}
+      type="button"
+      onClick={onRefresh}
+    />
+  ),
   Radio: ({ checked }: { checked?: boolean; disabled?: boolean }) => (
     <input readOnly checked={checked} type="radio" />
   ),
@@ -103,6 +157,7 @@ vi.mock('antd', () => ({
 
 vi.mock('@lobehub/ui', () => ({
   Button: ({
+    'aria-label': ariaLabel,
     children,
     disabled,
     icon,
@@ -110,14 +165,21 @@ vi.mock('@lobehub/ui', () => ({
     onClick,
     type,
   }: {
-    children?: React.ReactNode;
-    disabled?: boolean;
-    icon?: React.ReactNode;
-    loading?: boolean;
-    onClick?: () => void;
-    type?: string;
+    'aria-label'?: string;
+    'children'?: React.ReactNode;
+    'disabled'?: boolean;
+    'icon'?: React.ReactNode;
+    'loading'?: boolean;
+    'onClick'?: () => void;
+    'type'?: string;
   }) => (
-    <button data-button-type={type} disabled={disabled || loading} type="button" onClick={onClick}>
+    <button
+      aria-label={ariaLabel}
+      data-button-type={type}
+      disabled={disabled || loading}
+      type="button"
+      onClick={onClick}
+    >
       {icon}
       {children}
     </button>
@@ -164,6 +226,20 @@ vi.mock('@lobehub/ui', () => ({
       onChange={(event) => onChange?.(Number(event.currentTarget.value))}
     />
   ),
+  Modal: ({
+    children,
+    open,
+    title,
+  }: {
+    children?: React.ReactNode;
+    open?: boolean;
+    title?: React.ReactNode;
+  }) =>
+    open ? (
+      <div aria-label={String(title)} role="dialog">
+        {children}
+      </div>
+    ) : null,
   Select: ({
     onChange,
     options,
@@ -205,6 +281,12 @@ vi.mock('@lobehub/ui', () => ({
     </div>
   ),
   Tag: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
+  Tooltip: ({ children, title }: { children?: React.ReactNode; title?: React.ReactNode }) => (
+    <span>
+      {children}
+      <span>{title}</span>
+    </span>
+  ),
   Text: ({
     as,
     children,
@@ -217,6 +299,12 @@ vi.mock('@lobehub/ui', () => ({
     if (code) return <code>{children}</code>;
     if (as === 'h2') return <h2>{children}</h2>;
     return <span>{children}</span>;
+  },
+  toast: {
+    error: toastError,
+    info: toastInfo,
+    success: toastSuccess,
+    warning: toastWarning,
   },
 }));
 
@@ -259,8 +347,22 @@ const refreshBillingOrders = vi.hoisted(() => vi.fn());
 const mutateBalance = vi.hoisted(() => vi.fn());
 const useCurrentSubscription = vi.hoisted(() => vi.fn());
 const useBillingOrder = vi.hoisted(() => vi.fn());
+const useBillingOrderPaymentStatus = vi.hoisted(() => vi.fn());
+const useBillingOrders = vi.hoisted(() => vi.fn());
+const useBillingUsageRecords = vi.hoisted(() => vi.fn());
 const useAdminBillingUsers = vi.hoisted(() => vi.fn());
 const inlineTableRender = vi.hoisted(() => vi.fn());
+const subscriptionPlanFixtures = vi.hoisted(() => vi.fn());
+const textModelPricingFixtures = vi.hoisted(() => vi.fn());
+
+const formatTestPlanAmount = (amountCents: number) => `¥ ${(amountCents / 100).toFixed(1)}`;
+const subscriptionPlanFixture = (planId: keyof typeof SUBSCRIPTION_PLANS) => ({
+  ...SUBSCRIPTION_PLANS[planId],
+  amountCents: SUBSCRIPTION_PRICE_CENTS[planId],
+  currency: 'CNY',
+  priceSource: 'temporary_test',
+  purchasable: true,
+});
 
 vi.mock('@/services/billing', () => ({
   billingService: {
@@ -276,6 +378,7 @@ vi.mock('@/components/InlineTable', () => ({
     columns,
     dataSource,
     locale,
+    pagination,
   }: {
     columns?: {
       dataIndex?: string;
@@ -285,8 +388,14 @@ vi.mock('@/components/InlineTable', () => ({
     }[];
     dataSource?: unknown[];
     locale?: { emptyText?: React.ReactNode };
+    pagination?: {
+      current?: number;
+      onChange?: (page: number, pageSize: number) => void;
+      pageSize?: number;
+      showSizeChanger?: boolean;
+    };
   }) => {
-    inlineTableRender({ columns, dataSource, locale });
+    inlineTableRender({ columns, dataSource, locale, pagination });
 
     return (
       <div data-testid="inline-table">
@@ -307,6 +416,11 @@ vi.mock('@/components/InlineTable', () => ({
               </div>
             ))
           : locale?.emptyText}
+        {pagination ? (
+          <button type="button" onClick={() => pagination.onChange?.(2, pagination.pageSize ?? 20)}>
+            next orders page
+          </button>
+        ) : null}
       </div>
     );
   },
@@ -323,6 +437,8 @@ vi.mock('../PlatformCatalog', () => ({
 }));
 
 vi.mock('../hooks/useBillingData', () => ({
+  BILLING_PAGE_SIZE: 20,
+  PAID_BILLING_ORDER_STATUSES: ['paid', 'activated'],
   useAdminBillingAuditLogs: () => ({
     data: { items: [] },
     isLoading: false,
@@ -384,61 +500,18 @@ vi.mock('../hooks/useBillingData', () => ({
     mutate: vi.fn(),
   }),
   useBillingOrder,
+  useBillingOrderPaymentStatus,
   useCurrentSubscription,
-  useBillingOrders: () => ({
-    data: { items: [] },
-    isLoading: false,
-  }),
+  useBillingOrders,
   useSubscriptionPlans: () => ({
-    data: [
-      {
-        amountCents: { month: 9900, year: 99_000 },
-        creditsPerMonth: 5_000_000,
-        currency: 'CNY',
-        id: 'starter',
-        name: 'Starter',
-        priceSource: 'temporary_test',
-        purchasable: true,
-      },
-      {
-        amountCents: { month: 24_900, year: 249_000 },
-        creditsPerMonth: 15_000_000,
-        currency: 'CNY',
-        id: 'premium',
-        name: 'Premium',
-        priceSource: 'temporary_test',
-        purchasable: true,
-      },
-      {
-        amountCents: { month: 49_900, year: 499_000 },
-        creditsPerMonth: 35_000_000,
-        currency: 'CNY',
-        id: 'ultimate',
-        name: 'Ultimate',
-        priceSource: 'temporary_test',
-        purchasable: true,
-      },
-    ],
+    data: subscriptionPlanFixtures(),
     isLoading: false,
   }),
   useTextModelPricing: () => ({
-    data: [
-      {
-        contextWindowTokens: 1_000_000,
-        displayName: 'DeepSeek V4 Pro',
-        id: 'text:deepseek-v4-pro',
-        inputCreditsPerMillionTokens: 435_000,
-        model: 'deepseek-v4-pro',
-        outputCreditsPerMillionTokens: 870_000,
-        provider: 'deepseek',
-      },
-    ],
+    data: textModelPricingFixtures(),
     isLoading: false,
   }),
-  useBillingUsageRecords: () => ({
-    data: { items: [] },
-    isLoading: false,
-  }),
+  useBillingUsageRecords,
 }));
 
 describe('Business billing pages', () => {
@@ -450,8 +523,28 @@ describe('Business billing pages', () => {
     mutateBalance.mockReset();
     refreshBillingOrders.mockReset();
     inlineTableRender.mockClear();
+    toastError.mockClear();
+    toastInfo.mockClear();
+    toastSuccess.mockClear();
+    toastWarning.mockClear();
+    messageError.mockClear();
+    messageInfo.mockClear();
+    messageSuccess.mockClear();
+    messageWarning.mockClear();
     useBillingOrder.mockReset();
     useBillingOrder.mockReturnValue({ data: undefined });
+    useBillingOrderPaymentStatus.mockReset();
+    useBillingOrderPaymentStatus.mockReturnValue({ data: undefined });
+    useBillingOrders.mockReset();
+    useBillingOrders.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+    });
+    useBillingUsageRecords.mockReset();
+    useBillingUsageRecords.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+    });
     useCurrentSubscription.mockReset();
     useCurrentSubscription.mockReturnValue({ data: null, isLoading: false });
     useAdminBillingUsers.mockReset();
@@ -459,6 +552,23 @@ describe('Business billing pages', () => {
       data: { items: [] },
       isLoading: false,
     });
+    textModelPricingFixtures.mockReset();
+    textModelPricingFixtures.mockReturnValue([
+      {
+        contextWindowTokens: 1_000_000,
+        displayName: 'DeepSeek V4 Pro',
+        id: 'text:deepseek-v4-pro',
+        inputCreditsPerMillionTokens: 435_000,
+        model: 'deepseek-v4-pro',
+        outputCreditsPerMillionTokens: 870_000,
+        provider: 'deepseek',
+      },
+    ]);
+    subscriptionPlanFixtures.mockReturnValue(
+      ['starter', 'premium', 'ultimate'].map((planId) =>
+        subscriptionPlanFixture(planId as keyof typeof SUBSCRIPTION_PLANS),
+      ),
+    );
   });
 
   it('renders native credits balance instead of subscription iframe', async () => {
@@ -476,7 +586,7 @@ describe('Business billing pages', () => {
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
   }, 30_000);
 
-  it('creates a top-up payment order from the credits page', async () => {
+  it('creates a WeChat top-up payment order after selecting payment channel', async () => {
     createTopUpOrder.mockResolvedValue({
       order: {
         amountCents: 600,
@@ -486,27 +596,67 @@ describe('Business billing pages', () => {
         status: 'pending',
       },
       payment: {
-        channel: 'alipay',
-        qrCodeUrl: '/api/payments/mock/alipay/order-1',
+        channel: 'wechat',
+        qrCodeUrl: '/api/payments/mock/wechat/order-1',
       },
     });
     const { default: Credits } = await import('../Credits');
 
     render(<Credits />);
     fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    expect(screen.getByRole('dialog', { name: 'Select payment method' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'WeChat Pay' }));
 
     await waitFor(() =>
       expect(createTopUpOrder).toHaveBeenCalledWith({
-        channel: 'alipay',
+        channel: 'wechat',
         productId: 'topup_5m',
       }),
     );
-    expect(await screen.findByText('Pending payment order')).toBeInTheDocument();
-    expect(screen.getByText('order-1')).toBeInTheDocument();
-    expect(screen.getByText('pending')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open payment link/ })).toHaveAttribute(
-      'href',
-      '/api/payments/mock/alipay/order-1',
+    expect(await screen.findByRole('dialog', { name: 'Scan to pay' })).toBeInTheDocument();
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute(
+      'data-value',
+      '/api/payments/mock/wechat/order-1',
+    );
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'active');
+    expect(screen.getByText('Scan to pay')).toBeInTheDocument();
+    expect(screen.getByText('¥ 6')).toBeInTheDocument();
+    expect(screen.queryByText('Pending payment order')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Open payment link/ })).not.toBeInTheDocument();
+  }, 30_000);
+
+  it('shows scanned QR state after the order is scanned but not confirmed', async () => {
+    createTopUpOrder.mockResolvedValue({
+      order: {
+        amountCents: 600,
+        credits: 5_000_000,
+        currency: 'CNY',
+        id: 'order-1',
+        status: 'pending',
+      },
+      payment: {
+        channel: 'wechat',
+        qrCodeUrl: '/api/payments/mock/wechat/order-1',
+      },
+    });
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId
+        ? { order: { id: orderId, status: 'pending' }, paymentTradeState: 'USERPAYING' }
+        : undefined,
+    }));
+    const { default: Credits } = await import('../Credits');
+
+    render(<Credits />);
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'WeChat Pay' }));
+
+    expect(
+      await screen.findByText('Scanned. Confirm the payment on your phone.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Scan to pay' })).toBeInTheDocument();
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'scanned');
+    await waitFor(() =>
+      expect(messageInfo).toHaveBeenCalledWith('Scanned. Confirm the payment on your phone.'),
     );
   }, 30_000);
 
@@ -523,12 +673,12 @@ describe('Business billing pages', () => {
 
     fireEvent.change(customInput, { target: { value: '3' } });
 
-    expect(screen.getByText('$ 3.6')).toBeInTheDocument();
+    expect(screen.getByText('¥ 3.6')).toBeInTheDocument();
 
     fireEvent.mouseDown(screen.getByText('My Credits Packages'));
 
     expect(screen.queryByPlaceholderText('1')).not.toBeInTheDocument();
-    expect(screen.getByText('$ 3.6')).toBeInTheDocument();
+    expect(screen.getByText('¥ 3.6')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Custom/ }));
     expect(screen.getByPlaceholderText('1')).toBeInTheDocument();
@@ -548,17 +698,132 @@ describe('Business billing pages', () => {
         qrCodeUrl: '/api/payments/mock/alipay/order-1',
       },
     });
-    useBillingOrder.mockImplementation((orderId?: string) => ({
-      data: orderId ? { id: orderId, status: 'activated' } : undefined,
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId ? { order: { id: orderId, status: 'activated' } } : undefined,
     }));
     const { default: Credits } = await import('../Credits');
 
     render(<Credits />);
     fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
 
-    expect(await screen.findByText('activated')).toBeInTheDocument();
     await waitFor(() => expect(mutateBalance).toHaveBeenCalled());
     expect(refreshBillingOrders).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Scan to pay' })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText('Payment successful. Credits have been added.')).toBeInTheDocument();
+    expect(messageSuccess).toHaveBeenCalledWith('Payment successful. Credits have been added.');
+    expect(screen.queryByText('Pending payment order')).not.toBeInTheDocument();
+  }, 30_000);
+
+  it('shows failed and canceled payment toasts and closes the QR modal', async () => {
+    createTopUpOrder.mockResolvedValue({
+      order: {
+        amountCents: 600,
+        credits: 5_000_000,
+        currency: 'CNY',
+        id: 'order-1',
+        status: 'pending',
+      },
+      payment: {
+        channel: 'alipay',
+        qrCodeUrl: '/api/payments/mock/alipay/order-1',
+      },
+    });
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId ? { order: { id: orderId, status: 'failed' } } : undefined,
+    }));
+    const { default: Credits } = await import('../Credits');
+
+    const { rerender } = render(<Credits />);
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
+
+    await waitFor(() =>
+      expect(messageError).toHaveBeenCalledWith('Payment failed. Please try again.'),
+    );
+    expect(screen.queryByRole('dialog', { name: 'Scan to pay' })).not.toBeInTheDocument();
+
+    toastError.mockClear();
+    toastInfo.mockClear();
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId ? { order: { id: orderId, status: 'closed' } } : undefined,
+    }));
+    rerender(<Credits />);
+    fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
+
+    await waitFor(() => expect(messageInfo).toHaveBeenCalledWith('Payment cancelled'));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Scan to pay' })).not.toBeInTheDocument(),
+    );
+  }, 30_000);
+
+  it('marks QR code expired after 15 minutes and refreshes it when clicked', async () => {
+    createTopUpOrder
+      .mockResolvedValueOnce({
+        order: {
+          amountCents: 600,
+          credits: 5_000_000,
+          currency: 'CNY',
+          id: 'order-1',
+          status: 'pending',
+        },
+        payment: {
+          channel: 'wechat',
+          qrCodeUrl: '/api/payments/mock/wechat/order-1',
+        },
+      })
+      .mockResolvedValueOnce({
+        order: {
+          amountCents: 600,
+          credits: 5_000_000,
+          currency: 'CNY',
+          id: 'order-2',
+          status: 'pending',
+        },
+        payment: {
+          channel: 'wechat',
+          qrCodeUrl: '/api/payments/mock/wechat/order-2',
+        },
+      });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { default: Credits } = await import('../Credits');
+
+    try {
+      render(<Credits />);
+      fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'WeChat Pay' }));
+      expect(await screen.findByTestId('payment-qr-code')).toHaveAttribute(
+        'data-value',
+        '/api/payments/mock/wechat/order-1',
+      );
+      act(() => {
+        vi.advanceTimersByTime(15 * 60 * 1000);
+      });
+
+      expect(
+        await screen.findByText('The QR code has expired. Refresh to try again.'),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'expired');
+      expect(messageWarning).toHaveBeenCalledWith('The QR code has expired. Refresh to try again.');
+    } finally {
+      vi.useRealTimers();
+    }
+
+    fireEvent.click(screen.getByTestId('payment-qr-code'));
+
+    await waitFor(() => expect(createTopUpOrder).toHaveBeenCalledTimes(2));
+    expect(createTopUpOrder).toHaveBeenLastCalledWith({
+      channel: 'wechat',
+      productId: 'topup_5m',
+    });
+    expect(await screen.findByTestId('payment-qr-code')).toHaveAttribute(
+      'data-value',
+      '/api/payments/mock/wechat/order-2',
+    );
+    expect(screen.getByText('Scan to pay')).toBeInTheDocument();
   }, 30_000);
 
   it('shows an error when top-up payment order creation fails', async () => {
@@ -567,12 +832,14 @@ describe('Business billing pages', () => {
 
     render(<Credits />);
     fireEvent.click(screen.getByRole('button', { name: /Buy Now/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
 
     expect(
-      await screen.findByText(
-        'Could not create the payment order. Check payment configuration and try again.',
-      ),
+      await screen.findByText('Failed to create the order. Please try again later.'),
     ).toBeInTheDocument();
+    expect(messageError).toHaveBeenCalledWith(
+      'Failed to create the order. Please try again later.',
+    );
   }, 30_000);
 
   it('renders native billing empty state instead of subscription iframe', async () => {
@@ -580,8 +847,59 @@ describe('Business billing pages', () => {
 
     render(<Billing />);
 
+    expect(useBillingOrders).toHaveBeenCalledWith({
+      pageSize: 20,
+      statuses: ['paid', 'activated'],
+    });
     expect(screen.getByText('No orders yet')).toBeInTheDocument();
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
+  }, 30_000);
+
+  it('enables cursor pagination for native billing orders', async () => {
+    useBillingOrders
+      .mockReturnValueOnce({
+        data: {
+          items: [
+            {
+              amountCents: 9900,
+              createdAt: new Date('2026-06-01T00:00:00.000Z'),
+              credits: 1_000_000,
+              currency: 'CNY',
+              id: 'order-page-1',
+              orderType: 'top_up',
+              paymentChannel: 'alipay',
+              status: 'paid',
+            },
+          ],
+          nextCursor: 'order-page-1',
+        },
+        isLoading: false,
+      })
+      .mockReturnValue({
+        data: { items: [], nextCursor: undefined },
+        isLoading: false,
+      });
+    const { default: Billing } = await import('../Billing');
+
+    render(<Billing />);
+    fireEvent.click(screen.getByRole('button', { name: 'next orders page' }));
+
+    await waitFor(() =>
+      expect(useBillingOrders).toHaveBeenLastCalledWith({
+        cursor: 'order-page-1',
+        pageSize: 20,
+        statuses: ['paid', 'activated'],
+      }),
+    );
+    expect(inlineTableRender).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        pagination: expect.objectContaining({
+          current: 2,
+          pageSize: 20,
+          showSizeChanger: true,
+        }),
+      }),
+    );
   }, 30_000);
 
   it('renders native usage empty state instead of subscription iframe', async () => {
@@ -593,6 +911,57 @@ describe('Business billing pages', () => {
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
   }, 30_000);
 
+  it('renders the native usage detail table with token breakdown and duration', async () => {
+    useBillingUsageRecords.mockReturnValue({
+      data: {
+        items: [
+          {
+            actualCredits: 621,
+            createdAt: new Date('2026-05-23T03:23:55.000Z'),
+            id: 'usage-1',
+            inputTokens: 42_008,
+            metadata: { durationMs: 13_460 },
+            modality: 'text',
+            model: 'deepseek-v4-flash',
+            outputTokens: 1115,
+            provider: 'deepseek',
+            status: 'captured',
+          },
+        ],
+      },
+      isLoading: false,
+    });
+    const { default: Usage } = await import('../Usage');
+
+    render(<Usage />);
+
+    expect(screen.getByText('Usage')).toBeInTheDocument();
+    expect(screen.getByText('Compute Credits Usage Details')).toBeInTheDocument();
+    expect(inlineTableRender).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        columns: expect.arrayContaining([
+          expect.objectContaining({ title: 'Created' }),
+          expect.objectContaining({ title: 'Type' }),
+          expect.objectContaining({ title: 'Trigger' }),
+          expect.objectContaining({ title: 'Model' }),
+          expect.objectContaining({ title: 'Token Usage' }),
+          expect.objectContaining({ title: 'Credits' }),
+          expect.objectContaining({ title: 'Duration' }),
+        ]),
+      }),
+    );
+    expect(screen.getByText('Text Generation')).toBeInTheDocument();
+    expect(screen.getByText('Chat Message')).toBeInTheDocument();
+    expect(screen.getByText('deepseek-v4-flash')).toBeInTheDocument();
+    expect(screen.getByText('43,123')).toBeInTheDocument();
+    expect(screen.getByText('=')).toBeInTheDocument();
+    expect(screen.getByText('42,008')).toBeInTheDocument();
+    expect(screen.getByText('+')).toBeInTheDocument();
+    expect(screen.getByText('1,115')).toBeInTheDocument();
+    expect(screen.getByText('621')).toBeInTheDocument();
+    expect(screen.getByText('13.46s')).toBeInTheDocument();
+  }, 30_000);
+
   it('renders purchasable native subscription plans', async () => {
     const { default: Plans } = await import('../Plans');
 
@@ -600,12 +969,26 @@ describe('Business billing pages', () => {
 
     expect(screen.getByText('Plans')).toBeInTheDocument();
     expect(screen.getByText('Yearly')).toBeInTheDocument();
-    expect(screen.getByText('Up to 37% off')).toBeInTheDocument();
+    expect(screen.getByText('Up to 17% off')).toBeInTheDocument();
+    expect(
+      screen.getByText(formatTestPlanAmount(SUBSCRIPTION_PRICE_CENTS.starter.year / 12)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        `${formatTestPlanAmount(SUBSCRIPTION_PRICE_CENTS.starter.month * 12)} / year`,
+      ),
+    ).toBeInTheDocument();
     expect(screen.getAllByText('Starter').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Premium').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Ultimate').length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/5,000,000/).length).toBeGreaterThan(0);
-    expect(screen.getByText('Text Model Pricing')).toBeInTheDocument();
+    expect(
+      screen.getAllByText(new RegExp(SUBSCRIPTION_PLANS.starter.creditsPerMonth.toLocaleString()))
+        .length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText('Approx. 4,597 messages').length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText('Estimated based on average 2500 tokens per message').length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText('DeepSeek V4 Pro (1M)')).toBeInTheDocument();
     expect(screen.getByText('0.435M')).toBeInTheDocument();
     expect(screen.getByText('0.87M')).toBeInTheDocument();
@@ -615,7 +998,32 @@ describe('Business billing pages', () => {
     expect(screen.queryByTestId('subscription-iframe-wrapper')).not.toBeInTheDocument();
   }, 30_000);
 
-  it('creates a subscription payment order from the plans page', async () => {
+  it('derives yearly discount labels and original yearly price from current plan prices', async () => {
+    subscriptionPlanFixtures.mockReturnValue([
+      {
+        ...subscriptionPlanFixture('starter'),
+        amountCents: { month: 10_000, year: 90_000 },
+      },
+      {
+        ...subscriptionPlanFixture('premium'),
+        amountCents: { month: 20_000, year: 216_000 },
+      },
+      {
+        ...subscriptionPlanFixture('ultimate'),
+        amountCents: { month: 30_000, year: 240_000 },
+      },
+    ]);
+    const { default: Plans } = await import('../Plans');
+
+    render(<Plans />);
+
+    expect(screen.getByText('Up to 33% off')).toBeInTheDocument();
+    expect(screen.getAllByText('Save 10%').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Save 33%').length).toBeGreaterThan(0);
+    expect(screen.getByText('¥ 3,600.0 / year')).toBeInTheDocument();
+  }, 30_000);
+
+  it('creates a WeChat subscription payment order after selecting payment channel', async () => {
     createSubscriptionOrder.mockResolvedValue({
       order: {
         amountCents: 9900,
@@ -625,28 +1033,38 @@ describe('Business billing pages', () => {
         status: 'pending',
       },
       payment: {
-        channel: 'alipay',
-        qrCodeUrl: '/api/payments/mock/alipay/subscription-order-1',
+        channel: 'wechat',
+        qrCodeUrl: '/api/payments/mock/wechat/subscription-order-1',
       },
     });
+    useBillingOrderPaymentStatus.mockImplementation((orderId?: string) => ({
+      data: orderId
+        ? { order: { id: orderId, status: 'pending' }, paymentTradeState: 'USERPAYING' }
+        : undefined,
+    }));
     const { default: Plans } = await import('../Plans');
 
     render(<Plans />);
     fireEvent.click(screen.getAllByRole('button', { name: 'Purchase' })[0]);
+    expect(screen.getByRole('dialog', { name: 'Select payment method' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'WeChat Pay' }));
 
     await waitFor(() =>
       expect(createSubscriptionOrder).toHaveBeenCalledWith({
-        channel: 'alipay',
+        channel: 'wechat',
         period: 'year',
         planId: 'starter',
       }),
     );
-    expect(await screen.findByText('Pending subscription order')).toBeInTheDocument();
-    expect(screen.getByText('subscription-order-1')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open payment link' })).toHaveAttribute(
-      'href',
-      '/api/payments/mock/alipay/subscription-order-1',
+    expect(await screen.findByRole('dialog', { name: 'Scan to pay' })).toBeInTheDocument();
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute(
+      'data-value',
+      '/api/payments/mock/wechat/subscription-order-1',
     );
+    expect(screen.getByTestId('payment-qr-code')).toHaveAttribute('data-status', 'scanned');
+    expect(screen.getByText('¥ 99')).toBeInTheDocument();
+    expect(screen.queryByText('Pending subscription order')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open payment link' })).not.toBeInTheDocument();
   }, 30_000);
 
   it('creates a renewal order for the active current plan', async () => {
@@ -677,6 +1095,7 @@ describe('Business billing pages', () => {
 
     render(<Plans />);
     fireEvent.click(screen.getAllByRole('button', { name: 'Renew' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
 
     await waitFor(() =>
       expect(createSubscriptionRenewOrder).toHaveBeenCalledWith({
@@ -724,6 +1143,7 @@ describe('Business billing pages', () => {
     expect(delayedButtons[0]).toBeDisabled();
     expect(delayedButtons[1]).toBeDisabled();
     fireEvent.click(screen.getAllByRole('button', { name: 'Upgrade' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Alipay' }));
 
     await waitFor(() =>
       expect(createSubscriptionUpgradeOrder).toHaveBeenCalledWith({

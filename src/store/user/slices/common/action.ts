@@ -7,8 +7,10 @@ import { type PartialDeep } from 'type-fest';
 
 import { DEFAULT_PREFERENCE } from '@/const/user';
 import { mutate, useOnlyFetchOnceSWR } from '@/libs/swr';
-import { refreshBillingCredits } from '@/services/billing';
-import type { VerifyPhoneForTrialResult } from '@/services/user';
+import type {
+  RetryVerifiedPhoneTrialGrantResult,
+  VerifyPhoneForTrialResult,
+} from '@/services/user';
 import { userService } from '@/services/user';
 import { type StoreSetter } from '@/store/types';
 import { type UserStore } from '@/store/user';
@@ -71,6 +73,13 @@ export class CommonActionImpl {
     maskedPhone: string;
   }> => {
     return userService.sendPhoneVerificationCode(phoneNumber);
+  };
+
+  retryVerifiedPhoneTrialGrant = async (): Promise<RetryVerifiedPhoneTrialGrantResult> => {
+    const result = await userService.retryVerifiedPhoneTrialGrant();
+    await this.#get().refreshUserState();
+
+    return result;
   };
 
   verifyPhoneForTrial = async (input: {

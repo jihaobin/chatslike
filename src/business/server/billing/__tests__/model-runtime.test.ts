@@ -87,6 +87,7 @@ describe('getBusinessModelRuntimeHooks', () => {
     await hooks?.beforeChat?.(payload);
     await hooks?.onChatFinal?.(
       {
+        speed: { duration: 13_460, latency: 13_460, tps: 37.1, ttft: 800 },
         text: 'hi',
         usage: { inputTextTokens: 1000, outputTextTokens: 500, totalTokens: 1500 },
       } satisfies OnFinishData,
@@ -121,6 +122,10 @@ describe('getBusinessModelRuntimeHooks', () => {
         actualCredits: 9000,
         businessId: expect.stringContaining('chat:user-1:openai:gpt-4.1:'),
         inputTokens: 1000,
+        metadata: expect.objectContaining({
+          durationMs: 13_460,
+          latency: 13_460,
+        }),
         modality: 'text',
         model: 'gpt-4.1',
         outputTokens: 500,

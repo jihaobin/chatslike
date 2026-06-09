@@ -1,7 +1,8 @@
 'use client';
 
 import { ModelIcon } from '@lobehub/icons';
-import { Button, Flexbox, Icon, Skeleton, Text } from '@lobehub/ui';
+import { Button, Flexbox, Icon, Skeleton, Text, Tooltip } from '@lobehub/ui';
+import { message } from 'antd';
 import { createStaticStyles, cssVar } from 'antd-style';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -9,26 +10,30 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CircleHelpIcon,
-  ExternalLinkIcon,
   SparklesIcon,
   ZapIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { billingService } from '@/services/billing';
 import { formatNumber } from '@/utils/format';
 
+import { type PaymentChannel, PaymentChannelModal } from './components/PaymentChannelModal';
+import { PaymentQrCodeModal, type PaymentQrCodeStatus } from './components/PaymentQrCodeModal';
 import {
+  refreshBillingOrders,
+  useBillingOrderPaymentStatus,
   useCurrentSubscription,
   useSubscriptionPlans,
   useTextModelPricing,
 } from './hooks/useBillingData';
+import { formatBillingAmount } from './utils';
 
 const CLOUD_NAME = 'LobeHub Cloud';
+const MESSAGE_ESTIMATE_TOKENS = 2500;
 
-type PaymentChannel = 'alipay' | 'wechat';
 type PlanAction = 'availableAfterExpiry' | 'purchase' | 'renew' | 'unavailable' | 'upgrade';
 type BillingMode = 'month' | 'oneTime' | 'year';
 type OneTimeDuration = 'halfYear' | 'month' | 'quarter' | 'year';
@@ -60,8 +65,8 @@ interface HeroPlan {
   monthlyPrice: string;
   name: string;
   oneTimeOptions: OneTimeOption[];
-  originalYearly: string;
-  yearlyDiscount: string;
+  yearlyDiscount?: string;
+  yearlyOriginalPrice: string;
 }
 
 interface OneTimeOption {
@@ -75,10 +80,21 @@ interface OneTimeOption {
 interface ModelAllowance {
   iconClassName: string;
   kind: 'image' | 'message';
+  model?: string;
   name: string;
   premium: string;
+  pricingDisplayName?: string;
+  provider?: string;
   starter: string;
   ultimate: string;
+}
+
+interface TextModelPricing {
+  displayName: string;
+  inputCreditsPerMillionTokens: number;
+  model: string;
+  outputCreditsPerMillionTokens: number;
+  provider: string;
 }
 
 type TranslationValues = { defaultValue?: string } & Record<string, number | string | undefined>;
@@ -95,6 +111,13 @@ const translateString = (
   values?: TranslationValues,
 ) => t(key, { ...values, defaultValue: fallback });
 
+const PaymentChannelMarks = memo(() => (
+  <>
+    <img alt="Alipay" className={styles.channelIcon} src="/icons/Alipay.svg" />
+    <img alt="WeChat Pay" className={styles.channelIcon} src="/icons/Wechat.svg" />
+  </>
+));
+
 const PLAN_RANK = {
   premium: 1,
   starter: 0,
@@ -103,67 +126,45 @@ const PLAN_RANK = {
 
 const DISPLAY_PRICE_META = {
   premium: {
-    monthlyPrice: '$24.9',
     oneTimeOptions: [
-      { labelKey: 'recurring.oneMonth', period: 'month', price: '$24.9', value: 'month' },
-      { labelKey: 'recurring.threeMonth', period: 'month', price: '$74.7', value: 'quarter' },
-      { labelKey: 'recurring.sixMonth', period: 'month', price: '$149.4', value: 'halfYear' },
+      { labelKey: 'recurring.oneMonth', period: 'month', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', value: 'halfYear' },
       {
-        discount: '20%',
         labelKey: 'recurring.oneYear',
         period: 'year',
-        price: '$238.8',
         value: 'year',
       },
     ],
-    originalYearly: '$238.8',
-    yearlyDiscount: '20%',
-    yearlyMonthly: '$19.9',
   },
   starter: {
-    monthlyPrice: '$12.9',
     oneTimeOptions: [
-      { labelKey: 'recurring.oneMonth', period: 'month', price: '$12.9', value: 'month' },
-      { labelKey: 'recurring.threeMonth', period: 'month', price: '$38.7', value: 'quarter' },
-      { labelKey: 'recurring.sixMonth', period: 'month', price: '$77.4', value: 'halfYear' },
+      { labelKey: 'recurring.oneMonth', period: 'month', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', value: 'halfYear' },
       {
-        discount: '23%',
         labelKey: 'recurring.oneYear',
         period: 'year',
-        price: '$118.8',
         value: 'year',
       },
     ],
-    originalYearly: '$118.8',
-    yearlyDiscount: '23%',
-    yearlyMonthly: '$9.9',
   },
   ultimate: {
-    monthlyPrice: '$49.9',
     oneTimeOptions: [
-      { labelKey: 'recurring.oneMonth', period: 'month', price: '$49.9', value: 'month' },
-      { labelKey: 'recurring.threeMonth', period: 'month', price: '$149.7', value: 'quarter' },
-      { labelKey: 'recurring.sixMonth', period: 'month', price: '$299.4', value: 'halfYear' },
+      { labelKey: 'recurring.oneMonth', period: 'month', value: 'month' },
+      { labelKey: 'recurring.threeMonth', period: 'month', value: 'quarter' },
+      { labelKey: 'recurring.sixMonth', period: 'month', value: 'halfYear' },
       {
-        discount: '20%',
         labelKey: 'recurring.oneYear',
         period: 'year',
-        price: '$478.8',
         value: 'year',
       },
     ],
-    originalYearly: '$478.8',
-    yearlyDiscount: '20%',
-    yearlyMonthly: '$39.9',
   },
 } as const satisfies Record<
   SubscriptionPlanId,
   {
-    monthlyPrice: string;
-    oneTimeOptions: OneTimeOption[];
-    originalYearly: string;
-    yearlyDiscount: string;
-    yearlyMonthly: string;
+    oneTimeOptions: Array<Omit<OneTimeOption, 'discount' | 'price'>>;
   }
 >;
 
@@ -171,7 +172,10 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'deepseek',
     kind: 'message',
+    model: 'deepseek-v4-pro',
     name: 'DeepSeek V4 Pro',
+    pricingDisplayName: 'DeepSeek V4 Pro',
+    provider: 'deepseek',
     premium: '10,600',
     starter: '3,500',
     ultimate: '24,800',
@@ -179,7 +183,9 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'claude',
     kind: 'message',
+    model: 'claude-opus-4.8',
     name: 'Claude Opus 4.8',
+    pricingDisplayName: 'Claude Opus 4.8',
     premium: '500',
     starter: '200',
     ultimate: '1,300',
@@ -187,7 +193,9 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'gpt',
     kind: 'message',
+    model: 'gpt-5.5',
     name: 'GPT-5.5',
+    pricingDisplayName: 'GPT-5.5',
     premium: '500',
     starter: '200',
     ultimate: '1,100',
@@ -195,7 +203,9 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'gemini',
     kind: 'message',
+    model: 'gemini-3.1-pro-preview',
     name: 'Gemini 3.1 Pro Preview',
+    pricingDisplayName: 'Gemini 3.1 Pro Preview',
     premium: '1,200',
     starter: '400',
     ultimate: '2,800',
@@ -203,7 +213,9 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   {
     iconClassName: 'gemini',
     kind: 'message',
+    model: 'gemini-3.1-flash-lite',
     name: 'Gemini 3.1 Flash-Lite',
+    pricingDisplayName: 'Gemini 3.1 Flash-Lite',
     premium: '9,400',
     starter: '3,200',
     ultimate: '22,400',
@@ -358,17 +370,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     margin-block-start: 16px;
   `,
   channelIcon: css`
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
     width: 16px;
     height: 16px;
-    border-radius: 5px;
-
-    font-size: 11px;
-    font-weight: 800;
-    color: #fff;
+    border-radius: 4px;
   `,
   discountBadge: css`
     border-radius: 5px;
@@ -612,6 +616,7 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   paymentBadge: css`
     gap: 4px;
     align-items: center;
+    justify-content: center;
     font-size: 15px;
   `,
   planIntro: css`
@@ -661,29 +666,13 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
   priceCaption: css`
     font-size: 14px;
   `,
-  priceDocsButton: css`
-    width: min(100%, 300px);
-    height: 44px;
-    border-radius: 8px;
-  `,
   priceLayout: css`
-    display: grid;
-    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
-    gap: clamp(28px, 4vw, 70px);
-    align-items: flex-start;
-
-    @media (width <= 1180px) {
-      grid-template-columns: 1fr;
-      gap: 24px;
-    }
-  `,
-  priceSectionTitle: css`
-    font-size: 24px;
-    font-weight: 800;
+    display: block;
   `,
   priceTable: css`
     table-layout: fixed;
     border-collapse: collapse;
+    width: 100%;
 
     th,
     td {
@@ -702,8 +691,10 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
 
       font-size: 16px;
       font-weight: 800;
+      line-height: 1;
       color: ${token.colorText};
       white-space: nowrap;
+      vertical-align: middle;
 
       background: ${token.colorBgContainer};
       box-shadow: inset 0 -1px ${token.colorBorderSecondary};
@@ -756,6 +747,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     background: ${token.colorFillQuaternary};
   `,
   priceTokenBadge: css`
+    display: inline-flex;
+    align-items: center;
+
     margin-inline-start: 8px;
     padding-block: 3px;
     padding-inline: 8px;
@@ -763,7 +757,9 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
 
     font-size: 14px;
     font-weight: 700;
+    line-height: 1;
     color: ${token.colorTextSecondary};
+    vertical-align: middle;
 
     background: ${token.colorFillQuaternary};
   `,
@@ -798,6 +794,12 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
     font-size: 12px;
   `,
   toggleButton: css`
+    cursor: pointer;
+
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+
     height: 54px;
     border: 0 !important;
     border-radius: 10px;
@@ -817,11 +819,29 @@ const styles = createStaticStyles(({ css, cssVar: token }) => ({
 
 const isSubscriptionPlanId = (value: string): value is SubscriptionPlanId => value in PLAN_RANK;
 
-const formatAmount = (amountCents: number, currency = 'CNY') =>
-  `${currency} ${(amountCents / 100).toLocaleString('en-US', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-  })}`;
+const formatPlanAmount = (amountCents: number, currency = 'CNY') =>
+  formatBillingAmount(amountCents, currency, {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 1,
+  });
+
+const calculateDiscountPercent = (originalAmountCents: number, discountedAmountCents: number) => {
+  if (originalAmountCents <= 0 || discountedAmountCents >= originalAmountCents) return undefined;
+
+  return `${Math.round(((originalAmountCents - discountedAmountCents) / originalAmountCents) * 100)}%`;
+};
+
+const getPlanOptionAmountCents = (params: {
+  monthlyAmountCents: number;
+  option: Pick<OneTimeOption, 'period' | 'value'>;
+  yearlyAmountCents: number;
+}) => {
+  if (params.option.value === 'quarter') return params.monthlyAmountCents * 3;
+  if (params.option.value === 'halfYear') return params.monthlyAmountCents * 6;
+  if (params.option.period === 'year') return params.yearlyAmountCents;
+
+  return params.monthlyAmountCents;
+};
 
 const formatCreditsPerMillionTokens = (credits: number) => {
   const millions = credits / 1_000_000;
@@ -833,6 +853,53 @@ const formatContextWindow = (tokens: number) => {
   if (tokens >= 1_000_000) return `${tokens / 1_000_000}M`;
 
   return `${Math.round(tokens / 1000)}K`;
+};
+
+const calculateEstimatedMessages = (credits: number, pricing?: TextModelPricing) => {
+  if (!pricing) return undefined;
+
+  const creditsPerMessage =
+    (pricing.inputCreditsPerMillionTokens * MESSAGE_ESTIMATE_TOKENS) / 1_000_000;
+
+  if (creditsPerMessage <= 0) return undefined;
+
+  return Math.floor(credits / creditsPerMessage);
+};
+
+const findAllowancePricing = (item: ModelAllowance, pricingRows: TextModelPricing[]) => {
+  if (item.kind !== 'message') return undefined;
+
+  return pricingRows.find((pricing) => {
+    if (item.provider && pricing.provider !== item.provider) return false;
+
+    return (
+      pricing.displayName === item.name ||
+      pricing.displayName === item.pricingDisplayName ||
+      pricing.model === item.model
+    );
+  });
+};
+
+const getPlanCredits = (planId: SubscriptionPlanId, planCards: HeroPlan[]) =>
+  planCards.find((plan) => plan.id === planId)?.credits;
+
+const getFallbackAllowanceAmount = (item: ModelAllowance, planId: SubscriptionPlanId) =>
+  planId === 'starter' ? item.starter : planId === 'premium' ? item.premium : item.ultimate;
+
+const getEstimatedAllowanceAmount = (params: {
+  item: ModelAllowance;
+  planCards: HeroPlan[];
+  planId: SubscriptionPlanId;
+  pricing?: TextModelPricing;
+}) => {
+  const fallback = getFallbackAllowanceAmount(params.item, params.planId);
+  if (params.item.kind !== 'message') return fallback;
+
+  const credits = getPlanCredits(params.planId, params.planCards);
+  const messages =
+    credits === undefined ? undefined : calculateEstimatedMessages(credits, params.pricing);
+
+  return messages === undefined ? fallback : formatNumber(messages);
 };
 
 const getPlanAccent = (planId: SubscriptionPlanId) => {
@@ -868,15 +935,75 @@ const Plans = memo(() => {
   const { data: currentSubscription, isLoading: isCurrentSubscriptionLoading } =
     useCurrentSubscription();
   const { data: textModelPricing = [] } = useTextModelPricing();
-  const [channel, setChannel] = useState<PaymentChannel>('alipay');
   const [createdOrder, setCreatedOrder] = useState<CreatedSubscriptionOrder>();
   const [createOrderError, setCreateOrderError] = useState<string>();
   const [isCreatingOrder, setIsCreatingOrder] = useState<string>();
+  const [isPaymentQrCodeModalOpen, setIsPaymentQrCodeModalOpen] = useState(false);
+  const [pendingPaymentPlan, setPendingPaymentPlan] = useState<HeroPlan>();
   const [mode, setMode] = useState<BillingMode>('year');
   const [openOneTimePlanId, setOpenOneTimePlanId] = useState<SubscriptionPlanId>();
   const [oneTimeDurations, setOneTimeDurations] = useState<
     Partial<Record<SubscriptionPlanId, OneTimeDuration>>
   >({});
+  const { data: paymentStatus } = useBillingOrderPaymentStatus(createdOrder?.order.id);
+  const polledOrder = paymentStatus?.order;
+  const paymentTradeState = paymentStatus?.paymentTradeState;
+  const lastNotifiedOrderStateRef = useRef<string | undefined>(undefined);
+
+  const paymentQrCodeStatus: PaymentQrCodeStatus =
+    paymentTradeState === 'USERPAYING'
+      ? 'paying'
+      : polledOrder?.status === 'paid' || paymentTradeState === 'SUCCESS'
+        ? 'loading'
+        : polledOrder?.status === 'closed' ||
+            paymentTradeState === 'CLOSED' ||
+            paymentTradeState === 'REVOKED'
+          ? 'expired'
+          : 'waiting';
+
+  useEffect(() => {
+    if (!createdOrder || !polledOrder?.status) return;
+
+    const notifiedKey = `${createdOrder.order.id}:${polledOrder.status}:${paymentTradeState ?? ''}`;
+    if (lastNotifiedOrderStateRef.current === notifiedKey) return;
+    lastNotifiedOrderStateRef.current = notifiedKey;
+
+    if (paymentTradeState === 'USERPAYING') {
+      message.info(
+        t('billingNative.paymentStatus.paying', 'Scanned. Confirm the payment on your phone.'),
+      );
+      return;
+    }
+
+    if (polledOrder.status === 'paid') {
+      message.info(
+        t('billingNative.paymentStatus.paying', 'Scanned. Confirm the payment on your phone.'),
+      );
+      return;
+    }
+
+    if (polledOrder.status === 'activated') {
+      setIsPaymentQrCodeModalOpen(false);
+      message.success(
+        t('billingNative.paymentStatus.success', 'Payment successful. Credits have been added.'),
+      );
+      void refreshBillingOrders();
+      return;
+    }
+
+    if (polledOrder.status === 'failed' || polledOrder.status === 'exception') {
+      setIsPaymentQrCodeModalOpen(false);
+      message.error(t('billingNative.paymentStatus.failed', 'Payment failed. Please try again.'));
+      void refreshBillingOrders();
+      return;
+    }
+
+    if (polledOrder.status === 'closed') {
+      setIsPaymentQrCodeModalOpen(false);
+      message.info(t('billingNative.paymentStatus.cancelled', 'Payment cancelled'));
+      void refreshBillingOrders();
+    }
+  }, [createdOrder, paymentTradeState, polledOrder?.status, t]);
 
   if ((isLoading && !data) || (isCurrentSubscriptionLoading && currentSubscription === undefined))
     return <Skeleton active paragraph={{ rows: 6 }} title={false} />;
@@ -897,6 +1024,12 @@ const Plans = memo(() => {
     if (!isSubscriptionPlanId(planId)) return [];
 
     const priceMeta = DISPLAY_PRICE_META[planId];
+    const monthlyAmountCents = plan.amountCents?.month ?? 0;
+    const yearlyAmountCents = plan.amountCents?.year ?? 0;
+    const yearlyMonthlyAmountCents = Math.round(yearlyAmountCents / 12);
+    const yearlyOriginalAmountCents = monthlyAmountCents * 12;
+    const yearlyDiscount = calculateDiscountPercent(yearlyOriginalAmountCents, yearlyAmountCents);
+    const currency = plan.currency ?? 'CNY';
 
     return [
       {
@@ -914,15 +1047,35 @@ const Plans = memo(() => {
         ),
         icon: getPlanIcon(planId),
         id: planId,
-        monthlyEquivalent: priceMeta.yearlyMonthly,
-        monthlyPrice: priceMeta.monthlyPrice,
+        monthlyEquivalent: formatPlanAmount(yearlyMonthlyAmountCents, currency),
+        monthlyPrice: formatPlanAmount(monthlyAmountCents, currency),
         name: t(`plans.plan.${planId}.title`, plan.name),
-        oneTimeOptions: [...priceMeta.oneTimeOptions],
-        originalYearly: priceMeta.originalYearly,
-        yearlyDiscount: priceMeta.yearlyDiscount,
+        oneTimeOptions: priceMeta.oneTimeOptions.map((option) => {
+          const optionAmountCents = getPlanOptionAmountCents({
+            monthlyAmountCents,
+            option,
+            yearlyAmountCents,
+          });
+
+          return {
+            ...option,
+            discount:
+              option.period === 'year'
+                ? calculateDiscountPercent(yearlyOriginalAmountCents, optionAmountCents)
+                : undefined,
+            price: formatPlanAmount(optionAmountCents, currency),
+          };
+        }),
+        yearlyDiscount,
+        yearlyOriginalPrice: formatPlanAmount(yearlyOriginalAmountCents, currency),
       },
     ];
   });
+
+  const maxYearlyDiscount = planCards
+    .map((plan) => plan.yearlyDiscount)
+    .filter((discount): discount is string => Boolean(discount))
+    .sort((a, b) => Number.parseInt(b) - Number.parseInt(a))[0];
 
   const getSelectedOneTimeOption = (plan: HeroPlan) =>
     plan.oneTimeOptions.find((option) => option.value === (oneTimeDurations[plan.id] ?? 'year')) ??
@@ -935,10 +1088,11 @@ const Plans = memo(() => {
     return 'year';
   };
 
-  const handleCreateOrder = async (plan: HeroPlan) => {
+  const handleCreateOrder = async (plan: HeroPlan, channel: PaymentChannel) => {
     const { action, id: planId } = plan;
     if (action === 'availableAfterExpiry' || action === 'unavailable') return;
 
+    setPendingPaymentPlan(undefined);
     setIsCreatingOrder(`${action}:${planId}`);
     setCreateOrderError(undefined);
 
@@ -954,8 +1108,17 @@ const Plans = memo(() => {
                 targetPlanId: planId,
               });
       setCreatedOrder(result);
+      setIsPaymentQrCodeModalOpen(Boolean(result.payment.qrCodeUrl));
+      lastNotifiedOrderStateRef.current = undefined;
+      await refreshBillingOrders();
     } catch (error) {
       setCreateOrderError(error instanceof Error ? error.message : String(error));
+      message.error(
+        t(
+          'billingNative.paymentStatus.createFailed',
+          'Failed to create the order. Please try again later.',
+        ),
+      );
     } finally {
       setIsCreatingOrder(undefined);
     }
@@ -979,8 +1142,12 @@ const Plans = memo(() => {
   };
 
   const formatAllowance = (item: ModelAllowance, planId: SubscriptionPlanId) => {
-    const amount =
-      planId === 'starter' ? item.starter : planId === 'premium' ? item.premium : item.ultimate;
+    const amount = getEstimatedAllowanceAmount({
+      item,
+      planCards,
+      planId,
+      pricing: findAllowancePricing(item, textModelPricing),
+    });
     const key =
       item.kind === 'image'
         ? 'billingNative.plans.pixel.approxImages'
@@ -988,6 +1155,9 @@ const Plans = memo(() => {
 
     return t(key, { amount });
   };
+  const messageEstimateTooltip = t('plans.message.tooltip', {
+    number: MESSAGE_ESTIMATE_TOKENS,
+  });
 
   return (
     <Flexbox className={styles.page} gap={44}>
@@ -1005,17 +1175,19 @@ const Plans = memo(() => {
               onClick={() => setMode('year')}
             >
               {t('billingNative.plans.pixel.period.yearly', 'Yearly')}
-              <Text
-                as={'span'}
-                className={styles.discountBadge}
-                style={{
-                  marginInlineStart: 8,
-                  paddingBlock: 2,
-                  paddingInline: 6,
-                }}
-              >
-                {t('billingNative.plans.pixel.discount.max', { percent: '37%' })}
-              </Text>
+              {maxYearlyDiscount ? (
+                <Text
+                  as={'span'}
+                  className={styles.discountBadge}
+                  style={{
+                    marginInlineStart: 8,
+                    paddingBlock: 2,
+                    paddingInline: 6,
+                  }}
+                >
+                  {t('billingNative.plans.pixel.discount.max', { percent: maxYearlyDiscount })}
+                </Text>
+              ) : null}
             </Button>
             <Button
               className={styles.toggleButton}
@@ -1038,24 +1210,7 @@ const Plans = memo(() => {
             >
               <Flexbox horizontal className={styles.paymentBadge}>
                 <span>{t('billingNative.plans.pixel.payOnce', 'One-time')}</span>
-                <button
-                  aria-label={t('billingNative.paymentChannel.alipay', 'Alipay')}
-                  className={styles.channelIcon}
-                  style={{ background: '#14a8f5' }}
-                  type="button"
-                  onClick={() => setChannel('alipay')}
-                >
-                  {t('billingNative.plans.pixel.payment.alipayMark', 'Ali')}
-                </button>
-                <button
-                  aria-label={t('billingNative.paymentChannel.wechat', 'WeChat Pay')}
-                  className={styles.channelIcon}
-                  style={{ background: '#08bf22' }}
-                  type="button"
-                  onClick={() => setChannel('wechat')}
-                >
-                  ✓
-                </button>
+                <PaymentChannelMarks />
               </Flexbox>
             </Flexbox>
           </div>
@@ -1193,12 +1348,7 @@ const Plans = memo(() => {
                         'billingNative.plans.pixel.payment.supports',
                         'Supports credit card / Alipay / WeChat Pay',
                       )}
-                      <span className={styles.channelIcon} style={{ background: '#14a8f5' }}>
-                        {t('billingNative.plans.pixel.payment.alipayMark', 'Ali')}
-                      </span>
-                      <span className={styles.channelIcon} style={{ background: '#08bf22' }}>
-                        ✓
-                      </span>
+                      <PaymentChannelMarks />
                     </Flexbox>
                   </Flexbox>
                 ) : (
@@ -1218,21 +1368,23 @@ const Plans = memo(() => {
                       <Flexbox horizontal align={'center'} gap={8}>
                         <Text className={styles.priceCaption}>
                           {t('billingNative.plans.pixel.price.perYear', {
-                            price: plan.originalYearly,
+                            price: plan.yearlyOriginalPrice,
                           })}
                         </Text>
-                        <Text
-                          as={'span'}
-                          className={styles.discountBadge}
-                          style={{
-                            paddingBlock: 2,
-                            paddingInline: 7,
-                          }}
-                        >
-                          {t('billingNative.plans.pixel.discount.short', {
-                            percent: plan.yearlyDiscount,
-                          })}
-                        </Text>
+                        {plan.yearlyDiscount ? (
+                          <Text
+                            as={'span'}
+                            className={styles.discountBadge}
+                            style={{
+                              paddingBlock: 2,
+                              paddingInline: 7,
+                            }}
+                          >
+                            {t('billingNative.plans.pixel.discount.short', {
+                              percent: plan.yearlyDiscount,
+                            })}
+                          </Text>
+                        ) : null}
                       </Flexbox>
                     ) : null}
                   </Flexbox>
@@ -1245,7 +1397,7 @@ const Plans = memo(() => {
                     disabled={
                       plan.action === 'availableAfterExpiry' || plan.action === 'unavailable'
                     }
-                    onClick={() => void handleCreateOrder(plan)}
+                    onClick={() => setPendingPaymentPlan(plan)}
                   >
                     {getPrimaryActionLabel(plan.action)}
                   </Button>
@@ -1274,7 +1426,9 @@ const Plans = memo(() => {
                         <Text color={cssVar.colorTextSecondary} fontSize={15}>
                           {item.name}
                         </Text>
-                        <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={13} />
+                        <Tooltip title={messageEstimateTooltip}>
+                          <Icon color={cssVar.colorTextTertiary} icon={CircleHelpIcon} size={13} />
+                        </Tooltip>
                       </Flexbox>
                       <Text fontSize={15}>{formatAllowance(item, plan.id)}</Text>
                     </Flexbox>
@@ -1321,40 +1475,7 @@ const Plans = memo(() => {
         </Text>
       ) : null}
 
-      {createdOrder ? (
-        <Flexbox
-          gap={8}
-          padding={16}
-          style={{ border: `1px solid ${cssVar.colorBorderSecondary}`, borderRadius: 8 }}
-        >
-          <Text weight={700}>
-            {t('billingNative.plans.pendingOrder', 'Pending subscription order')}
-          </Text>
-          <Text code>{createdOrder.order.id}</Text>
-          <Text>{formatAmount(createdOrder.order.amountCents, createdOrder.order.currency)}</Text>
-          {createdOrder.payment.qrCodeUrl || createdOrder.payment.paymentUrl ? (
-            <a
-              href={createdOrder.payment.qrCodeUrl ?? createdOrder.payment.paymentUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <Flexbox horizontal align={'center'} gap={6}>
-                {t('billingNative.credits.topUp.openPayment', 'Open payment link')}
-                <Icon icon={ExternalLinkIcon} size={14} />
-              </Flexbox>
-            </a>
-          ) : null}
-        </Flexbox>
-      ) : null}
-
       <div className={styles.priceLayout}>
-        <Flexbox flex={1} gap={12} style={{ minWidth: 280 }}>
-          <Text className={styles.priceSectionTitle}>{t('modelPricing.title')}</Text>
-          <Text color={cssVar.colorTextSecondary} fontSize={18} style={{ lineHeight: 1.6 }}>
-            {t('modelPricing.desc', { name: CLOUD_NAME })}
-          </Text>
-          <Button className={styles.priceDocsButton}>{t('modelPricing.button')}</Button>
-        </Flexbox>
         <div className={styles.priceTablePanel}>
           <table className={styles.priceTable}>
             <colgroup>
@@ -1445,7 +1566,7 @@ const Plans = memo(() => {
                   disabled={plan.action === 'availableAfterExpiry' || plan.action === 'unavailable'}
                   size={'small'}
                   type={'primary'}
-                  onClick={() => void handleCreateOrder(plan)}
+                  onClick={() => setPendingPaymentPlan(plan)}
                 >
                   {getActionLabel(plan.action)}
                 </Button>
@@ -1458,7 +1579,13 @@ const Plans = memo(() => {
           ))}
 
           {MODEL_ALLOWANCES.map((item) => (
-            <MemoCompareAllowance item={item} key={item.name} t={t} />
+            <MemoCompareAllowance
+              item={item}
+              key={item.name}
+              planCards={planCards}
+              pricing={findAllowancePricing(item, textModelPricing)}
+              t={t}
+            />
           ))}
         </div>
       </Flexbox>
@@ -1508,6 +1635,27 @@ const Plans = memo(() => {
           ))}
         </Flexbox>
       </Flexbox>
+
+      <PaymentChannelModal
+        open={Boolean(pendingPaymentPlan)}
+        onOpenChange={(open) => {
+          if (!open) setPendingPaymentPlan(undefined);
+        }}
+        onSelect={(selectedChannel) => {
+          if (pendingPaymentPlan) void handleCreateOrder(pendingPaymentPlan, selectedChannel);
+        }}
+      />
+      {createdOrder ? (
+        <PaymentQrCodeModal
+          amountCents={createdOrder.order.amountCents}
+          currency={createdOrder.order.currency}
+          open={isPaymentQrCodeModalOpen}
+          orderId={createdOrder.order.id}
+          qrCodeUrl={createdOrder.payment.qrCodeUrl ?? createdOrder.payment.paymentUrl}
+          status={paymentQrCodeStatus}
+          onOpenChange={setIsPaymentQrCodeModalOpen}
+        />
+      ) : null}
     </Flexbox>
   );
 });
@@ -1569,12 +1717,17 @@ MemoCompareFeature.displayName = 'MemoCompareFeature';
 
 const MemoCompareAllowance = memo<{
   item: ModelAllowance;
+  planCards: HeroPlan[];
+  pricing?: TextModelPricing;
   t: TranslateString;
-}>(({ item, t }) => {
+}>(({ item, planCards, pricing, t }) => {
   const key =
     item.kind === 'image'
       ? 'billingNative.plans.pixel.approxImages'
       : 'billingNative.plans.pixel.approxMessages';
+  const starter = getEstimatedAllowanceAmount({ item, planCards, planId: 'starter', pricing });
+  const premium = getEstimatedAllowanceAmount({ item, planCards, planId: 'premium', pricing });
+  const ultimate = getEstimatedAllowanceAmount({ item, planCards, planId: 'ultimate', pricing });
 
   return (
     <>
@@ -1585,13 +1738,13 @@ const MemoCompareAllowance = memo<{
         </Flexbox>
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, item.starter, { amount: item.starter })}
+        {translateString(t, key, starter, { amount: starter })}
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, item.premium, { amount: item.premium })}
+        {translateString(t, key, premium, { amount: premium })}
       </Flexbox>
       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, item.ultimate, { amount: item.ultimate })}
+        {translateString(t, key, ultimate, { amount: ultimate })}
       </Flexbox>
     </>
   );

@@ -406,15 +406,24 @@ export class AiInfraRepos {
     Object.entries(result).forEach(([key, value]) => {
       runtimeConfig[key] = merge(this.providerConfigs[key] || {}, value);
     });
-    const enabledAiModels = allModels.filter((model) => model.enabled);
+    const enabledProviderIds = new Set(enabledAiProviders.map((provider) => provider.id));
+    const enabledAiModels = allModels.filter(
+      (model) => model.enabled && enabledProviderIds.has(model.providerId),
+    );
     const enabledChatAiProviders = enabledAiProviders.filter((provider) => {
-      return allModels.some((model) => model.providerId === provider.id && model.type === 'chat');
+      return enabledAiModels.some(
+        (model) => model.providerId === provider.id && model.type === 'chat',
+      );
     });
     const enabledImageAiProviders = enabledAiProviders.filter((provider) => {
-      return allModels.some((model) => model.providerId === provider.id && model.type === 'image');
+      return enabledAiModels.some(
+        (model) => model.providerId === provider.id && model.type === 'image',
+      );
     });
     const enabledVideoAiProviders = enabledAiProviders.filter((provider) => {
-      return allModels.some((model) => model.providerId === provider.id && model.type === 'video');
+      return enabledAiModels.some(
+        (model) => model.providerId === provider.id && model.type === 'video',
+      );
     });
 
     return {

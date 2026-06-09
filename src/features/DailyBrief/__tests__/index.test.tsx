@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => ({
     briefs: [] as MockBrief[],
     isBriefsInit: true,
     isLogin: true,
-    recommendationsVisible: true,
   },
   useFetchBriefs: vi.fn(),
 }));
@@ -48,11 +47,6 @@ vi.mock('@/features/AgentTasks/AgentTaskDetail/TopicChatDrawer', () => ({
 
 vi.mock('@/features/DocumentModal/Preview', () => ({
   default: () => <div data-testid="document-preview-modal" />,
-}));
-
-vi.mock('@/features/Recommendations', () => ({
-  default: () => <div>Recommendations</div>,
-  useRecommendationsVisible: () => mocks.state.recommendationsVisible,
 }));
 
 vi.mock('@/routes/(main)/home/features/components/GroupBlock', () => ({
@@ -120,15 +114,24 @@ beforeEach(() => {
   mocks.state.briefs = [];
   mocks.state.isBriefsInit = true;
   mocks.state.isLogin = true;
-  mocks.state.recommendationsVisible = true;
   mocks.useFetchBriefs.mockClear();
 });
 
 describe('DailyBrief', () => {
-  it('renders recommendations without the brief group header when no briefs are available', () => {
-    render(<DailyBrief />);
+  it('renders nothing while briefs are loading', () => {
+    mocks.state.isBriefsInit = false;
 
-    expect(screen.getByText('Recommendations')).toBeInTheDocument();
+    const { container } = render(<DailyBrief />);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByTestId('group-block')).not.toBeInTheDocument();
+    expect(screen.queryByText('Brief skeleton')).not.toBeInTheDocument();
+  });
+
+  it('renders nothing when no briefs are available', () => {
+    const { container } = render(<DailyBrief />);
+
+    expect(container).toBeEmptyDOMElement();
     expect(screen.queryByTestId('group-block')).not.toBeInTheDocument();
     expect(screen.queryByText('Brief')).not.toBeInTheDocument();
     expect(screen.queryByText('View all tasks')).not.toBeInTheDocument();

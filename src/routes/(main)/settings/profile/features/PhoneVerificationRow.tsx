@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { message } from '@/components/AntdStaticMethods';
+import { useServerConfigStore } from '@/store/serverConfig';
 import { useUserStore } from '@/store/user';
 import { userProfileSelectors } from '@/store/user/selectors';
 
@@ -49,6 +50,8 @@ const PhoneVerificationRow = () => {
   const { t } = useTranslation('auth');
   const phone = useUserStore(userProfileSelectors.phone);
   const phoneNumberVerified = useUserStore(userProfileSelectors.phoneNumberVerified);
+  const trialCredits = useServerConfigStore((s) => s.serverConfig.billing?.trialCredits ?? 0);
+  const retryVerifiedPhoneTrialGrant = useUserStore((s) => s.retryVerifiedPhoneTrialGrant);
   const sendPhoneVerificationCode = useUserStore((s) => s.sendPhoneVerificationCode);
   const verifyPhoneForTrial = useUserStore((s) => s.verifyPhoneForTrial);
   const [submitting, setSubmitting] = useState(false);
@@ -126,11 +129,13 @@ const PhoneVerificationRow = () => {
       setSubmitting(true);
       setError('');
       const result = await verifyPhoneForTrial({ code, phoneNumber: phoneValue });
-      message.success(
+      const notify = result.trial.granted ? message.success : message.error;
+      notify(
         t(
           result.trial.granted
             ? 'profile.phoneTrialGranted'
             : 'profile.phoneVerifiedTrialAlreadyClaimed',
+          { credits: result.trial.credits.toLocaleString() },
         ),
       );
     } catch (error) {
@@ -140,10 +145,31 @@ const PhoneVerificationRow = () => {
     }
   }, [getPhoneValue, t, validatePhone, verifyPhoneForTrial]);
 
+  const handleRetryTrialGrant = useCallback(async () => {
+    try {
+      setSubmitting(true);
+      setError('');
+      const result = await retryVerifiedPhoneTrialGrant();
+      const notify = result.trial.granted ? message.success : message.error;
+      notify(
+        t(
+          result.trial.granted
+            ? 'profile.phoneTrialGranted'
+            : 'profile.phoneVerifiedTrialAlreadyClaimed',
+          { credits: result.trial.credits.toLocaleString() },
+        ),
+      );
+    } catch (error) {
+      setError(t(getPhoneErrorMessageKey(error) || 'profile.phoneTrialGrantRetryFailed'));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [retryVerifiedPhoneTrialGrant, t]);
+
   const action = phoneNumberVerified ? (
-    <Text style={{ fontSize: 13 }} type="success">
-      {t('profile.phoneVerified')}
-    </Text>
+    <Button loading={submitting} size="small" type="primary" onClick={handleRetryTrialGrant}>
+      {t('profile.phoneRetryTrialGrantAction')}
+    </Button>
   ) : codeSent ? (
     <Button loading={submitting} size="small" type="primary" onClick={handleVerify}>
       {t('profile.phoneVerifyCodeAction')}
@@ -208,7 +234,7 @@ const PhoneVerificationRow = () => {
         ) : (
           !phoneNumberVerified && (
             <Text style={{ fontSize: 12 }} type="secondary">
-              {t('profile.phoneTrialHint')}
+              {t('profile.phoneTrialHint', { credits: trialCredits.toLocaleString() })}
             </Text>
           )
         )}

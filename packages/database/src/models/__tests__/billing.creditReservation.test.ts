@@ -79,6 +79,37 @@ describe('CreditReservationModel', () => {
     });
   });
 
+  it('creates the credit account idempotently when first grants run concurrently', async () => {
+    const model = new CreditReservationModel(serverDB, userId);
+
+    await expect(
+      Promise.all([
+        model.grantCredits({
+          amountCredits: 100_000,
+          operationId: 'trial:phone:concurrent-1',
+          source: 'trial',
+        }),
+        model.grantCredits({
+          amountCredits: 200_000,
+          operationId: 'trial:phone:concurrent-2',
+          source: 'trial',
+        }),
+      ]),
+    ).resolves.toHaveLength(2);
+
+    const accounts = await serverDB
+      .select()
+      .from(creditAccounts)
+      .where(eq(creditAccounts.userId, userId));
+    expect(accounts).toHaveLength(1);
+
+    const grants = await serverDB
+      .select()
+      .from(creditGrants)
+      .where(eq(creditGrants.userId, userId));
+    expect(grants).toHaveLength(2);
+  });
+
   it('keeps future credits unavailable until their start time', async () => {
     const model = new CreditReservationModel(serverDB, userId);
     const now = Date.now();
@@ -257,7 +288,9 @@ describe('CreditReservationModel', () => {
         .sort((a, b) => ledgerEventOrder[a] - ledgerEventOrder[b]),
     ).toEqual(['grant', 'reserve', 'capture', 'release']);
 
-    const chronologicalLedger = [...ledger].sort((a, b) => ledgerEventOrder[a.eventType] - ledgerEventOrder[b.eventType]);
+    const chronologicalLedger = [...ledger].sort(
+      (a, b) => ledgerEventOrder[a.eventType] - ledgerEventOrder[b.eventType],
+    );
     let replayedBalance = 0;
 
     for (const entry of chronologicalLedger) {

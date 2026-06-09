@@ -59,5 +59,7 @@ export const subscriptionRouter = router({
 
   listPlans: authedProcedure.query(() => listSubscriptionPlans()),
 
-  listTextModelPricing: authedProcedure.query(() => listPublicTextModelPricingRows()),
+  listTextModelPricing: authedProcedure
+    .use(serverDatabase)
+    .query(({ ctx }) => listPublicTextModelPricingRows(ctx.serverDB)),
 });

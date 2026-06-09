@@ -1,41 +1,25 @@
 'use client';
 
-import { SOCIAL_URL } from '@lobechat/business-const';
 import { isDesktop } from '@lobechat/const';
 import { useAnalytics } from '@lobehub/analytics/react';
-import { type MenuProps } from '@lobehub/ui';
-import { ActionIcon, DropdownMenu, Flexbox, Icon } from '@lobehub/ui';
-import { DiscordIcon, GithubIcon } from '@lobehub/ui/icons';
-import {
-  Book,
-  CircleHelp,
-  Feather,
-  FileClockIcon,
-  FlaskConical,
-  MessageCircle,
-  Rocket,
-  Settings2,
-  SettingsIcon,
-} from 'lucide-react';
+import { ActionIcon, Flexbox, Icon } from '@lobehub/ui';
+import { GithubIcon } from '@lobehub/ui/icons';
+import { FlaskConical, MessageCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
-import ChangelogModal from '@/components/ChangelogModal';
 import HighlightNotification from '@/components/HighlightNotification';
-import { DOCUMENTS_REFER_URL, GITHUB } from '@/const/url';
+import { GITHUB } from '@/const/url';
 import Billboard from '@/features/Billboard';
-import { useBillboardMenuItems } from '@/features/Billboard/MenuItems';
 import { useActiveNavKey } from '@/features/NavPanel';
 import ThemeButton from '@/features/User/UserPanel/ThemeButton';
-import { useFeedbackModal } from '@/hooks/useFeedbackModal';
 import { useNavLayout } from '@/hooks/useNavLayout';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors/systemStatus';
 import { useServerConfigStore } from '@/store/serverConfig';
 import { useUserStore } from '@/store/user';
-import { userGeneralSettingsSelectors } from '@/store/user/slices/settings/selectors/general';
 
 import { resolveFooterPromotionState } from './promotionPipeline';
 
@@ -68,20 +52,17 @@ const Footer = memo(() => {
   const { footer } = useNavLayout();
   const activeNavKey = useActiveNavKey();
   const isHomeSidebar = activeNavKey === 'home';
-  const billboardMenuItems = useBillboardMenuItems();
   const enableAgentOnboarding = useServerConfigStore((s) => s.featureFlags.enableAgentOnboarding);
   const isMobile = useServerConfigStore((s) => !!s.isMobile);
   const serverConfigInit = useServerConfigStore((s) => s.serverConfigInit);
-  const [agentOnboardingFinished, agentOnboardingStarted, classicOnboardingFinished, isDevMode] =
-    useUserStore((s) => [
+  const [agentOnboardingFinished, agentOnboardingStarted, classicOnboardingFinished] = useUserStore(
+    (s) => [
       !!s.agentOnboarding?.finishedAt,
       !!s.agentOnboarding?.activeTopicId,
       !!s.onboarding?.finishedAt,
-      userGeneralSettingsSelectors.config(s).isDevMode,
-    ]);
-  const [shouldLoadChangelog, setShouldLoadChangelog] = useState(false);
+    ],
+  );
   const [isAgentOnboardingCardOpen, setIsAgentOnboardingCardOpen] = useState(false);
-  const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
   const [isProductHuntCardOpen, setIsProductHuntCardOpen] = useState(false);
 
   const [isAgentOnboardingPromoRead, isProductHuntNotificationRead, updateSystemStatus] =
@@ -96,11 +77,7 @@ const Footer = memo(() => {
     return now >= PRODUCT_HUNT_NOTIFICATION.startTime && now <= PRODUCT_HUNT_NOTIFICATION.endTime;
   }, []);
 
-  const {
-    shouldAutoShowAgentOnboardingPromo,
-    shouldAutoShowProductHuntCard,
-    shouldShowProductHuntMenuEntry,
-  } = useMemo(
+  const { shouldAutoShowAgentOnboardingPromo, shouldAutoShowProductHuntCard } = useMemo(
     () =>
       resolveFooterPromotionState({
         agentOnboardingFinished,
@@ -169,21 +146,6 @@ const Footer = memo(() => {
     });
   }, [isWithinTimeWindow, shouldAutoShowProductHuntCard, trackPromotionEvent]);
 
-  const { open: openFeedbackModal } = useFeedbackModal();
-
-  const handleOpenChangelogModal = () => {
-    setShouldLoadChangelog(true);
-    setIsChangelogModalOpen(true);
-  };
-
-  const handleCloseChangelogModal = () => {
-    setIsChangelogModalOpen(false);
-  };
-
-  const handleOpenFeedbackModal = useCallback(() => {
-    openFeedbackModal();
-  }, [openFeedbackModal]);
-
   const handleCloseAgentOnboardingCard = useCallback(() => {
     setIsAgentOnboardingCardOpen(false);
     markNotificationRead(AGENT_ONBOARDING_PROMO_SLUG);
@@ -200,14 +162,6 @@ const Footer = memo(() => {
     });
     navigate('/onboarding/agent');
   }, [markNotificationRead, navigate, trackPromotionEvent]);
-
-  const handleOpenProductHuntCard = useCallback(() => {
-    setIsProductHuntCardOpen(true);
-    trackPromotionEvent('product_hunt_card_viewed', {
-      spm: 'homepage.product_hunt.viewed',
-      trigger: 'menu_click',
-    });
-  }, [trackPromotionEvent]);
 
   const handleCloseProductHuntCard = useCallback(() => {
     setIsProductHuntCardOpen(false);
@@ -258,117 +212,11 @@ const Footer = memo(() => {
     t,
   ]);
 
-  const helpMenuItems: MenuProps['items'] = useMemo(
-    () => [
-      ...(footer.showSettingsEntry && !isDevMode
-        ? [
-            {
-              icon: <Icon icon={Settings2} />,
-              key: 'setting',
-              label: <Link to="/settings">{t('userPanel.setting')}</Link>,
-            },
-            {
-              type: 'divider' as const,
-            },
-          ]
-        : []),
-      {
-        icon: <Icon icon={Book} />,
-        key: 'docs',
-        label: (
-          <a href={DOCUMENTS_REFER_URL} rel="noopener noreferrer" target="_blank">
-            {t('userPanel.docs')}
-          </a>
-        ),
-      },
-      {
-        icon: <Icon icon={Feather} />,
-        key: 'feedback',
-        label: t('userPanel.feedback'),
-        onClick: handleOpenFeedbackModal,
-      },
-      {
-        icon: <Icon icon={DiscordIcon} />,
-        key: 'discord',
-        label: (
-          <a href={SOCIAL_URL.discord} rel="noopener noreferrer" target="_blank">
-            {t('userPanel.discord')}
-          </a>
-        ),
-      },
-      {
-        type: 'divider',
-      },
-      {
-        icon: <Icon icon={FileClockIcon} />,
-        key: 'changelog',
-        label: t('changelog'),
-        onClick: handleOpenChangelogModal,
-      },
-      ...(footer.layout === 'compact' && !footer.hideGitHub
-        ? [
-            {
-              icon: <Icon icon={GithubIcon} />,
-              key: 'github',
-              label: (
-                <a href={GITHUB} rel="noopener noreferrer" target="_blank">
-                  GitHub
-                </a>
-              ),
-            },
-          ]
-        : []),
-      ...(footer.showEvalEntry && footer.layout === 'compact'
-        ? [
-            {
-              icon: <Icon icon={FlaskConical} />,
-              key: 'eval',
-              label: <Link to="/eval">Evaluation Lab</Link>,
-            },
-          ]
-        : []),
-      ...(shouldShowProductHuntMenuEntry
-        ? [
-            {
-              icon: <Icon icon={Rocket} />,
-              key: 'productHunt',
-              label: 'Product Hunt',
-              onClick: handleOpenProductHuntCard,
-            },
-          ]
-        : []),
-      ...(isHomeSidebar && billboardMenuItems && billboardMenuItems.length > 0
-        ? [{ type: 'divider' as const }, ...billboardMenuItems]
-        : []),
-    ],
-    [
-      footer.showSettingsEntry,
-      footer.layout,
-      footer.hideGitHub,
-      footer.showEvalEntry,
-      handleOpenFeedbackModal,
-      handleOpenProductHuntCard,
-      isDevMode,
-      shouldShowProductHuntMenuEntry,
-      t,
-      billboardMenuItems,
-      isHomeSidebar,
-    ],
-  );
-
   return (
     <>
       {footer.layout === 'expanded' ? (
         <Flexbox horizontal align={'center'} gap={2} justify={'space-between'} padding={8}>
           <Flexbox horizontal align={'center'} flex={1} gap={2}>
-            <DropdownMenu items={helpMenuItems} placement="topLeft">
-              <ActionIcon
-                aria-label={t('userPanel.help')}
-                data-billboard-anchor=""
-                icon={CircleHelp}
-                size={16}
-              />
-            </DropdownMenu>
             {!footer.hideGitHub && (
               <a aria-label={'GitHub'} href={GITHUB} rel="noopener noreferrer" target={'_blank'}>
                 <ActionIcon icon={GithubIcon} size={16} title={'GitHub'} />
@@ -380,28 +228,7 @@ const Footer = memo(() => {
           </Flexbox>
           <ThemeButton placement={'topCenter'} size={16} />
         </Flexbox>
-      ) : (
-        <Flexbox horizontal align={'center'} gap={2} padding={8}>
-          <DropdownMenu items={helpMenuItems} placement="topLeft">
-            <ActionIcon aria-label={t('userPanel.help')} icon={CircleHelp} size={16} />
-          </DropdownMenu>
-          {isDevMode && (
-            <Link to="/settings">
-              <ActionIcon
-                aria-label={t('userPanel.setting')}
-                icon={SettingsIcon}
-                size={16}
-                title={t('userPanel.setting')}
-              />
-            </Link>
-          )}
-        </Flexbox>
-      )}
-      <ChangelogModal
-        open={isChangelogModalOpen}
-        shouldLoad={shouldLoadChangelog}
-        onClose={handleCloseChangelogModal}
-      />
+      ) : null}
       {activePromotion && (
         <HighlightNotification
           open

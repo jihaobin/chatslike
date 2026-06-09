@@ -1,14 +1,14 @@
 import { and, asc, desc, eq, isNull, lt, lte, or, sql } from 'drizzle-orm';
 
 import {
+  type AdminAuditAction,
+  type AdminAuditLogItem,
   adminAuditLogs,
+  type BillingOrderItem,
   billingOrders,
   creditAccounts,
   creditGrants,
   creditLedgerEntries,
-  type AdminAuditAction,
-  type AdminAuditLogItem,
-  type BillingOrderItem,
   type CreditLedgerEntryItem,
   users,
 } from '@/database/schemas';
@@ -98,17 +98,21 @@ export class AdminBillingService {
   }
 
   private async ensureAccount(db: BillingDb, targetUserId: string) {
+    const [created] = await db
+      .insert(creditAccounts)
+      .values({ userId: targetUserId })
+      .onConflictDoNothing({ target: creditAccounts.userId })
+      .returning();
+
+    if (created) return created;
+
     const [existing] = await db
       .select()
       .from(creditAccounts)
       .where(eq(creditAccounts.userId, targetUserId))
       .limit(1);
 
-    if (existing) return existing;
-
-    const [created] = await db.insert(creditAccounts).values({ userId: targetUserId }).returning();
-
-    return created;
+    return assertSingleRowUpdated(existing, 'Credit account ensure conflict');
   }
 
   private async consumeGrantCredits(db: BillingDb, targetUserId: string, amountCredits: number) {
@@ -127,7 +131,11 @@ export class AdminBillingService {
           or(isNull(creditGrants.expiresAt), sql`${creditGrants.expiresAt} > ${now}`),
         ),
       )
-      .orderBy(grantPrioritySql, sql`${creditGrants.expiresAt} asc nulls last`, asc(creditGrants.createdAt));
+      .orderBy(
+        grantPrioritySql,
+        sql`${creditGrants.expiresAt} asc nulls last`,
+        asc(creditGrants.createdAt),
+      );
 
     for (const grant of grants) {
       if (remainingToConsume <= 0) break;
@@ -276,7 +284,10 @@ export class AdminBillingService {
         conditions.push(
           or(
             lt(adminAuditLogs.createdAt, cursorAudit.createdAt),
-            and(eq(adminAuditLogs.createdAt, cursorAudit.createdAt), lt(adminAuditLogs.id, cursorAudit.id)),
+            and(
+              eq(adminAuditLogs.createdAt, cursorAudit.createdAt),
+              lt(adminAuditLogs.id, cursorAudit.id),
+            ),
           )!,
         );
       }
@@ -349,7 +360,10 @@ export class AdminBillingService {
         conditions.push(
           or(
             lt(billingOrders.createdAt, cursorOrder.createdAt),
-            and(eq(billingOrders.createdAt, cursorOrder.createdAt), lt(billingOrders.id, cursorOrder.id)),
+            and(
+              eq(billingOrders.createdAt, cursorOrder.createdAt),
+              lt(billingOrders.id, cursorOrder.id),
+            ),
           )!,
         );
       }

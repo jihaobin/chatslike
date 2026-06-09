@@ -97,7 +97,7 @@ describe('createCommonSlice', () => {
       const verificationResult = {
         phone: '+8613800000000',
         phoneNumberVerified: true,
-        trial: { granted: false },
+        trial: { credits: 500_000, granted: false },
       };
       const verifyPhoneSpy = vi
         .spyOn(userService, 'verifyPhoneForTrial')
@@ -120,23 +120,27 @@ describe('createCommonSlice', () => {
       expect(spyOn).toHaveBeenCalled();
     });
 
-    it('should refresh billing credits when trial credits are granted', async () => {
+    it('should retry verified phone trial grant and refresh user state', async () => {
       const { result } = renderHook(() => useUserStore());
-      vi.spyOn(result.current, 'refreshUserState').mockResolvedValue();
-      vi.spyOn(userService, 'verifyPhoneForTrial').mockResolvedValue({
+      const spyOn = vi.spyOn(result.current, 'refreshUserState');
+      const retryResult = {
         phone: '+8613800000000',
         phoneNumberVerified: true,
-        trial: { granted: true },
-      });
+        trial: { credits: 500_000, granted: true },
+      };
+      const retrySpy = vi
+        .spyOn(userService, 'retryVerifiedPhoneTrialGrant')
+        .mockResolvedValue(retryResult);
+
+      let response: Awaited<ReturnType<typeof result.current.retryVerifiedPhoneTrialGrant>>;
 
       await act(async () => {
-        await result.current.verifyPhoneForTrial({
-          code: '123456',
-          phoneNumber: '+8613800000000',
-        });
+        response = await result.current.retryVerifiedPhoneTrialGrant();
       });
 
-      expect(refreshBillingCredits).toHaveBeenCalledTimes(1);
+      expect(retrySpy).toHaveBeenCalled();
+      expect(response!).toEqual(retryResult);
+      expect(spyOn).toHaveBeenCalled();
     });
   });
 

@@ -94,9 +94,15 @@ describe('topUpRouter', () => {
     });
     const caller = topUpRouter.createCaller({ userId: 'user-1' });
 
-    await expect(caller.listOrders({ pageSize: 20 })).resolves.toMatchObject({
+    await expect(
+      caller.listOrders({ pageSize: 20, statuses: ['paid', 'activated'] }),
+    ).resolves.toMatchObject({
       items: [{ id: 'order-1', status: 'pending' }],
     });
-    expect(listOrders).toHaveBeenCalledWith({ cursor: undefined, pageSize: 20 });
+    expect(listOrders).toHaveBeenCalledWith({
+      cursor: undefined,
+      pageSize: 20,
+      statuses: ['paid', 'activated'],
+    });
   });
 });

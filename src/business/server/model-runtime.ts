@@ -63,6 +63,28 @@ const getTextUsageTokens = (data: OnFinishData) => {
   };
 };
 
+const getTextPerformanceMetadata = (data: OnFinishData): Record<string, number> => {
+  const metadata: Record<string, number> = {};
+
+  if (typeof data.speed?.duration === 'number' && Number.isFinite(data.speed.duration)) {
+    metadata.durationMs = data.speed.duration;
+  }
+
+  if (typeof data.speed?.latency === 'number' && Number.isFinite(data.speed.latency)) {
+    metadata.latency = data.speed.latency;
+  }
+
+  if (typeof data.speed?.ttft === 'number' && Number.isFinite(data.speed.ttft)) {
+    metadata.ttft = data.speed.ttft;
+  }
+
+  if (typeof data.speed?.tps === 'number' && Number.isFinite(data.speed.tps)) {
+    metadata.tps = data.speed.tps;
+  }
+
+  return metadata;
+};
+
 export function getBusinessModelRuntimeHooks(
   userId: string,
   provider: string,
@@ -175,6 +197,7 @@ export function getBusinessModelRuntimeHooks(
         estimatedCredits: state.estimatedCredits,
         inputTokens,
         metadata: {
+          ...getTextPerformanceMetadata(data),
           finishReason: data.finishReason,
           operationId: state.operationId,
           toolsCalling: data.toolsCalling,
