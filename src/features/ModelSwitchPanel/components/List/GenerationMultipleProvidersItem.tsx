@@ -37,9 +37,7 @@ const GenerationMultipleProvidersItem = memo<GenerationMultipleProvidersItemProp
   ({ item, activeKey, onClose, onModelChange, enabledList, ModelItemComponent, pricingMode }) => {
     const { t } = useTranslation('components');
     const [subOpen, setSubOpen] = useState(false);
-    const activeProvider = item.data.providers.find(
-      (p) => menuKey(p.id, item.data.model.id) === activeKey,
-    );
+    const activeProvider = item.data.providers.find((p) => menuKey(p.id, p.model.id) === activeKey);
     const isActive = !!activeProvider;
 
     return (
@@ -50,7 +48,8 @@ const GenerationMultipleProvidersItem = memo<GenerationMultipleProvidersItemProp
             style={{ paddingBlock: 8, paddingInline: 8 }}
             onClick={() => {
               setSubOpen(false);
-              onModelChange(item.data.model.id, (activeProvider ?? item.data.providers[0]).id);
+              const targetProvider = activeProvider ?? item.data.providers[0];
+              onModelChange(targetProvider.model.id, targetProvider.id);
               onClose();
             }}
           >
@@ -71,7 +70,7 @@ const GenerationMultipleProvidersItem = memo<GenerationMultipleProvidersItemProp
               >
                 <ModelDetailPanel
                   enabledList={enabledList}
-                  model={item.data.model.id}
+                  model={(activeProvider ?? item.data.providers[0]).model.id}
                   pricingMode={pricingMode}
                   provider={(activeProvider ?? item.data.providers[0]).id}
                 />
@@ -80,7 +79,7 @@ const GenerationMultipleProvidersItem = memo<GenerationMultipleProvidersItemProp
                     {t('ModelSwitchPanel.useModelFrom')}
                   </Flexbox>
                   {item.data.providers.map((p) => {
-                    const pKey = menuKey(p.id, item.data.model.id);
+                    const pKey = menuKey(p.id, p.model.id);
                     const isProviderActive = isActive ? activeKey === pKey : p.id === 'lobehub';
                     return (
                       <Flexbox
@@ -88,7 +87,7 @@ const GenerationMultipleProvidersItem = memo<GenerationMultipleProvidersItemProp
                         className={modelSwitchPanelStyles.menuItem}
                         key={pKey}
                         onClick={() => {
-                          onModelChange(item.data.model.id, p.id);
+                          onModelChange(p.model.id, p.id);
                           onClose();
                         }}
                       >

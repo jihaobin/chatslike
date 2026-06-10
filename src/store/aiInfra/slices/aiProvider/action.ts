@@ -308,10 +308,10 @@ export class AiProviderActionImpl {
   };
 
   refreshAiProviderRuntimeState = async (): Promise<void> => {
-    const { activeProviderConfigScope } = this.#get();
+    const runtimeStateScope = 'user';
     await Promise.all([
-      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, activeProviderConfigScope, true]),
-      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, activeProviderConfigScope, false]),
+      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, runtimeStateScope, true]),
+      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, runtimeStateScope, false]),
     ]);
   };
 

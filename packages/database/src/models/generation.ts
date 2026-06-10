@@ -213,6 +213,7 @@ export class GenerationModel {
           ? (generation.asyncTask.error as AsyncTaskError)
           : undefined,
         id: generation.asyncTaskId || '',
+        metadata: generation.asyncTask?.metadata as Generation['task']['metadata'],
         status: (generation.asyncTask?.status as AsyncTaskStatus) || 'pending',
       },
     };

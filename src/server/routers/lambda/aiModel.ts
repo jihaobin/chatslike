@@ -58,7 +58,8 @@ const createAiInfraRepos = (params: {
 const shouldReadGlobalProviderScope = (params: {
   commercial: Awaited<ReturnType<typeof getServerGlobalConfig>>['commercial'];
   scope?: ProviderConfigScope;
-}) => isGlobalProviderScope(params.scope) || params.commercial?.platformHostedModels.enabled === true;
+}) =>
+  isGlobalProviderScope(params.scope) || params.commercial?.platformHostedModels.enabled === true;
 
 const assertModelScopeWritable = async (params: {
   commercial: Awaited<ReturnType<typeof getServerGlobalConfig>>['commercial'];
@@ -75,7 +76,11 @@ const assertModelScopeWritable = async (params: {
     return;
   }
 
-  assertUserProviderSettingsWritable(params.commercial);
+  await assertUserProviderSettingsWritable({
+    commercial: params.commercial,
+    db: params.serverDB,
+    userId: params.userId,
+  });
 };
 
 const aiModelProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
@@ -158,7 +163,9 @@ export const aiModelRouter = router({
         userId: ctx.userId,
       });
 
-      return createAiModelModel({ ctx, scope: input.scope }).clearModelsByProvider(input.providerId);
+      return createAiModelModel({ ctx, scope: input.scope }).clearModelsByProvider(
+        input.providerId,
+      );
     }),
   clearRemoteModels: aiModelProcedure
     .input(z.object({ providerId: z.string(), scope: providerConfigScopeSchema }))
@@ -224,7 +231,10 @@ export const aiModelRouter = router({
         });
       }
 
-      const aiInfraRepos = shouldReadGlobalProviderScope({ commercial: ctx.commercial, scope: input.scope })
+      const aiInfraRepos = shouldReadGlobalProviderScope({
+        commercial: ctx.commercial,
+        scope: input.scope,
+      })
         ? createAiInfraRepos({
             aiProvider: ctx.aiProviderConfig,
             ctx,

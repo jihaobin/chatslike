@@ -7,8 +7,10 @@ import type { LobeChatDatabase } from '@/database/type';
 
 import {
   calculateImageCredits,
+  calculateImageTokenCredits,
   calculateTextCredits,
   calculateVideoCredits,
+  estimateImageTokenCreditsForRequest,
   getInitialModelPricingRows,
   listPublicTextModelPricingRows,
   matchesParameterRules,
@@ -60,6 +62,29 @@ describe('billing pricing', () => {
 
   it('calculates image credits by count and fixed unit price', () => {
     expect(calculateImageCredits({ fixedCreditsPerUnit: 40_000, imageNum: 2 })).toBe(80_000);
+  });
+
+  it('calculates image token credits without billing cached input separately', () => {
+    expect(
+      calculateImageTokenCredits({
+        cachedInputTokens: 20,
+        inputCreditsPerMillionTokens: 5_000_000,
+        inputTokens: 160,
+        outputCreditsPerMillionTokens: 30_000_000,
+        outputTokens: 930,
+      }),
+    ).toBe(28_600);
+  });
+
+  it('estimates image token credits from prompt and image count', () => {
+    expect(
+      estimateImageTokenCreditsForRequest({
+        imageNum: 2,
+        inputCreditsPerMillionTokens: 5_000_000,
+        outputCreditsPerMillionTokens: 30_000_000,
+        prompt: 'cat',
+      }),
+    ).toBe(60_005);
   });
 
   it('calculates video credits by task duration units', () => {

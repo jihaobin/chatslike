@@ -18,6 +18,7 @@ import {
   preserveSupportedParams,
 } from '../../../utils/preserveSupportedParams';
 import type { VideoStore } from '../../store';
+import { DEFAULT_VIDEO_PARAMETERS_SCHEMA } from './initialState';
 
 export function getVideoModelAndDefaults(model: string, provider: string) {
   const enabledVideoModelList = aiProviderSelectors.enabledVideoModelList(getAiInfraStoreState());
@@ -38,10 +39,20 @@ export function getVideoModelAndDefaults(model: string, provider: string) {
     );
   }
 
-  const parametersSchema = activeModel.parameters as VideoModelParamsSchema;
+  const parametersSchema = (activeModel.parameters ??
+    DEFAULT_VIDEO_PARAMETERS_SCHEMA) as VideoModelParamsSchema;
   const defaultValues = extractVideoDefaultValues(parametersSchema);
 
   return { activeModel, defaultValues, parametersSchema };
+}
+
+function getFirstEnabledVideoModel() {
+  const enabledVideoModelList = aiProviderSelectors.enabledVideoModelList(getAiInfraStoreState());
+
+  for (const providerItem of enabledVideoModelList) {
+    const modelItem = providerItem.children[0];
+    if (modelItem) return { model: modelItem.id, provider: providerItem.id };
+  }
 }
 
 function preserveVideoInputParams(
@@ -79,6 +90,32 @@ export class GenerationConfigActionImpl {
     lastSelectedVideoModel?: string,
     lastSelectedVideoProvider?: string,
   ): void => {
+    const initializeFromDefault = () => {
+      const defaultSelection = getFirstEnabledVideoModel();
+
+      if (!defaultSelection) {
+        this.#set({ isInit: true }, false, 'initializeVideoConfig/default');
+        return;
+      }
+
+      const { defaultValues, parametersSchema } = getVideoModelAndDefaults(
+        defaultSelection.model,
+        defaultSelection.provider,
+      );
+
+      this.#set(
+        {
+          isInit: true,
+          model: defaultSelection.model,
+          parameters: defaultValues,
+          parametersSchema,
+          provider: defaultSelection.provider,
+        },
+        false,
+        `initializeVideoConfig/default/${defaultSelection.model}/${defaultSelection.provider}`,
+      );
+    };
+
     if (isLogin && lastSelectedVideoModel && lastSelectedVideoProvider) {
       try {
         const { defaultValues, parametersSchema } = getVideoModelAndDefaults(
@@ -98,10 +135,10 @@ export class GenerationConfigActionImpl {
           `initializeVideoConfig/${lastSelectedVideoModel}/${lastSelectedVideoProvider}`,
         );
       } catch {
-        this.#set({ isInit: true }, false, 'initializeVideoConfig/default');
+        initializeFromDefault();
       }
     } else {
-      this.#set({ isInit: true }, false, 'initializeVideoConfig/default');
+      initializeFromDefault();
     }
   };
 

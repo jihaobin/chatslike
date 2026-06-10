@@ -7,6 +7,7 @@ export interface MappedBusinessModelFields {
 export interface ResolvedBusinessModel {
   requestedModelId?: string;
   resolvedModelId: string;
+  resolvedProviderId?: string;
 }
 
 interface BuildMappedBusinessModelFieldsParams {

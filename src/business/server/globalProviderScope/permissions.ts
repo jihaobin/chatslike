@@ -19,10 +19,30 @@ export const GLOBAL_PROVIDER_SCOPE_FORBIDDEN = 'GLOBAL_PROVIDER_SCOPE_FORBIDDEN'
 export const isUserProviderSettingsDisabled = (commercial?: CommercialRuntimeConfig) =>
   commercial ? !userModelProviderSettingsAdapter.canUseUserProviderSettings(commercial) : false;
 
-export const assertUserProviderSettingsWritable = (commercial?: CommercialRuntimeConfig) => {
-  if (!commercial || userModelProviderSettingsAdapter.canWriteModelProviderKeyVaults(commercial)) {
+const getUserRole = async (db: LobeChatDatabase, userId: string) => {
+  const [user] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return user?.role;
+};
+
+export const assertUserProviderSettingsWritable = async (params: {
+  commercial?: CommercialRuntimeConfig;
+  db: LobeChatDatabase;
+  userId: string;
+}) => {
+  if (
+    !params.commercial ||
+    userModelProviderSettingsAdapter.canWriteModelProviderKeyVaults(params.commercial)
+  ) {
     return;
   }
+
+  const role = await getUserRole(params.db, params.userId);
+  if (isSuperAdminRole(role)) return;
 
   throw new TRPCError({ code: 'FORBIDDEN', message: USER_PROVIDER_SETTINGS_DISABLED });
 };
@@ -46,13 +66,9 @@ export const assertGlobalProviderScopeReadable = async (params: {
 }) => {
   if (params.selector?.scope !== ProviderConfigScope.Global) return;
 
-  const [user] = await params.db
-    .select({ role: users.role })
-    .from(users)
-    .where(eq(users.id, params.userId))
-    .limit(1);
+  const role = await getUserRole(params.db, params.userId);
 
-  if (!isSuperAdminRole(user?.role)) {
+  if (!isSuperAdminRole(role)) {
     throw new TRPCError({ code: 'FORBIDDEN', message: GLOBAL_PROVIDER_SCOPE_FORBIDDEN });
   }
 };

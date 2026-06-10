@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ProviderPricingRecord } from '@/services/providerPricing';
 import { providerPricingService } from '@/services/providerPricing';
+import { useAiInfraStore } from '@/store/aiInfra';
 import { withSWR } from '~test-utils';
 
 import ProviderPricing from '..';
@@ -591,6 +592,51 @@ describe('ProviderPricing', () => {
         scope: 'global',
         unit: undefined,
       });
+    });
+  });
+
+  it('refreshes model runtime state after creating a pricing version', async () => {
+    vi.spyOn(providerPricingService, 'listModelPricing').mockResolvedValue([]);
+    vi.spyOn(providerPricingService, 'createModelPricingVersion').mockResolvedValue({
+      id: 'price-text',
+      model: 'gpt-4o',
+      provider: 'newapi-openai-relay',
+    });
+    const refreshRuntimeState = vi
+      .spyOn(useAiInfraStore.getState(), 'refreshAiProviderRuntimeState')
+      .mockResolvedValue(undefined);
+
+    render(
+      <ProviderPricing
+        model="gpt-4o"
+        modelType="chat"
+        provider="newapi-openai-relay"
+        scope="global"
+      />,
+      { wrapper: withSWR },
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'providerPricing.create' }));
+    fireEvent.change(screen.getByPlaceholderText('providerPricing.reason.placeholder'), {
+      target: { value: 'text price' },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText('providerPricing.price.inputCredits.placeholder'),
+      {
+        target: { value: '10' },
+      },
+    );
+    fireEvent.change(
+      screen.getByPlaceholderText('providerPricing.price.outputCredits.placeholder'),
+      {
+        target: { value: '20' },
+      },
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'ok' }));
+
+    await waitFor(() => {
+      expect(refreshRuntimeState).toHaveBeenCalledTimes(1);
     });
   });
 

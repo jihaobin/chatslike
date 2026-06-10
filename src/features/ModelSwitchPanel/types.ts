@@ -14,6 +14,7 @@ export interface ModelWithProviders {
   providers: Array<{
     id: string;
     logo?: string;
+    model: AiModelForSelect;
     name: string;
     source?: EnabledProviderWithModels['source'];
   }>;

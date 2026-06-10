@@ -53,9 +53,19 @@ const mockProviders = [
   },
 ];
 
+const mockProvidersWithoutParameters = [
+  {
+    id: 'provider-a',
+    name: 'Provider A',
+    children: [{ ...testVideoModels[0], parameters: undefined }],
+  },
+];
+
+const enabledVideoModelListMock = vi.hoisted(() => vi.fn(() => mockProviders));
+
 vi.mock('@/store/aiInfra', () => ({
   aiProviderSelectors: {
-    enabledVideoModelList: vi.fn(() => mockProviders),
+    enabledVideoModelList: enabledVideoModelListMock,
   },
   getAiInfraStoreState: vi.fn(() => ({})),
 }));
@@ -64,6 +74,7 @@ const modelBDefaultValues = extractVideoDefaultValues(modelBSchema);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  enabledVideoModelListMock.mockReturnValue(mockProviders);
 
   useVideoStore.setState({
     isInit: true,
@@ -84,6 +95,45 @@ afterEach(() => {
 });
 
 describe('video generationConfig actions', () => {
+  it('should initialize to the first enabled video provider when no saved selection is available', () => {
+    useVideoStore.setState({
+      isInit: false,
+      model: 'dreamina-seedance-2-0-260128',
+      provider: 'lobehub',
+    });
+
+    const { result } = renderHook(() => useVideoStore());
+
+    act(() => {
+      result.current.initializeVideoConfig(true);
+    });
+
+    expect(result.current.isInit).toBe(true);
+    expect(result.current.model).toBe('video-model-a');
+    expect(result.current.provider).toBe('provider-a');
+    expect(result.current.parametersSchema).toBe(modelASchema);
+  });
+
+  it('should initialize with fallback video parameters when the selected model has no schema', () => {
+    enabledVideoModelListMock.mockReturnValue(mockProvidersWithoutParameters);
+    useVideoStore.setState({
+      isInit: false,
+      model: 'dreamina-seedance-2-0-260128',
+      provider: 'lobehub',
+    });
+
+    const { result } = renderHook(() => useVideoStore());
+
+    act(() => {
+      result.current.initializeVideoConfig(true);
+    });
+
+    expect(result.current.isInit).toBe(true);
+    expect(result.current.model).toBe('video-model-a');
+    expect(result.current.provider).toBe('provider-a');
+    expect(result.current.parameters.prompt).toBe('');
+  });
+
   it('should preserve prompt and frame images when switching model', () => {
     const { result } = renderHook(() => useVideoStore());
 

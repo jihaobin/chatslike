@@ -83,8 +83,8 @@ describe('MultipleProvidersModelItem', () => {
             id: 'gpt-5.4',
           } as any,
           providers: [
-            { id: 'lobehub', name: 'LobeHub' },
-            { id: 'openai', name: 'OpenAI' },
+            { id: 'lobehub', model: { id: 'gpt-5.4' } as any, name: 'LobeHub' },
+            { id: 'openai', model: { id: 'gpt-5.4' } as any, name: 'OpenAI' },
           ],
         }}
         onClose={vi.fn()}
@@ -115,8 +115,8 @@ describe('MultipleProvidersModelItem', () => {
             id: 'claude-opus-4-7',
           } as any,
           providers: [
-            { id: 'lobehub', name: 'LobeHub' },
-            { id: 'anthropic', name: 'Anthropic' },
+            { id: 'lobehub', model: { id: 'claude-opus-4-7' } as any, name: 'LobeHub' },
+            { id: 'anthropic', model: { id: 'claude-opus-4-7' } as any, name: 'Anthropic' },
           ],
         }}
         isModelRestricted={(modelId, providerId) =>
@@ -134,5 +134,39 @@ describe('MultipleProvidersModelItem', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onModelChange).not.toHaveBeenCalled();
     expect(screen.getByTestId('model-pro-badge')).toHaveTextContent('pro');
+  });
+
+  it('uses the selected provider model id instead of the first grouped model id', () => {
+    const onModelChange = vi.fn();
+
+    render(
+      <MultipleProvidersModelItem
+        activeKey="amux/gpt-5.5"
+        newLabel="new"
+        showInfoTag={false}
+        data={{
+          displayName: 'GPT-5.5',
+          model: {
+            abilities: {},
+            displayName: 'GPT-5.5',
+            id: 'gpt-5.5-disabled',
+          } as any,
+          providers: [
+            {
+              id: 'amux-gpt-image-2',
+              model: { id: 'gpt-5.5-disabled' } as any,
+              name: 'AMUX Image',
+            },
+            { id: 'amux', model: { id: 'gpt-5.5' } as any, name: 'AMUX Cheap' },
+          ],
+        }}
+        onClose={vi.fn()}
+        onModelChange={onModelChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('AMUX Cheap'));
+
+    expect(onModelChange).toHaveBeenCalledWith('gpt-5.5', 'amux');
   });
 });

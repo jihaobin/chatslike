@@ -121,9 +121,9 @@ export const List: FC<ListProps> = ({
           (item.type === 'provider-model-item' &&
             menuKey(item.provider.id, item.model.id) === activeKey) ||
           (item.type === 'model-item-single' &&
-            menuKey(item.data.providers[0].id, item.data.model.id) === activeKey) ||
+            menuKey(item.data.providers[0].id, item.data.providers[0].model.id) === activeKey) ||
           (item.type === 'model-item-multiple' &&
-            item.data.providers.some((p) => menuKey(p.id, item.data.model.id) === activeKey));
+            item.data.providers.some((p) => menuKey(p.id, p.model.id) === activeKey));
 
         const renderItem = (key?: string) =>
           ModelItemComponent ? (

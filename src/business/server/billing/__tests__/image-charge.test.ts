@@ -1,6 +1,9 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { chargeAfterGenerate } from '../../image-generation/chargeAfterGenerate';
+import { chargeBeforeGenerate } from '../../image-generation/chargeBeforeGenerate';
+
 const {
   assertPrechargeRisk,
   captureUsageCredits,
@@ -67,9 +70,6 @@ vi.mock('../pricing', async (importOriginal) => ({
   getImagePricing,
 }));
 
-import { chargeAfterGenerate } from '../../image-generation/chargeAfterGenerate';
-import { chargeBeforeGenerate } from '../../image-generation/chargeBeforeGenerate';
-
 describe('image generation billing', () => {
   beforeEach(() => {
     assertPrechargeRisk.mockReset();
@@ -129,6 +129,40 @@ describe('image generation billing', () => {
     );
     expect(result?.billing).toMatchObject({
       estimatedCredits: 80_000,
+      reservationId: 'reservation-image-1',
+    });
+  });
+
+  it('reserves estimated token credits before image generation when image pricing is token based', async () => {
+    getImagePricing.mockResolvedValue({
+      inputCreditsPerMillionTokens: 5_000_000,
+      outputCreditsPerMillionTokens: 30_000_000,
+    });
+
+    const result = await chargeBeforeGenerate({
+      configForDatabase: { prompt: 'cat', size: '1024x1024' } as never,
+      generationParams: { prompt: 'cat', size: '1024x1024' } as never,
+      generationTopicId: 'topic-1',
+      imageNum: 2,
+      model: 'gpt-image-2',
+      provider: 'openai',
+      userId: 'user-1',
+    });
+
+    expect(reserveUsageCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessType: 'image',
+        estimatedCredits: 60_005,
+        metadata: expect.objectContaining({
+          imageNum: 2,
+          pricingMode: 'token',
+        }),
+        model: 'gpt-image-2',
+        provider: 'openai',
+      }),
+    );
+    expect(result?.billing).toMatchObject({
+      estimatedCredits: 60_005,
       reservationId: 'reservation-image-1',
     });
   });
@@ -236,6 +270,7 @@ describe('image generation billing', () => {
         modelId: 'dall-e-3',
         topicId: 'topic-1',
       },
+      metrics: { latency: 12_345 },
       provider: 'openai',
       success: true,
       userId: 'user-1',
@@ -251,11 +286,72 @@ describe('image generation billing', () => {
       expect.objectContaining({
         actualCredits: 40_000,
         businessId: 'batch-1',
+        metadata: expect.objectContaining({
+          durationMs: 12_345,
+          metrics: { latency: 12_345 },
+        }),
         modality: 'image',
         reservationId: 'reservation-image-1',
         status: 'captured',
       }),
     );
+  });
+
+  it('captures actual token credits after image generation succeeds with usage', async () => {
+    getImagePricing.mockResolvedValue({
+      inputCreditsPerMillionTokens: 5_000_000,
+      outputCreditsPerMillionTokens: 30_000_000,
+    });
+    mockDb.query.generationBatches.findFirst.mockResolvedValue({
+      ...mockBatch,
+      config: {
+        billing: {
+          estimatedCredits: 60_005,
+          operationId: 'image:user-1:topic-1:openai:gpt-image-2:hash',
+          pricingMode: 'token',
+          reservationId: 'reservation-image-1',
+        },
+        prompt: 'cat',
+        size: '1024x1024',
+      },
+      model: 'gpt-image-2',
+    });
+
+    await chargeAfterGenerate({
+      metadata: {
+        asyncTaskId: 'task-1',
+        generationBatchId: 'batch-1',
+        modelId: 'gpt-image-2',
+        topicId: 'topic-1',
+      },
+      modelUsage: {
+        inputCachedImageTokens: 20,
+        inputImageTokens: 120,
+        inputTextTokens: 40,
+        outputImageTokens: 900,
+        outputTextTokens: 30,
+        totalInputTokens: 160,
+        totalOutputTokens: 930,
+      },
+      provider: 'openai',
+      success: true,
+      userId: 'user-1',
+    });
+
+    expect(createUsageRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actualCredits: 28_600,
+        estimatedCredits: 60_005,
+        inputTokens: 160,
+        outputTokens: 930,
+      }),
+    );
+    expect(captureUsageCredits).toHaveBeenCalledWith({
+      actualCredits: 28_600,
+      operationId: 'image:user-1:topic-1:openai:gpt-image-2:hash:capture',
+      reservationId: 'reservation-image-1',
+      usageRecordId: 'usage-image-1',
+    });
   });
 
   it('releases reserved credits after image generation fails', async () => {

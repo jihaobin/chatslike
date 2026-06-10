@@ -53,17 +53,17 @@ export const MultipleProvidersModelItem = memo<MultipleProvidersModelItemProps>(
     const { t } = useTranslation('components');
     const [submenuOpen, setSubmenuOpen] = useState(false);
 
-    const activeProvider = data.providers.find((p) => menuKey(p.id, data.model.id) === activeKey);
+    const activeProvider = data.providers.find((p) => menuKey(p.id, p.model.id) === activeKey);
     const isActive = !!activeProvider;
     const defaultProvider = data.providers[0];
     const defaultProviderRestricted = Boolean(
-      defaultProvider && isModelRestricted?.(data.model.id, defaultProvider.id),
+      defaultProvider && isModelRestricted?.(defaultProvider.model.id, defaultProvider.id),
     );
 
     const allRestricted =
       isModelRestricted &&
       data.providers.length > 0 &&
-      data.providers.every((p) => isModelRestricted(data.model.id, p.id));
+      data.providers.every((p) => isModelRestricted(p.model.id, p.id));
 
     return (
       <DropdownMenuSubmenuRoot
@@ -87,7 +87,7 @@ export const MultipleProvidersModelItem = memo<MultipleProvidersModelItemProps>(
               return;
             }
             setSubmenuOpen(false);
-            onModelChange(data.model.id, defaultProvider.id);
+            onModelChange(defaultProvider.model.id, defaultProvider.id);
             onClose();
           }}
         >
@@ -103,7 +103,7 @@ export const MultipleProvidersModelItem = memo<MultipleProvidersModelItemProps>(
           <DropdownMenuPositioner anchor={null} placement="right" sideOffset={12}>
             <DropdownMenuPopup className={cx(styles.detailPopup, styles.dropdownMenu)}>
               <ModelDetailPanel
-                model={data.model.id}
+                model={(activeProvider ?? data.providers[0]).model.id}
                 provider={(activeProvider ?? data.providers[0]).id}
               />
               <DropdownMenuGroup>
@@ -111,9 +111,9 @@ export const MultipleProvidersModelItem = memo<MultipleProvidersModelItemProps>(
                   {t('ModelSwitchPanel.useModelFrom')}
                 </DropdownMenuGroupLabel>
                 {data.providers.map((p) => {
-                  const key = menuKey(p.id, data.model.id);
+                  const key = menuKey(p.id, p.model.id);
                   const isProviderActive = isActive ? activeKey === key : p.id === 'lobehub';
-                  const providerRestricted = isModelRestricted?.(data.model.id, p.id);
+                  const providerRestricted = isModelRestricted?.(p.model.id, p.id);
 
                   return (
                     <DropdownMenuItem
@@ -126,7 +126,7 @@ export const MultipleProvidersModelItem = memo<MultipleProvidersModelItemProps>(
                         }
                         setSubmenuOpen(false);
                         onClose();
-                        onModelChange(data.model.id, p.id);
+                        onModelChange(p.model.id, p.id);
                       }}
                     >
                       <DropdownMenuItemIcon>

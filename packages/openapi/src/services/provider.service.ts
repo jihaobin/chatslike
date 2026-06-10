@@ -3,7 +3,7 @@ import { and, asc, count, desc, eq, ilike, or } from 'drizzle-orm';
 import { userModelProviderSettingsAdapter } from '@/business/shared/adapters';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
 import type { AiProviderSelectItem } from '@/database/schemas';
-import { aiModels, aiProviders } from '@/database/schemas';
+import { aiModels, aiProviders, users } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 
@@ -22,6 +22,7 @@ import type {
 } from '../types/provider.type';
 
 const USER_PROVIDER_SETTINGS_DISABLED = 'USER_PROVIDER_SETTINGS_DISABLED';
+const SUPER_ADMIN_ROLE = 'super-admin';
 
 /**
  * Provider service implementation class, responsible for handling AI Provider business logic
@@ -89,8 +90,15 @@ export class ProviderService extends BaseService {
     };
   }
 
-  private assertUserProviderSettingsWritable() {
+  private async assertUserProviderSettingsWritable() {
     if (userModelProviderSettingsAdapter.canWriteModelProviderKeyVaults(commercialRuntime)) return;
+
+    const user = await this.db.query.users.findFirst({
+      columns: { role: true },
+      where: eq(users.id, this.userId),
+    });
+
+    if (user?.role === SUPER_ADMIN_ROLE) return;
 
     throw this.createBusinessError(USER_PROVIDER_SETTINGS_DISABLED);
   }
@@ -203,7 +211,7 @@ export class ProviderService extends BaseService {
     });
 
     try {
-      this.assertUserProviderSettingsWritable();
+      await this.assertUserProviderSettingsWritable();
 
       const permissionResult = await this.resolveOperationPermission('AI_PROVIDER_CREATE');
 
@@ -258,7 +266,7 @@ export class ProviderService extends BaseService {
     });
 
     try {
-      this.assertUserProviderSettingsWritable();
+      await this.assertUserProviderSettingsWritable();
 
       const permissionResult = await this.resolveOperationPermission('AI_PROVIDER_UPDATE', {
         targetProviderId: request.id,
@@ -327,7 +335,7 @@ export class ProviderService extends BaseService {
     });
 
     try {
-      this.assertUserProviderSettingsWritable();
+      await this.assertUserProviderSettingsWritable();
 
       const permissionResult = await this.resolveOperationPermission('AI_PROVIDER_DELETE', {
         targetProviderId: request.id,

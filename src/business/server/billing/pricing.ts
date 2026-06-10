@@ -41,6 +41,42 @@ export function calculateImageCredits(params: { fixedCreditsPerUnit: number; ima
   return params.fixedCreditsPerUnit * params.imageNum;
 }
 
+interface ImageTokenCreditsParams {
+  cachedInputTokens?: number;
+  inputCreditsPerMillionTokens: number;
+  inputTokens: number;
+  outputCreditsPerMillionTokens: number;
+  outputTokens: number;
+}
+
+const ESTIMATED_CHARS_PER_TOKEN = 4;
+const ESTIMATED_IMAGE_OUTPUT_TOKENS = 1000;
+
+export function calculateImageTokenCredits(params: ImageTokenCreditsParams) {
+  return calculateTextCredits({
+    inputCreditsPerMillionTokens: params.inputCreditsPerMillionTokens,
+    inputTokens: Math.max(0, params.inputTokens - (params.cachedInputTokens ?? 0)),
+    outputCreditsPerMillionTokens: params.outputCreditsPerMillionTokens,
+    outputTokens: params.outputTokens,
+  });
+}
+
+export function estimateImageTokenCreditsForRequest(params: {
+  imageNum: number;
+  inputCreditsPerMillionTokens: number;
+  outputCreditsPerMillionTokens: number;
+  prompt?: string;
+}) {
+  const promptTokensEstimate = Math.ceil((params.prompt?.length ?? 0) / ESTIMATED_CHARS_PER_TOKEN);
+
+  return calculateImageTokenCredits({
+    inputCreditsPerMillionTokens: params.inputCreditsPerMillionTokens,
+    inputTokens: promptTokensEstimate,
+    outputCreditsPerMillionTokens: params.outputCreditsPerMillionTokens,
+    outputTokens: params.imageNum * ESTIMATED_IMAGE_OUTPUT_TOKENS,
+  });
+}
+
 export function calculateVideoCredits(params: {
   durationSeconds: number;
   fixedCreditsPerSecond: number;
@@ -64,6 +100,7 @@ type FixedPricingItem = ModelPricingItem & {
   fixedCreditsPerUnit: number;
 };
 
+type ImagePricingItem = FixedPricingItem | TextPricingItem;
 type VideoPricingItem = FixedPricingItem | TextPricingItem;
 
 export interface PublicTextModelPricingRow {
@@ -215,13 +252,17 @@ export async function getTextPricing(
 
 export async function getImagePricing(
   params: Omit<PricingLookupParams, 'modality'>,
-): Promise<FixedPricingItem> {
+): Promise<ImagePricingItem> {
   const pricing = await getModelPricing({ ...params, modality: 'image' });
-  if (typeof pricing.fixedCreditsPerUnit !== 'number') {
-    throw new PricingNotFoundError({ ...params, modality: 'image', reason: 'missing_fixed_rate' });
+  if (
+    typeof pricing.fixedCreditsPerUnit !== 'number' &&
+    (typeof pricing.inputCreditsPerMillionTokens !== 'number' ||
+      typeof pricing.outputCreditsPerMillionTokens !== 'number')
+  ) {
+    throw new PricingNotFoundError({ ...params, modality: 'image', reason: 'missing_image_rates' });
   }
 
-  return pricing as FixedPricingItem;
+  return pricing as ImagePricingItem;
 }
 
 export async function getVideoPricing(

@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useClientDataSWR } from '@/libs/swr';
 import type { ProviderPricingRecord } from '@/services/providerPricing';
 import { providerPricingService } from '@/services/providerPricing';
+import { useAiInfraStore } from '@/store/aiInfra';
 
 import PriceVersionModal from './PriceVersionModal';
 import { toDisplayMillionCredits } from './pricingConversion';
@@ -156,6 +157,7 @@ const ProviderPricing = memo<ProviderPricingProps>(
           onOpenChange={setOpen}
           onSuccess={async () => {
             await mutate();
+            await useAiInfraStore.getState().refreshAiProviderRuntimeState();
           }}
         />
       </Flexbox>

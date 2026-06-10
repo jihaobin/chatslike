@@ -153,7 +153,11 @@ const assertProviderScopeWritable = async (params: {
     return;
   }
 
-  assertUserProviderSettingsWritable(params.commercial);
+  await assertUserProviderSettingsWritable({
+    commercial: params.commercial,
+    db: params.serverDB,
+    userId: params.userId,
+  });
 };
 
 export const aiProviderRouter = router({
@@ -170,6 +174,12 @@ export const aiProviderRouter = router({
         await assertGlobalProviderScopeWritable({
           db: ctx.serverDB,
           selector: input,
+          userId: ctx.userId,
+        });
+      } else {
+        await assertUserProviderSettingsWritable({
+          commercial: ctx.commercial,
+          db: ctx.serverDB,
           userId: ctx.userId,
         });
       }

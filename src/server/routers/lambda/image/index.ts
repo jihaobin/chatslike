@@ -76,7 +76,7 @@ export const imageRouter = router({
 
     const { resolvedModelId } = await resolveBusinessModelMapping(provider, model);
 
-    if (commercialRuntime.platformHostedModels.enabled) {
+    if (commercialRuntime.platformHostedModels.enabled && provider === BRANDING_PROVIDER) {
       await assertNewApiPlatformModelAvailable({
         db: serverDB,
         modality: 'image',

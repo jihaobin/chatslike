@@ -3,17 +3,21 @@ import { eq } from 'drizzle-orm';
 import { getServerDB } from '@/database/core/db-adaptor';
 import {
   asyncTasks,
-  type NewGeneration,
-  type NewGenerationBatch,
   generationBatches,
   generations,
+  type NewGeneration,
+  type NewGenerationBatch,
 } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
 import { type CreateImageServicePayload } from '@/server/routers/lambda/image';
 import { AsyncTaskError, AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
 
 import { CreditsService } from '../billing/credits';
-import { calculateImageCredits, getImagePricing } from '../billing/pricing';
+import {
+  calculateImageCredits,
+  estimateImageTokenCreditsForRequest,
+  getImagePricing,
+} from '../billing/pricing';
 import { assertPrechargeRisk } from '../billing/risk';
 
 interface ChargeParams {
@@ -162,10 +166,18 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
     },
     provider: params.provider,
   });
-  const estimatedCredits = calculateImageCredits({
-    fixedCreditsPerUnit: pricing.fixedCreditsPerUnit,
-    imageNum: params.imageNum,
-  });
+  const estimatedCredits =
+    typeof pricing.fixedCreditsPerUnit === 'number'
+      ? calculateImageCredits({
+          fixedCreditsPerUnit: pricing.fixedCreditsPerUnit,
+          imageNum: params.imageNum,
+        })
+      : estimateImageTokenCreditsForRequest({
+          imageNum: params.imageNum,
+          inputCreditsPerMillionTokens: pricing.inputCreditsPerMillionTokens,
+          outputCreditsPerMillionTokens: pricing.outputCreditsPerMillionTokens,
+          prompt: params.generationParams.prompt,
+        });
   const operationId = [
     'image',
     params.userId,
@@ -193,6 +205,7 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
         clientIp: params.clientIp,
         imageNum: params.imageNum,
         params: params.generationParams as Record<string, unknown>,
+        pricingMode: typeof pricing.fixedCreditsPerUnit === 'number' ? 'fixed' : 'token',
       },
       model: params.model,
       operationId,
@@ -211,6 +224,7 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
     billing: {
       estimatedCredits,
       operationId,
+      pricingMode: typeof pricing.fixedCreditsPerUnit === 'number' ? 'fixed' : 'token',
       reservationId: reservation.id,
     },
   };

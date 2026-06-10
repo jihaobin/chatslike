@@ -1,9 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 
-import {
-  buildMappedBusinessModelFields,
-  resolveBusinessModelMapping,
-} from '@lobechat/business-model-runtime';
+import { buildMappedBusinessModelFields } from '@lobechat/business-model-runtime';
 import { ModelRuntime } from '@lobechat/model-runtime';
 import {
   AsyncTaskError,
@@ -53,6 +50,9 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
   let asyncTaskId: string | undefined;
   let asyncTaskUserId: string | undefined;
   let asyncTaskMetadata: VideoGenerationTaskMetadata | undefined;
+  let webhookGenerationBatchId: string | undefined;
+  let webhookModel: string | undefined;
+  let webhookTopicId: string | undefined;
 
   try {
     const runtime = ModelRuntime.initializeWithProvider(provider, {
@@ -140,16 +140,13 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
       where: eq(generationBatches.id, generation.generationBatchId!),
     });
     const requestedModel = batch?.model ?? '';
-    // Resolve mapping so spend log metadata and pricing lookup use the billed model id,
-    // not the user-facing alias nor the provider-reported internal name.
-    const { resolvedModelId } = requestedModel
-      ? await resolveBusinessModelMapping(provider, requestedModel)
-      : { resolvedModelId: '' };
+    webhookGenerationBatchId = generation.generationBatchId ?? undefined;
+    webhookModel = requestedModel;
+    webhookTopicId = batch?.generationTopicId;
 
     const mappedModelFields = buildMappedBusinessModelFields({
       provider,
-      requestedModelId: resolvedModelId === requestedModel ? undefined : requestedModel,
-      resolvedModelId,
+      resolvedModelId: requestedModel,
     });
 
     // Handle error result: refund precharge and mark task as error
@@ -169,7 +166,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
             topicId: batch?.generationTopicId,
             ...mappedModelFields,
           },
-          model: resolvedModelId,
+          model: requestedModel,
           prechargeResult: metadata?.precharge as any,
           provider,
           userId: asyncTask.userId,
@@ -242,7 +239,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
           topicId: batch?.generationTopicId,
           ...mappedModelFields,
         },
-        model: resolvedModelId,
+        model: requestedModel,
         prechargeResult: metadata?.precharge as any,
         provider,
         usage: result.usage,
@@ -275,8 +272,16 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
       try {
         await chargeAfterGenerate({
           isError: true,
-          metadata: { asyncTaskId: asyncTaskId ?? '', generationBatchId: '', modelId: '' },
-          model: '',
+          metadata: {
+            asyncTaskId: asyncTaskId ?? '',
+            generationBatchId: webhookGenerationBatchId ?? '',
+            topicId: webhookTopicId,
+            ...buildMappedBusinessModelFields({
+              provider,
+              resolvedModelId: webhookModel ?? '',
+            }),
+          },
+          model: webhookModel ?? '',
           prechargeResult: asyncTaskMetadata.precharge as any,
           provider,
           userId: asyncTaskUserId,

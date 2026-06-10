@@ -1,3 +1,4 @@
+import { buildMappedBusinessModelFields } from '@lobechat/business-model-runtime';
 import { RequestTrigger } from '@lobechat/types';
 import debug from 'debug';
 
@@ -148,8 +149,11 @@ export async function processBackgroundVideoPolling(
           metadata: {
             asyncTaskId,
             generationBatchId,
-            modelId: model,
             topicId: batch?.generationTopicId ?? generationTopicId,
+            ...buildMappedBusinessModelFields({
+              provider,
+              resolvedModelId: model,
+            }),
           },
           model,
           prechargeResult,
@@ -204,8 +208,11 @@ export async function processBackgroundVideoPolling(
           metadata: {
             asyncTaskId,
             generationBatchId,
-            modelId: model,
             topicId: generationTopicId,
+            ...buildMappedBusinessModelFields({
+              provider,
+              resolvedModelId: model,
+            }),
           },
           model,
           prechargeResult,

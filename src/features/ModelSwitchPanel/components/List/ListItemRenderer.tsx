@@ -210,9 +210,9 @@ export const ListItemRenderer = memo<ListItemRendererProps>(
 
       case 'model-item-single': {
         const singleProvider = item.data.providers[0];
-        const key = menuKey(singleProvider.id, item.data.model.id);
+        const key = menuKey(singleProvider.id, singleProvider.model.id);
         const isActive = key === activeKey;
-        const restricted = isModelRestricted?.(item.data.model.id, singleProvider.id);
+        const restricted = isModelRestricted?.(singleProvider.model.id, singleProvider.id);
 
         return (
           <Flexbox style={{ marginBlock: 1, marginInline: 4 }}>
@@ -229,7 +229,7 @@ export const ListItemRenderer = memo<ListItemRendererProps>(
                     return;
                   }
                   onClose();
-                  onModelChange(item.data.model.id, singleProvider.id);
+                  onModelChange(singleProvider.model.id, singleProvider.id);
                 }}
               >
                 <SingleProviderModelItem
@@ -242,7 +242,10 @@ export const ListItemRenderer = memo<ListItemRendererProps>(
               <DropdownMenuPortal>
                 <DropdownMenuPositioner anchor={null} placement="right" sideOffset={16}>
                   <DropdownMenuPopup className={styles.detailPopup}>
-                    <ModelDetailPanel model={item.data.model.id} provider={singleProvider.id} />
+                    <ModelDetailPanel
+                      model={singleProvider.model.id}
+                      provider={singleProvider.id}
+                    />
                   </DropdownMenuPopup>
                 </DropdownMenuPositioner>
               </DropdownMenuPortal>

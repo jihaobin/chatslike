@@ -1,22 +1,14 @@
 import { randomBytes } from 'node:crypto';
 
-import { BRANDING_PROVIDER } from '@lobechat/business-const';
-import { loadModels } from '@lobechat/business-model-bank/model-config';
-import {
-  buildMappedBusinessModelFields,
-  resolveBusinessModelMapping,
-} from '@lobechat/business-model-runtime';
-import { ChatErrorType, RequestTrigger } from '@lobechat/types';
-import { TRPCError } from '@trpc/server';
+import { buildMappedBusinessModelFields } from '@lobechat/business-model-runtime';
+import { RequestTrigger } from '@lobechat/types';
 import debug from 'debug';
 import { and, eq } from 'drizzle-orm';
-import { isProviderModelAvailable } from 'model-bank';
 import { after } from 'next/server';
 import { z } from 'zod';
 
 import { getProviderContentPolicyErrorMessage } from '@/business/server/getProviderContentPolicyErrorMessage';
 import { assertGlobalProviderModelAvailable } from '@/business/server/globalProviderScope/runtimeGuard';
-import { assertNewApiPlatformModelAvailable } from '@/business/server/platformCatalog/runtimeGuard';
 import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
 import { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
 import { getVideoFreeQuota } from '@/business/server/video-generation/getVideoFreeQuota';
@@ -77,32 +69,6 @@ export const videoRouter = router({
   createVideo: videoProcedure.input(createVideoInputSchema).mutation(async ({ input, ctx }) => {
     const { userId, serverDB, asyncTaskModel, fileService } = ctx;
     const { generationTopicId, provider, model, params } = input;
-
-    const { resolvedModelId } = await resolveBusinessModelMapping(provider, model);
-
-    if (commercialRuntime.platformHostedModels.enabled) {
-      await assertNewApiPlatformModelAvailable({
-        db: serverDB,
-        modality: 'video',
-        model: resolvedModelId,
-        requirePricing: commercialRuntime.nativeBilling.enabled,
-        userId,
-      });
-    }
-
-    // Reject lobehub model ids that are no longer in the model bank so callers get a
-    // clear error instead of an opaque downstream failure when the resolved channel
-    // model is no longer in the model bank.
-    if (
-      provider === BRANDING_PROVIDER &&
-      !isProviderModelAvailable(await loadModels(), BRANDING_PROVIDER, resolvedModelId, 'video')
-    ) {
-      throw new TRPCError({
-        cause: { data: { modelType: 'video', requestedModel: model } },
-        code: 'BAD_REQUEST',
-        message: ChatErrorType.LobeHubModelDeprecated,
-      });
-    }
 
     if (commercialRuntime.platformHostedModels.enabled) {
       await assertGlobalProviderModelAvailable({
@@ -263,7 +229,7 @@ export const videoRouter = router({
       const response = await modelRuntime.createVideo(
         {
           callbackUrl,
-          model: resolvedModelId,
+          model,
           params: generationParams,
         },
         { metadata: { trigger: RequestTrigger.Video } },
@@ -346,11 +312,10 @@ export const videoRouter = router({
               topicId: generationTopicId,
               ...buildMappedBusinessModelFields({
                 provider,
-                requestedModelId: resolvedModelId === model ? undefined : model,
-                resolvedModelId,
+                resolvedModelId: model,
               }),
             },
-            model: resolvedModelId,
+            model,
             prechargeResult,
             provider,
             userId,

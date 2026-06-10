@@ -297,7 +297,10 @@ describe('aiModelRouter', () => {
     [
       'updateAiModelOrder',
       (caller: ReturnType<typeof aiModelRouter.createCaller>) =>
-        caller.updateAiModelOrder({ providerId: 'provider-1', sortMap: [{ id: 'model-1', sort: 1 }] }),
+        caller.updateAiModelOrder({
+          providerId: 'provider-1',
+          sortMap: [{ id: 'model-1', sort: 1 }],
+        }),
     ],
   ])('rejects %s for ordinary users in platform model only mode', async (_, callProcedure) => {
     vi.mocked(getServerGlobalConfig).mockReturnValue({
@@ -321,6 +324,28 @@ describe('aiModelRouter', () => {
       message: USER_PROVIDER_SETTINGS_DISABLED,
     });
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('lets super admin update user scoped model config in platform model only mode', async () => {
+    vi.mocked(getServerGlobalConfig).mockReturnValue({
+      aiProvider: {},
+      commercial: { platformHostedModels: { enabled: true } },
+    } as never);
+    mockRoleLookup('super-admin');
+    const mockUpdate = vi.fn().mockResolvedValue(true);
+    mockAiModel({ update: mockUpdate });
+
+    const caller = aiModelRouter.createCaller(mockCtx);
+
+    await caller.updateAiModel({
+      id: 'model-1',
+      providerId: 'provider-1',
+      value: { displayName: 'Updated Model' },
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith('model-1', 'provider-1', {
+      displayName: 'Updated Model',
+    });
   });
 
   it('lets super admin update global model config', async () => {

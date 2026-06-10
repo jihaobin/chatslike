@@ -52,6 +52,7 @@ export const useBuildListItems = (
           entry.providers.push({
             id: providerItem.id,
             logo: providerItem.logo,
+            model: modelItem,
             name: providerItem.name,
             source: providerItem.source,
           });

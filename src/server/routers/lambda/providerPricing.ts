@@ -70,7 +70,11 @@ const createModelPricingVersionSchema = listModelPricingSchema
     }
 
     if (value.modality === 'image') {
-      if (hasPartialTokenRates || (hasTokenRates && hasFixedRate)) {
+      if (
+        hasPartialTokenRates ||
+        (hasTokenRates && hasFixedRate) ||
+        (!hasTokenRates && !hasFixedRate)
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'MODEL_PRICING_IMAGE_PRICE_EXCLUSIVE',

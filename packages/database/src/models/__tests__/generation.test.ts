@@ -531,6 +531,14 @@ describe('GenerationModel', () => {
           type: 'imageGeneration',
           params: {},
           error: null,
+          metadata: {
+            billingError: {
+              availableCredits: 10_000,
+              code: 'INSUFFICIENT_CREDITS',
+              deficitCredits: 30_000,
+              requiredCredits: 40_000,
+            },
+          },
           duration: null,
           inferenceId: null,
           accessedAt: new Date(),
@@ -554,6 +562,14 @@ describe('GenerationModel', () => {
         asyncTaskId: '550e8400-e29b-41d4-a716-446655440000',
         task: {
           id: '550e8400-e29b-41d4-a716-446655440000',
+          metadata: {
+            billingError: {
+              availableCredits: 10_000,
+              code: 'INSUFFICIENT_CREDITS',
+              deficitCredits: 30_000,
+              requiredCredits: 40_000,
+            },
+          },
           status: AsyncTaskStatus.Success,
         },
       });

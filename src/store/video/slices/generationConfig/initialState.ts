@@ -11,7 +11,7 @@ import {
 export const DEFAULT_AI_VIDEO_PROVIDER = ModelProvider.LobeHub;
 export const DEFAULT_AI_VIDEO_MODEL = 'dreamina-seedance-2-0-260128';
 
-const seedance20Params: VideoModelParamsSchema = {
+export const DEFAULT_VIDEO_PARAMETERS_SCHEMA: VideoModelParamsSchema = {
   aspectRatio: {
     default: 'adaptive',
     enum: ['adaptive', ...PRESET_VIDEO_ASPECT_RATIOS],
@@ -55,13 +55,14 @@ export interface VideoGenerationConfigState {
   isInit: boolean;
 }
 
-export const DEFAULT_VIDEO_GENERATION_PARAMETERS: RuntimeVideoGenParams =
-  extractVideoDefaultValues(seedance20Params);
+export const DEFAULT_VIDEO_GENERATION_PARAMETERS: RuntimeVideoGenParams = extractVideoDefaultValues(
+  DEFAULT_VIDEO_PARAMETERS_SCHEMA,
+);
 
 export const initialGenerationConfigState: VideoGenerationConfigState = {
   model: DEFAULT_AI_VIDEO_MODEL,
   provider: DEFAULT_AI_VIDEO_PROVIDER,
   parameters: DEFAULT_VIDEO_GENERATION_PARAMETERS,
-  parametersSchema: seedance20Params,
+  parametersSchema: DEFAULT_VIDEO_PARAMETERS_SCHEMA,
   isInit: false,
 };

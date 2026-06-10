@@ -110,9 +110,7 @@ describe('AiModelAction', () => {
       const refreshSpy = vi
         .spyOn(result.current, 'refreshAiModelList')
         .mockResolvedValue(undefined);
-      const serviceSpy = vi
-        .spyOn(aiModelService, 'batchUpdateAiModels')
-        .mockResolvedValue([]);
+      const serviceSpy = vi.spyOn(aiModelService, 'batchUpdateAiModels').mockResolvedValue([]);
 
       await act(async () => {
         await result.current.batchUpdateAiModels(models);
@@ -128,9 +126,7 @@ describe('AiModelAction', () => {
       });
 
       const { result } = renderHook(() => useStore());
-      const serviceSpy = vi
-        .spyOn(aiModelService, 'batchUpdateAiModels')
-        .mockResolvedValue([]);
+      const serviceSpy = vi.spyOn(aiModelService, 'batchUpdateAiModels').mockResolvedValue([]);
 
       await act(async () => {
         await result.current.batchUpdateAiModels([]);
@@ -191,9 +187,7 @@ describe('AiModelAction', () => {
       const refreshSpy = vi
         .spyOn(result.current, 'refreshAiModelList')
         .mockResolvedValue(undefined);
-      const serviceSpy = vi
-        .spyOn(aiModelService, 'createAiModel')
-        .mockResolvedValue('new-model');
+      const serviceSpy = vi.spyOn(aiModelService, 'createAiModel').mockResolvedValue('new-model');
 
       await act(async () => {
         await result.current.createNewAiModel(params);
@@ -518,6 +512,37 @@ describe('AiModelAction', () => {
         scope: 'user',
       });
       expect(refreshSpy).toHaveBeenCalled();
+    });
+
+    it('should wait for runtime state refresh after updating model config', async () => {
+      const updateData = {
+        abilities: { vision: true },
+      };
+      let resolveRuntimeRefresh: () => void;
+      const runtimeRefresh = new Promise<void>((resolve) => {
+        resolveRuntimeRefresh = resolve;
+      });
+
+      const { result } = renderHook(() => useStore());
+      vi.spyOn(aiModelService, 'updateAiModel').mockResolvedValue(emptyQueryResult);
+      vi.spyOn(result.current, 'refreshAiProviderRuntimeState').mockReturnValue(runtimeRefresh);
+
+      let finished = false;
+      const updatePromise = result.current
+        .updateAiModelsConfig('model-1', 'test-provider', updateData)
+        .then(() => {
+          finished = true;
+        });
+
+      await waitFor(() => {
+        expect(aiModelService.updateAiModel).toHaveBeenCalled();
+      });
+      expect(finished).toBe(false);
+
+      resolveRuntimeRefresh!();
+      await updatePromise;
+
+      expect(finished).toBe(true);
     });
   });
 

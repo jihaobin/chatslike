@@ -1,9 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  GLOBAL_PROVIDER_CONFIG_USER_ID,
-} from '@/business/server/globalProviderScope/constants';
+import { GLOBAL_PROVIDER_CONFIG_USER_ID } from '@/business/server/globalProviderScope/constants';
 import {
   GLOBAL_PROVIDER_SCOPE_FORBIDDEN,
   USER_PROVIDER_SETTINGS_DISABLED,
@@ -170,11 +168,8 @@ describe('aiProviderRouter', () => {
 
       await expect(
         caller.checkProviderConnectivity({ id: 'custom-openai', model: 'gpt-4o-mini' }),
-      ).resolves.toEqual({
-        error: 'PLATFORM_MODEL_ONLY',
-        model: 'gpt-4o-mini',
-        ok: false,
-      });
+      ).rejects.toMatchObject({ message: USER_PROVIDER_SETTINGS_DISABLED });
+      expect(initModelRuntimeFromDB).not.toHaveBeenCalled();
     });
   });
 
@@ -231,7 +226,9 @@ describe('aiProviderRouter', () => {
 
   describe('checkProviderConnectivity', () => {
     it('preserves user scoped connectivity checks by default', async () => {
-      const mockGetDetail = vi.fn().mockResolvedValue({ ...mockProviderDetail, checkModel: 'gpt-4o' });
+      const mockGetDetail = vi
+        .fn()
+        .mockResolvedValue({ ...mockProviderDetail, checkModel: 'gpt-4o' });
       const chat = vi.fn().mockResolvedValue({ ok: true });
       vi.mocked(AiInfraRepos).prototype.getAiProviderDetail = mockGetDetail;
       vi.mocked(initModelRuntimeFromDB).mockResolvedValue({ chat } as never);
@@ -243,7 +240,10 @@ describe('aiProviderRouter', () => {
         ok: true,
       });
       expect(initModelRuntimeFromDB).toHaveBeenCalledWith(mockDb, mockUserId, mockProviderId);
-      expect(mockGetDetail).toHaveBeenCalledWith(mockProviderId, KeyVaultsGateKeeper.getUserKeyVaults);
+      expect(mockGetDetail).toHaveBeenCalledWith(
+        mockProviderId,
+        KeyVaultsGateKeeper.getUserKeyVaults,
+      );
     });
 
     it('rejects ordinary user explicit global connectivity checks before loading provider secrets', async () => {
@@ -478,6 +478,27 @@ describe('aiProviderRouter', () => {
         }),
       ).rejects.toMatchObject({ message: USER_PROVIDER_SETTINGS_DISABLED });
       expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('lets super admin update user scoped provider config in platform model only mode', async () => {
+      vi.mocked(getServerGlobalConfig).mockReturnValue({
+        aiProvider: {},
+        commercial: { platformHostedModels: { enabled: true } },
+      } as never);
+      mockRoleLookup('super-admin');
+      const mockUpdate = vi.fn();
+      vi.mocked(AiProviderModel).prototype.update = mockUpdate;
+
+      const caller = aiProviderRouter.createCaller(createMockContext());
+
+      await caller.updateAiProvider({
+        id: mockProviderId,
+        value: { name: 'Updated Provider' },
+      });
+
+      expect(mockUpdate).toHaveBeenCalledWith(mockProviderId, {
+        name: 'Updated Provider',
+      });
     });
   });
 

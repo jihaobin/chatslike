@@ -106,8 +106,7 @@ export class AiModelActionImpl {
       this.#get().activeProviderConfigScope,
       this.#get().activeAiProvider,
     ]);
-    // make refresh provide runtime state async, not block
-    this.#get().refreshAiProviderRuntimeState();
+    await this.#get().refreshAiProviderRuntimeState();
   };
 
   removeAiModel = async (id: string, providerId: string): Promise<void> => {

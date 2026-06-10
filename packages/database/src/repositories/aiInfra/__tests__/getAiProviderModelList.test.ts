@@ -1,4 +1,4 @@
-import type { AiProviderModelListItem } from 'model-bank';
+import type { AiProviderModelListItem, ExtendParamsType } from 'model-bank';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getTestDB } from '../../../core/getTestDB';
@@ -665,6 +665,47 @@ describe('AiInfraRepos', () => {
       expect(merged).toBeDefined();
       // Should use user settings
       expect(merged?.settings).toEqual({ searchImpl: 'params', searchProvider: 'user-provider' });
+    });
+
+    it('should prefer user model config fields over builtin defaults after model config edits', async () => {
+      const providerId = 'openai';
+
+      const userModels: AiProviderModelListItem[] = [
+        {
+          abilities: { functionCall: false, reasoning: true, vision: false },
+          contextWindowTokens: 4096,
+          enabled: true,
+          id: 'gpt-4',
+          settings: { extendParams: ['reasoningEffort'] as ExtendParamsType[] },
+          type: 'chat',
+        },
+      ];
+
+      const builtinModels: AiProviderModelListItem[] = [
+        {
+          abilities: { functionCall: true, reasoning: false, vision: true },
+          contextWindowTokens: 128_000,
+          enabled: true,
+          id: 'gpt-4',
+          settings: { extendParams: ['thinking'] as ExtendParamsType[] },
+          type: 'chat',
+        },
+      ];
+
+      vi.spyOn(repo.aiModelModel, 'getModelListByProviderId').mockResolvedValue(userModels);
+      vi.spyOn(repo as any, 'fetchBuiltinModels').mockResolvedValue(builtinModels);
+
+      const result = await repo.getAiProviderModelList(providerId);
+
+      const merged = result.find((m) => m.id === 'gpt-4');
+      expect(merged).toBeDefined();
+      expect(merged?.abilities).toEqual({
+        functionCall: false,
+        reasoning: true,
+        vision: false,
+      });
+      expect(merged?.contextWindowTokens).toBe(4096);
+      expect(merged?.settings?.extendParams).toEqual(['reasoningEffort']);
     });
 
     it('should use builtin settings when user has no settings in getAiProviderModelList', async () => {

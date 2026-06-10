@@ -1,4 +1,3 @@
-import type * as BusinessModelRuntime from '@lobechat/business-model-runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
@@ -16,34 +15,30 @@ const {
   mockAfter,
   mockAssertGlobalProviderModelAvailable,
   mockCreateVideo,
-  mockLoadModels,
   mockProcessBackgroundVideoPolling,
   mockAssertNewApiPlatformModelAvailable,
-  mockResolveBusinessModelMapping,
   mockServerDB,
   mockTransaction,
   nativeBillingEnabled,
   platformHostedModelsEnabled,
 } = vi.hoisted(() => {
   const mockTransaction = vi.fn();
-  const mockServerDB = { transaction: mockTransaction };
+  const mockServerDB = {
+    transaction: mockTransaction,
+  };
   const mockCreateVideo = vi.fn();
   const mockAfter = vi.fn((cb: () => void) => cb());
   const mockAssertGlobalProviderModelAvailable = vi.fn();
-  const mockLoadModels = vi.fn();
   const mockProcessBackgroundVideoPolling = vi.fn().mockResolvedValue(undefined);
   const mockAssertNewApiPlatformModelAvailable = vi.fn();
-  const mockResolveBusinessModelMapping = vi.fn();
   const nativeBillingEnabled = { value: true };
   const platformHostedModelsEnabled = { value: false };
   return {
     mockAfter,
     mockAssertGlobalProviderModelAvailable,
     mockCreateVideo,
-    mockLoadModels,
     mockProcessBackgroundVideoPolling,
     mockAssertNewApiPlatformModelAvailable,
-    mockResolveBusinessModelMapping,
     mockServerDB,
     mockTransaction,
     nativeBillingEnabled,
@@ -91,14 +86,6 @@ vi.mock('@/business/server/globalProviderScope/runtimeGuard', () => ({
 }));
 vi.mock('@/business/server/video-generation/chargeAfterGenerate', () => ({
   chargeAfterGenerate: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock('@lobechat/business-model-runtime', async (importOriginal) => ({
-  ...((await importOriginal()) as typeof BusinessModelRuntime),
-  resolveBusinessModelMapping: (...args: [string, string]) =>
-    mockResolveBusinessModelMapping(...args),
-}));
-vi.mock('@lobechat/business-model-bank/model-config', () => ({
-  loadModels: mockLoadModels,
 }));
 vi.mock('@/business/server/video-generation/getVideoFreeQuota', () => ({
   getVideoFreeQuota: vi.fn().mockResolvedValue({ remaining: 10 }),
@@ -185,43 +172,64 @@ describe('videoRouter', () => {
     nativeBillingEnabled.value = true;
     platformHostedModelsEnabled.value = false;
     mockAssertGlobalProviderModelAvailable.mockResolvedValue(undefined);
-    mockResolveBusinessModelMapping.mockImplementation(
-      async (_provider: string, model: string) => ({
-        resolvedModelId: model,
-      }),
-    );
     mockAssertNewApiPlatformModelAvailable.mockResolvedValue(undefined);
-    mockLoadModels.mockResolvedValue([
-      {
-        abilities: {},
-        enabled: true,
-        id: 'dreamina-seedance-2-0-260128',
-        providerId: 'lobehub',
-        type: 'video',
-      },
-    ]);
   });
 
   describe('createVideo - async strategy routing', () => {
-    it('validates resolved New API catalog model when platform hosted models are enabled', async () => {
+    it('uses the selected global video provider and model directly in platform-hosted mode', async () => {
       platformHostedModelsEnabled.value = true;
       setupMocks();
+      mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-global-provider', useWebhook: true });
 
       const caller = videoRouter.createCaller(mockCtx);
 
       await expect(
-        caller.createVideo({ ...defaultInput, provider: 'custom-openai' }),
+        caller.createVideo({
+          ...defaultInput,
+          model: 'doubao-seedance-2.0-fast',
+          provider: 'local-new-api',
+        }),
+      ).resolves.toMatchObject({ success: true });
+
+      expect(mockAssertNewApiPlatformModelAvailable).not.toHaveBeenCalled();
+      expect(mockAssertGlobalProviderModelAvailable).toHaveBeenCalledWith({
+        db: mockServerDB,
+        modality: 'video',
+        model: 'doubao-seedance-2.0-fast',
+        provider: 'local-new-api',
+        requirePricing: true,
+      });
+      expect(mockCreateVideo).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'doubao-seedance-2.0-fast' }),
+        expect.any(Object),
+      );
+    });
+
+    it('does not validate the New API catalog before custom provider videos', async () => {
+      platformHostedModelsEnabled.value = true;
+      setupMocks();
+      mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-custom-video', useWebhook: true });
+
+      const caller = videoRouter.createCaller(mockCtx);
+
+      await expect(
+        caller.createVideo({
+          ...defaultInput,
+          model: 'sora',
+          provider: 'custom-video-relay',
+        }),
       ).resolves.toMatchObject({
         success: true,
       });
-      expect(mockAssertNewApiPlatformModelAvailable).toHaveBeenCalledWith({
+
+      expect(mockAssertNewApiPlatformModelAvailable).not.toHaveBeenCalled();
+      expect(mockAssertGlobalProviderModelAvailable).toHaveBeenCalledWith({
         db: mockServerDB,
         modality: 'video',
-        model: 'test-model',
+        model: 'sora',
+        provider: 'custom-video-relay',
         requirePricing: true,
-        userId: 'test-user',
       });
-      expect(mockTransaction).toHaveBeenCalled();
     });
 
     it('should use webhook path when response contains useWebhook: true', async () => {
@@ -240,29 +248,6 @@ describe('videoRouter', () => {
       expect(mockAfter).not.toHaveBeenCalled();
     });
 
-    it('should validate mapped model id before rejecting deprecated lobehub video models', async () => {
-      setupMocks();
-      mockResolveBusinessModelMapping.mockResolvedValue({
-        requestedModelId: 'onboarding-video',
-        resolvedModelId: 'dreamina-seedance-2-0-260128',
-      });
-      mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-mapped', useWebhook: true });
-
-      const caller = videoRouter.createCaller(mockCtx);
-      const result = await caller.createVideo({
-        ...defaultInput,
-        model: 'onboarding-video',
-        provider: 'lobehub',
-      });
-
-      expect(result.success).toBe(true);
-      expect(mockResolveBusinessModelMapping).toHaveBeenCalledWith('lobehub', 'onboarding-video');
-      expect(mockCreateVideo).toHaveBeenCalledWith(
-        expect.objectContaining({ model: 'dreamina-seedance-2-0-260128' }),
-        expect.any(Object),
-      );
-    });
-
     it('should use polling path when response contains only inferenceId', async () => {
       const { mockUpdate } = setupMocks();
       mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-2' });
@@ -278,6 +263,28 @@ describe('videoRouter', () => {
       // Polling: should trigger background polling via after()
       expect(mockAfter).toHaveBeenCalled();
       expect(mockProcessBackgroundVideoPolling).toHaveBeenCalled();
+    });
+
+    it('passes selected provider and model into background polling', async () => {
+      platformHostedModelsEnabled.value = true;
+      setupMocks();
+      mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-global-polling' });
+
+      const caller = videoRouter.createCaller(mockCtx);
+      await caller.createVideo({
+        ...defaultInput,
+        model: 'doubao-seedance-2.0-fast',
+        provider: 'local-new-api',
+      });
+
+      expect(mockProcessBackgroundVideoPolling).toHaveBeenCalledWith(
+        mockServerDB,
+        expect.objectContaining({
+          inferenceId: 'inf-global-polling',
+          model: 'doubao-seedance-2.0-fast',
+          provider: 'local-new-api',
+        }),
+      );
     });
 
     it('server-enforces global provider availability before creating platform-hosted videos', async () => {

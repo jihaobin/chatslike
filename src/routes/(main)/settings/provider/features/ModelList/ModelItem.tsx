@@ -65,8 +65,8 @@ interface ModelItemProps extends AiProviderModelListItem {
   removed?: boolean;
 }
 
-const ModelItem = memo<ModelItemProps>(
-  ({
+const ModelItem = memo<ModelItemProps>((props) => {
+  const {
     displayName,
     id,
     enabled,
@@ -77,244 +77,241 @@ const ModelItem = memo<ModelItemProps>(
     contextWindowTokens,
     abilities,
     type,
-  }) => {
-    const { t } = useTranslation(['modelProvider', 'components', 'models', 'common']);
-    const { modelEditable } = use(ProviderSettingsContext);
+  } = props;
+  const { t } = useTranslation(['modelProvider', 'components', 'models', 'common']);
+  const { modelEditable } = use(ProviderSettingsContext);
 
-    const [activeAiProvider, isModelLoading, toggleModelEnabled, removeAiModel] = useAiInfraStore(
-      (s) => [
-        s.activeAiProvider,
-        aiModelSelectors.isModelLoading(id)(s),
-        s.toggleModelEnabled,
-        s.removeAiModel,
-      ],
-    );
+  const [activeAiProvider, isModelLoading, toggleModelEnabled, removeAiModel] = useAiInfraStore(
+    (s) => [
+      s.activeAiProvider,
+      aiModelSelectors.isModelLoading(id)(s),
+      s.toggleModelEnabled,
+      s.removeAiModel,
+    ],
+  );
 
-    const [checked, setChecked] = useState(enabled);
-    const [showConfig, setShowConfig] = useState(false);
-    const hasPricing = Boolean(pricing);
+  const [checked, setChecked] = useState(enabled);
+  const [showConfig, setShowConfig] = useState(false);
+  const hasPricing = Boolean(pricing);
 
-    const formatPricing = (): string[] => {
-      if (!pricing) return [];
+  const formatPricing = (): string[] => {
+    if (!pricing) return [];
 
-      switch (type) {
-        case 'chat': {
-          const inputRate = getTextInputUnitRate(pricing);
-          const outputRate = getTextOutputUnitRate(pricing);
-          return [
-            typeof inputRate === 'number' &&
-              t('providerModels.item.pricing.inputTokens', {
-                amount: formatPriceByCurrency(inputRate, pricing?.currency),
-              }),
-            typeof outputRate === 'number' &&
-              t('providerModels.item.pricing.outputTokens', {
-                amount: formatPriceByCurrency(outputRate, pricing?.currency),
-              }),
-          ].filter(Boolean) as string[];
-        }
-        case 'embedding': {
-          const inputRate = getTextInputUnitRate(pricing);
-          return [
-            typeof inputRate === 'number' &&
-              t('providerModels.item.pricing.inputTokens', {
-                amount: formatPriceByCurrency(inputRate, pricing?.currency),
-              }),
-          ].filter(Boolean) as string[];
-        }
-        case 'tts': {
-          const inputRate = getAudioInputUnitRate(pricing);
-          return [
-            typeof inputRate === 'number' &&
-              t('providerModels.item.pricing.inputCharts', {
-                amount: formatPriceByCurrency(inputRate, pricing?.currency),
-              }),
-          ].filter(Boolean) as string[];
-        }
-        case 'stt': {
-          const inputRate = getAudioInputUnitRate(pricing);
-          return [
-            typeof inputRate === 'number' &&
-              t('providerModels.item.pricing.inputMinutes', {
-                amount: formatPriceByCurrency(inputRate, pricing?.currency),
-              }),
-          ].filter(Boolean) as string[];
-        }
-
-        case 'image': {
-          return [];
-        }
-
-        default: {
-          return [];
-        }
+    switch (type) {
+      case 'chat': {
+        const inputRate = getTextInputUnitRate(pricing);
+        const outputRate = getTextOutputUnitRate(pricing);
+        return [
+          typeof inputRate === 'number' &&
+            t('providerModels.item.pricing.inputTokens', {
+              amount: formatPriceByCurrency(inputRate, pricing?.currency),
+            }),
+          typeof outputRate === 'number' &&
+            t('providerModels.item.pricing.outputTokens', {
+              amount: formatPriceByCurrency(outputRate, pricing?.currency),
+            }),
+        ].filter(Boolean) as string[];
       }
-    };
+      case 'embedding': {
+        const inputRate = getTextInputUnitRate(pricing);
+        return [
+          typeof inputRate === 'number' &&
+            t('providerModels.item.pricing.inputTokens', {
+              amount: formatPriceByCurrency(inputRate, pricing?.currency),
+            }),
+        ].filter(Boolean) as string[];
+      }
+      case 'tts': {
+        const inputRate = getAudioInputUnitRate(pricing);
+        return [
+          typeof inputRate === 'number' &&
+            t('providerModels.item.pricing.inputCharts', {
+              amount: formatPriceByCurrency(inputRate, pricing?.currency),
+            }),
+        ].filter(Boolean) as string[];
+      }
+      case 'stt': {
+        const inputRate = getAudioInputUnitRate(pricing);
+        return [
+          typeof inputRate === 'number' &&
+            t('providerModels.item.pricing.inputMinutes', {
+              amount: formatPriceByCurrency(inputRate, pricing?.currency),
+            }),
+        ].filter(Boolean) as string[];
+      }
 
-    const content = [
-      releasedAt && t('providerModels.item.releasedAt', { releasedAt }),
-      ...formatPricing(),
-    ].filter(Boolean) as string[];
+      case 'image': {
+        return [];
+      }
 
-    const { message, modal } = App.useApp();
-    const copyModelId = async () => {
-      await copyToClipboard(id);
-      message.success({ content: t('copySuccess', { ns: 'common' }) });
-    };
+      default: {
+        return [];
+      }
+    }
+  };
 
-    const isMobile = useIsMobile();
+  const content = [
+    releasedAt && t('providerModels.item.releasedAt', { releasedAt }),
+    ...formatPricing(),
+  ].filter(Boolean) as string[];
 
-    const NewTag = <NewModelBadge releasedAt={releasedAt} />;
+  const { message, modal } = App.useApp();
+  const copyModelId = async () => {
+    await copyToClipboard(id);
+    message.success({ content: t('copySuccess', { ns: 'common' }) });
+  };
 
-    const ModelIdTag = (
-      <Tag style={{ cursor: 'pointer', marginRight: 0 }} onClick={copyModelId}>
-        {id}
-      </Tag>
-    );
+  const isMobile = useIsMobile();
 
-    const canToggle = modelEditable || type !== 'embedding';
+  const NewTag = <NewModelBadge releasedAt={releasedAt} />;
 
-    const EnableSwitch = canToggle ? (
-      <Switch
-        checked={checked}
-        loading={isModelLoading}
-        size={'small'}
-        onChange={async (e) => {
-          setChecked(e);
-          await toggleModelEnabled({ enabled: e, id, source, type });
-        }}
-      />
-    ) : null;
+  const ModelIdTag = (
+    <Tag style={{ cursor: 'pointer', marginRight: 0 }} onClick={copyModelId}>
+      {id}
+    </Tag>
+  );
 
-    const Actions =
-      modelEditable &&
-      ((style?: React.CSSProperties) => (
-        <Flexbox horizontal className={styles.config} style={style}>
+  const canToggle = modelEditable || type !== 'embedding';
+
+  const EnableSwitch = canToggle ? (
+    <Switch
+      checked={checked}
+      loading={isModelLoading}
+      size={'small'}
+      onChange={async (e) => {
+        setChecked(e);
+        await toggleModelEnabled({ enabled: e, id, source, type });
+      }}
+    />
+  ) : null;
+
+  const Actions =
+    modelEditable &&
+    ((style?: React.CSSProperties) => (
+      <Flexbox horizontal className={styles.config} style={style}>
+        <ActionIcon
+          icon={LucidePencil}
+          size={'small'}
+          title={t('providerModels.item.config')}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowConfig(true);
+          }}
+        />
+        {source !== AiModelSourceEnum.Builtin && (
           <ActionIcon
-            icon={LucidePencil}
+            icon={TrashIcon}
             size={'small'}
-            title={t('providerModels.item.config')}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowConfig(true);
+            title={t('providerModels.item.delete.title')}
+            onClick={() => {
+              modal.confirm({
+                centered: true,
+                okButtonProps: {
+                  danger: true,
+                  type: 'primary',
+                },
+                onOk: async () => {
+                  await removeAiModel(id, activeAiProvider!);
+                  message.success(t('providerModels.item.delete.success'));
+                },
+                title: t('providerModels.item.delete.confirm', {
+                  displayName: displayName || id,
+                }),
+              });
             }}
           />
-          {source !== AiModelSourceEnum.Builtin && (
-            <ActionIcon
-              icon={TrashIcon}
-              size={'small'}
-              title={t('providerModels.item.delete.title')}
-              onClick={() => {
-                modal.confirm({
-                  centered: true,
-                  okButtonProps: {
-                    danger: true,
-                    type: 'primary',
-                  },
-                  onOk: async () => {
-                    await removeAiModel(id, activeAiProvider!);
-                    message.success(t('providerModels.item.delete.success'));
-                  },
-                  title: t('providerModels.item.delete.confirm', {
-                    displayName: displayName || id,
-                  }),
-                });
-              }}
-            />
-          )}
-        </Flexbox>
-      ));
-
-    const dom = isMobile ? (
-      <Flexbox
-        horizontal
-        align={'center'}
-        gap={12}
-        justify={'space-between'}
-        padding={'12px 6px'}
-        width={'100%'}
-      >
-        <Flexbox horizontal align={'center'} flex={1} gap={16} style={{ minWidth: 0 }}>
-          <ModelIcon model={id} size={32} />
-          <Flexbox flex={1} gap={4} style={{ minWidth: 0 }}>
-            <Flexbox horizontal align={'center'} gap={8}>
-              {displayName || id}
-              <Flexbox horizontal align={'center'} gap={8}>
-                <ModelInfoTags
-                  placement={'top'}
-                  {...abilities}
-                  contextWindowTokens={contextWindowTokens}
-                />
-              </Flexbox>
-            </Flexbox>
-            <div>
-              {ModelIdTag}
-              {NewTag}
-              {!hasPricing && <Tag>{t('providerPricing.gap')}</Tag>}
-            </div>
-          </Flexbox>
-        </Flexbox>
-        <Flexbox horizontal align={'center'} gap={4}>
-          {Actions && Actions({ opacity: 1 })}
-          {EnableSwitch}
-        </Flexbox>
+        )}
       </Flexbox>
-    ) : (
-      <Flexbox
-        horizontal
-        align={'center'}
-        className={styles.container}
-        gap={24}
-        justify={'space-between'}
-        padding={12}
-        width={'100%'}
-      >
-        <Flexbox horizontal align={'center'} flex={1} gap={8} style={{ minWidth: 0 }}>
-          <ModelIcon model={id} size={32} />
-          <Flexbox flex={1} gap={2} style={{ minWidth: 0 }}>
+    ));
+
+  const dom = isMobile ? (
+    <Flexbox
+      horizontal
+      align={'center'}
+      gap={12}
+      justify={'space-between'}
+      padding={'12px 6px'}
+      width={'100%'}
+    >
+      <Flexbox horizontal align={'center'} flex={1} gap={16} style={{ minWidth: 0 }}>
+        <ModelIcon model={id} size={32} />
+        <Flexbox flex={1} gap={4} style={{ minWidth: 0 }}>
+          <Flexbox horizontal align={'center'} gap={8}>
+            {displayName || id}
             <Flexbox horizontal align={'center'} gap={8}>
-              {displayName || id}
-              {ModelIdTag}
-              {NewTag}
-              {!hasPricing && <Tag>{t('providerPricing.gap')}</Tag>}
-              {Actions && Actions()}
-            </Flexbox>
-            <Flexbox horizontal align={'baseline'} gap={8}>
-              {content.length > 0 && (
-                <Text style={{ color: cssVar.colorTextSecondary, fontSize: 12, marginBottom: 0 }}>
-                  {content.join(' · ')}
-                </Text>
-              )}
+              <ModelInfoTags
+                placement={'top'}
+                {...abilities}
+                contextWindowTokens={contextWindowTokens}
+              />
             </Flexbox>
           </Flexbox>
-        </Flexbox>
-        <Flexbox horizontal align={'center'} gap={8}>
-          <ModelInfoTags
-            placement={'top'}
-            {...abilities}
-            contextWindowTokens={contextWindowTokens}
-          />
-          {/*{removed && (*/}
-          {/*  <Tooltip*/}
-          {/*    overlayStyle={{ maxWidth: 300 }}*/}
-          {/*    placement={'top'}*/}
-          {/*    style={{ pointerEvents: 'none' }}*/}
-          {/*    title={t('ModelSelect.removed')}*/}
-          {/*  >*/}
-          {/*    <ActionIcon icon={Recycle} style={{ color: theme.colorWarning }} />*/}
-          {/*  </Tooltip>*/}
-          {/*)}*/}
-          {EnableSwitch}
+          <div>
+            {ModelIdTag}
+            {NewTag}
+            {!hasPricing && <Tag>{t('providerPricing.gap')}</Tag>}
+          </div>
         </Flexbox>
       </Flexbox>
-    );
+      <Flexbox horizontal align={'center'} gap={4}>
+        {Actions && Actions({ opacity: 1 })}
+        {EnableSwitch}
+      </Flexbox>
+    </Flexbox>
+  ) : (
+    <Flexbox
+      horizontal
+      align={'center'}
+      className={styles.container}
+      gap={24}
+      justify={'space-between'}
+      padding={12}
+      width={'100%'}
+    >
+      <Flexbox horizontal align={'center'} flex={1} gap={8} style={{ minWidth: 0 }}>
+        <ModelIcon model={id} size={32} />
+        <Flexbox flex={1} gap={2} style={{ minWidth: 0 }}>
+          <Flexbox horizontal align={'center'} gap={8}>
+            {displayName || id}
+            {ModelIdTag}
+            {NewTag}
+            {!hasPricing && <Tag>{t('providerPricing.gap')}</Tag>}
+            {Actions && Actions()}
+          </Flexbox>
+          <Flexbox horizontal align={'baseline'} gap={8}>
+            {content.length > 0 && (
+              <Text style={{ color: cssVar.colorTextSecondary, fontSize: 12, marginBottom: 0 }}>
+                {content.join(' · ')}
+              </Text>
+            )}
+          </Flexbox>
+        </Flexbox>
+      </Flexbox>
+      <Flexbox horizontal align={'center'} gap={8}>
+        <ModelInfoTags placement={'top'} {...abilities} contextWindowTokens={contextWindowTokens} />
+        {/*{removed && (*/}
+        {/*  <Tooltip*/}
+        {/*    overlayStyle={{ maxWidth: 300 }}*/}
+        {/*    placement={'top'}*/}
+        {/*    style={{ pointerEvents: 'none' }}*/}
+        {/*    title={t('ModelSelect.removed')}*/}
+        {/*  >*/}
+        {/*    <ActionIcon icon={Recycle} style={{ color: theme.colorWarning }} />*/}
+        {/*  </Tooltip>*/}
+        {/*)}*/}
+        {EnableSwitch}
+      </Flexbox>
+    </Flexbox>
+  );
 
-    return (
-      <>
-        {dom}
-        {showConfig && <ModelConfigModal id={id} open={showConfig} setOpen={setShowConfig} />}
-      </>
-    );
-  },
-);
+  return (
+    <>
+      {dom}
+      {showConfig && (
+        <ModelConfigModal id={id} model={props} open={showConfig} setOpen={setShowConfig} />
+      )}
+    </>
+  );
+});
 
 export default ModelItem;

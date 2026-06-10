@@ -162,7 +162,7 @@ const GenerationListItemRenderer = memo<GenerationListItemRendererProps>(
 
       case 'model-item-single': {
         const singleProvider = item.data.providers[0];
-        const key = menuKey(singleProvider.id, item.data.model.id);
+        const key = menuKey(singleProvider.id, singleProvider.model.id);
         const isActive = key === activeKey;
         return (
           <Flexbox style={{ marginBlock: 1, marginInline: 4 }}>
@@ -175,7 +175,7 @@ const GenerationListItemRenderer = memo<GenerationListItemRendererProps>(
                 )}
                 onClick={() => {
                   setDetailOpen(false);
-                  onModelChange(item.data.model.id, singleProvider.id);
+                  onModelChange(singleProvider.model.id, singleProvider.id);
                   onClose();
                 }}
               >
@@ -191,7 +191,7 @@ const GenerationListItemRenderer = memo<GenerationListItemRendererProps>(
                   <DropdownMenuPopup className={modelSwitchPanelStyles.detailPopup}>
                     <ModelDetailPanel
                       enabledList={enabledList}
-                      model={item.data.model.id}
+                      model={singleProvider.model.id}
                       pricingMode={pricingMode}
                       provider={singleProvider.id}
                     />

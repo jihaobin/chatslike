@@ -386,6 +386,53 @@ describe('providerPricingRouter', () => {
     expect(mockDb.insert).not.toHaveBeenCalled();
   });
 
+  it('accepts image token pricing versions', async () => {
+    const imageTokenPricingRow = {
+      ...mockPricingRow,
+      fixedCreditsPerUnit: undefined,
+      inputCreditsPerMillionTokens: 5_000_000,
+      modality: 'image',
+      model: 'gpt-image-2',
+      outputCreditsPerMillionTokens: 30_000_000,
+      provider: 'openai',
+      unit: undefined,
+    };
+    const roleQuery = mockRoleLookup('super-admin');
+    const sentinelInsert = mockSentinelUserInsert();
+    const updateQuery = mockUpdateQuery();
+    const returning = vi.fn().mockResolvedValue([imageTokenPricingRow]);
+    const insertQuery = {
+      returning,
+      values: vi.fn().mockReturnValue({ returning }),
+    };
+    mockDb.select.mockReturnValueOnce(roleQuery);
+    mockDb.insert.mockReturnValueOnce(sentinelInsert.query).mockReturnValueOnce(insertQuery);
+    mockDb.update.mockReturnValueOnce(updateQuery.query);
+    const caller = providerPricingRouter.createCaller({ userId: mockUserId });
+
+    const result = await caller.createModelPricingVersion({
+      inputCreditsPerMillionTokens: 5_000_000,
+      modality: 'image',
+      model: 'gpt-image-2',
+      outputCreditsPerMillionTokens: 30_000_000,
+      provider: 'openai',
+      reason: 'valid image token price',
+      scope: 'global',
+    });
+
+    expect(result.data.inputCreditsPerMillionTokens).toBe(5_000_000);
+    const insertedValue = insertQuery.values.mock.calls[0][0];
+    expect(insertedValue).toEqual(
+      expect.objectContaining({
+        inputCreditsPerMillionTokens: 5_000_000,
+        modality: 'image',
+        outputCreditsPerMillionTokens: 30_000_000,
+      }),
+    );
+    expect(insertedValue.fixedCreditsPerUnit).toBeUndefined();
+    expect(insertedValue.unit).toBeUndefined();
+  });
+
   it('accepts video token pricing versions', async () => {
     const roleQuery = mockRoleLookup('super-admin');
     const sentinelInsert = mockSentinelUserInsert();

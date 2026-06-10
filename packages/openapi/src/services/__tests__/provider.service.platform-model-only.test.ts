@@ -59,6 +59,11 @@ const createProviderRecord = () => ({
 
 const createMockDb = () => {
   const providerRecord = createProviderRecord();
+  const updateChain = {
+    returning: vi.fn().mockResolvedValue([providerRecord]),
+    set: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+  };
 
   return {
     delete: vi.fn(),
@@ -68,6 +73,9 @@ const createMockDb = () => {
         findFirst: vi.fn().mockResolvedValue(providerRecord),
         findMany: vi.fn().mockResolvedValue([providerRecord]),
       },
+      users: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'user-1', role: null }),
+      },
     },
     select: vi.fn().mockReturnValue({
       from: vi.fn().mockReturnValue({
@@ -75,7 +83,7 @@ const createMockDb = () => {
       }),
     }),
     transaction: vi.fn(),
-    update: vi.fn(),
+    update: vi.fn().mockReturnValue(updateChain),
   };
 };
 
@@ -126,6 +134,17 @@ describe('ProviderService platform model only', () => {
       expect(db.transaction).not.toHaveBeenCalled();
     },
   );
+
+  it('lets super admin update provider settings when platform hosted models are enabled', async () => {
+    runtimeState.platformHostedModelsEnabled = true;
+    const db = createMockDb();
+    db.query.users.findFirst.mockResolvedValue({ id: 'super-admin-user', role: 'super-admin' });
+    const service = new ProviderService(db as never, 'super-admin-user');
+
+    await service.updateProvider({ id: 'custom-openai', name: 'Custom OpenAI Updated' });
+
+    expect(db.update).toHaveBeenCalled();
+  });
 
   it('keeps keyVault behavior outside platform hosted model mode', async () => {
     const db = createMockDb();

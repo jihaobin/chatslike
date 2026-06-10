@@ -90,6 +90,7 @@ vi.mock('@/business/server/globalProviderScope/runtimeGuard', () => ({
 }));
 
 vi.mock('@lobechat/business-model-runtime', async (importOriginal) => ({
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
   ...((await importOriginal()) as typeof import('@lobechat/business-model-runtime')),
   resolveBusinessModelMapping: (...args: [string, string]) =>
     mockResolveBusinessModelMapping(...args),
@@ -164,6 +165,13 @@ describe('imageRouter', () => {
       {
         abilities: {},
         enabled: true,
+        id: 'stable-diffusion',
+        providerId: 'lobehub',
+        type: 'image',
+      },
+      {
+        abilities: {},
+        enabled: true,
         id: 'gpt-image-1',
         providerId: 'lobehub',
         type: 'image',
@@ -224,13 +232,13 @@ describe('imageRouter', () => {
   });
 
   describe('createImage', () => {
-    it('validates resolved New API catalog model when platform hosted models are enabled', async () => {
+    it('validates resolved New API catalog model for lobehub images when platform hosted models are enabled', async () => {
       platformHostedModelsEnabled.value = true;
 
       const caller = imageRouter.createCaller(createMockCtx());
 
       await expect(
-        caller.createImage(createDefaultInput({ provider: 'custom-openai' })),
+        caller.createImage(createDefaultInput({ provider: 'lobehub' })),
       ).resolves.toMatchObject({
         success: true,
       });
@@ -242,6 +250,32 @@ describe('imageRouter', () => {
         userId: mockUserId,
       });
       expect(mockChargeBeforeGenerate).toHaveBeenCalled();
+    });
+
+    it('does not validate the New API catalog before custom provider images', async () => {
+      platformHostedModelsEnabled.value = true;
+
+      const caller = imageRouter.createCaller(createMockCtx());
+
+      await expect(
+        caller.createImage(
+          createDefaultInput({
+            model: 'gpt-image-2',
+            provider: 'amux-gpt-image-2',
+          }),
+        ),
+      ).resolves.toMatchObject({
+        success: true,
+      });
+
+      expect(mockAssertNewApiPlatformModelAvailable).not.toHaveBeenCalled();
+      expect(mockAssertGlobalProviderModelAvailable).toHaveBeenCalledWith({
+        db: mockServerDB,
+        modality: 'image',
+        model: 'gpt-image-2',
+        provider: 'amux-gpt-image-2',
+        requirePricing: true,
+      });
     });
 
     it('should create image generation batch and generations successfully', async () => {

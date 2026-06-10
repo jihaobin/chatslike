@@ -9,6 +9,7 @@ import type {
 } from 'model-bank';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { mutate } from '@/libs/swr';
 import { aiProviderService } from '@/services/aiProvider';
 import { useAiInfraStore as useStore } from '@/store/aiInfra/store';
 import { useUserStore } from '@/store/user';
@@ -21,6 +22,15 @@ import {
   normalizeChatModel,
   normalizeImageModel,
 } from '../action';
+
+vi.mock('@/libs/swr', async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+  const actual = await importOriginal<typeof import('@/libs/swr')>();
+  return {
+    ...actual,
+    mutate: vi.fn(),
+  };
+});
 
 const createChatModel = (overrides: Partial<EnabledAiModel> = {}): EnabledAiModel => ({
   abilities: overrides.abilities ?? { functionCall: true },
@@ -174,6 +184,15 @@ describe('aiProvider action helpers', () => {
       });
 
       expect(runtimeStateSpy).toHaveBeenCalledWith(undefined, { scope: 'user' });
+    });
+
+    it('refreshes user runtime state keys while global provider settings are active', async () => {
+      useStore.setState({ activeProviderConfigScope: 'global' });
+
+      await useStore.getState().refreshAiProviderRuntimeState();
+
+      expect(mutate).toHaveBeenCalledWith(['FETCH_AI_PROVIDER_RUNTIME_STATE', 'user', true]);
+      expect(mutate).toHaveBeenCalledWith(['FETCH_AI_PROVIDER_RUNTIME_STATE', 'user', false]);
     });
   });
 

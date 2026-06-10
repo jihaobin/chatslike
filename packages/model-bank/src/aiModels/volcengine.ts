@@ -1085,7 +1085,7 @@ const volcengineVideoModels: AIVideoModelCard[] = [
       'Seedance 2.0 by ByteDance is the most powerful video generation model, supporting multimodal reference video generation, video editing, video extension, text-to-video, and image-to-video with synchronized audio.',
     displayName: 'Seedance 2.0',
     enabled: true,
-    id: 'doubao-seedance-2-0-260128',
+    id: 'doubao-seedance-2.0',
     organization: 'ByteDance',
     parameters: {
       ...seedance20Params,
@@ -1104,7 +1104,7 @@ const volcengineVideoModels: AIVideoModelCard[] = [
       'Seedance 2.0 Fast by ByteDance offers the same capabilities as Seedance 2.0 with faster generation speeds at a more competitive price.',
     displayName: 'Seedance 2.0 Fast',
     enabled: true,
-    id: 'doubao-seedance-2-0-fast-260128',
+    id: 'doubao-seedance-2.0-fast',
     organization: 'ByteDance',
     parameters: {
       ...seedance20Params,

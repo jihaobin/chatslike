@@ -69,6 +69,14 @@ export interface GenerationConfig {
 export interface GenerationAsyncTask {
   error?: AsyncTaskError;
   id: string;
+  metadata?: {
+    billingError?: {
+      availableCredits?: unknown;
+      code?: unknown;
+      deficitCredits?: unknown;
+      requiredCredits?: unknown;
+    };
+  } | null;
   status: AsyncTaskStatus;
 }
 
