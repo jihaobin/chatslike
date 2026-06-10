@@ -31,6 +31,13 @@ const formatDate = (value?: Date | string | null) => {
 };
 
 type PricingTranslator = TFunction<'modelProvider'>;
+type PricingModality = 'text' | 'image' | 'video';
+
+const getPricingModality = (modelType?: string): PricingModality => {
+  if (modelType === 'image') return 'image';
+  if (modelType === 'video') return 'video';
+  return 'text';
+};
 
 const formatMillionCredits = (value: number) =>
   `${toDisplayMillionCredits(value).toLocaleString()}M`;
@@ -94,10 +101,11 @@ const ProviderPricing = memo<ProviderPricingProps>(
     const { t } = useTranslation('modelProvider');
     const [open, setOpen] = useState(false);
     const canCreate = scope === 'global' && !readonly;
+    const modality = getPricingModality(modelType);
 
     const { data = [], mutate } = useClientDataSWR(
-      ['PROVIDER_PRICING', scope, provider, model],
-      () => providerPricingService.listModelPricing({ model, provider, scope }),
+      ['PROVIDER_PRICING', scope, provider, model, modality],
+      () => providerPricingService.listModelPricing({ modality, model, provider, scope }),
     );
 
     const grouped = useMemo(() => {

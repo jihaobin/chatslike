@@ -195,6 +195,23 @@ describe('ProviderPricing', () => {
     expect(screen.getByText((text) => text.includes('30M'))).toBeInTheDocument();
   });
 
+  it('loads video model pricing with video modality only', async () => {
+    const listSpy = vi.spyOn(providerPricingService, 'listModelPricing').mockResolvedValue([]);
+
+    render(<ProviderPricing model="doubao-seedance-2.0" modelType="video" provider="amux" scope="global" />, {
+      wrapper: withSWR,
+    });
+
+    await waitFor(() => {
+      expect(listSpy).toHaveBeenCalledWith({
+        modality: 'video',
+        model: 'doubao-seedance-2.0',
+        provider: 'amux',
+        scope: 'global',
+      });
+    });
+  });
+
   it('passes upstream pricing to the price version modal', async () => {
     vi.spyOn(providerPricingService, 'listModelPricing').mockResolvedValue([]);
 
@@ -404,6 +421,7 @@ describe('ProviderPricing', () => {
 
     await waitFor(() => {
       expect(providerPricingService.listModelPricing).toHaveBeenCalledWith({
+        modality: 'text',
         model: 'gpt-4o',
         provider: 'newapi-openai-relay',
         scope: 'global',
@@ -870,6 +888,7 @@ describe('ProviderPricing', () => {
 
     await waitFor(() => {
       expect(providerPricingService.listModelPricing).toHaveBeenCalledWith({
+        modality: 'text',
         model: 'gpt-4o',
         provider: 'openai',
         scope: 'user',
