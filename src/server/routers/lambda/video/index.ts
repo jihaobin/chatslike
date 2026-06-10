@@ -13,6 +13,7 @@ import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAf
 import { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
 import { getVideoFreeQuota } from '@/business/server/video-generation/getVideoFreeQuota';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
+import { getPlatformProviderErrorBody } from '@/business/shared/platformProviderErrors';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import {
   asyncTasks,
@@ -28,8 +29,9 @@ import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import { FileService } from '@/server/services/file';
 import { processBackgroundVideoPolling } from '@/server/services/generation/videoBackgroundPolling';
-import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
+import { AsyncTaskError, AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
 
+import { createFailedGenerationBatch } from '../_helpers/createFailedGenerationBatch';
 import { createVideoTaskSubmitError } from './error';
 
 const log = debug('lobe-video:lambda');
@@ -69,16 +71,6 @@ export const videoRouter = router({
   createVideo: videoProcedure.input(createVideoInputSchema).mutation(async ({ input, ctx }) => {
     const { userId, serverDB, asyncTaskModel, fileService } = ctx;
     const { generationTopicId, provider, model, params } = input;
-
-    if (commercialRuntime.platformHostedModels.enabled) {
-      await assertGlobalProviderModelAvailable({
-        db: serverDB,
-        modality: 'video',
-        model,
-        provider,
-        requirePricing: commercialRuntime.nativeBilling.enabled,
-      });
-    }
 
     log('Starting video creation process, input: %O', input);
 
@@ -138,6 +130,33 @@ export const videoRouter = router({
 
       if (Object.keys(updates).length > 0) {
         generationParams = { ...params, ...updates };
+      }
+    }
+
+    if (commercialRuntime.platformHostedModels.enabled) {
+      try {
+        await assertGlobalProviderModelAvailable({
+          db: serverDB,
+          modality: 'video',
+          model,
+          provider,
+          requirePricing: commercialRuntime.nativeBilling.enabled,
+        });
+      } catch (error) {
+        const platformProviderError = getPlatformProviderErrorBody(error);
+        if (!platformProviderError) throw error;
+
+        return createFailedGenerationBatch({
+          asyncTaskType: AsyncTaskType.VideoGeneration,
+          config: configForDatabase,
+          error: new AsyncTaskError(platformProviderError.code, platformProviderError.message),
+          generationTopicId,
+          model,
+          prompt: params.prompt,
+          provider,
+          serverDB,
+          userId,
+        });
       }
     }
 

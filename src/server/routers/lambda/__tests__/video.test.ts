@@ -232,6 +232,38 @@ describe('videoRouter', () => {
       });
     });
 
+    it('returns a failed generation batch when platform provider is disabled', async () => {
+      platformHostedModelsEnabled.value = true;
+      setupMocks();
+      mockAssertGlobalProviderModelAvailable.mockRejectedValue(
+        Object.assign(new Error('PLATFORM_PROVIDER_DISABLED'), {
+          code: 'PLATFORM_PROVIDER_DISABLED',
+          meta: { provider: 'volcengine' },
+        }),
+      );
+
+      const caller = videoRouter.createCaller(mockCtx);
+      const result = await caller.createVideo(defaultInput);
+
+      expect(result).toMatchObject({
+        data: {
+          generations: [
+            {
+              task: {
+                error: {
+                  body: { detail: 'Platform provider is disabled' },
+                  name: 'PLATFORM_PROVIDER_DISABLED',
+                },
+                status: AsyncTaskStatus.Error,
+              },
+            },
+          ],
+        },
+        success: true,
+      });
+      expect(mockCreateVideo).not.toHaveBeenCalled();
+    });
+
     it('should use webhook path when response contains useWebhook: true', async () => {
       const { mockUpdate } = setupMocks();
       mockCreateVideo.mockResolvedValue({ inferenceId: 'inf-1', useWebhook: true });
