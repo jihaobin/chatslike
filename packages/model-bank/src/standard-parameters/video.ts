@@ -202,8 +202,11 @@ export function validateVideoModelParamsSchema(
 /**
  * Extract default values from video parameter definition object
  */
-export function extractVideoDefaultValues(paramsSchema: VideoModelParamsSchema) {
-  const schemaWithDefault = VideoModelParamsMetaSchema.parse(paramsSchema);
+export function extractVideoDefaultValues(paramsSchema: Partial<VideoModelParamsSchema>) {
+  const schemaWithDefault = VideoModelParamsMetaSchema.parse({
+    ...paramsSchema,
+    prompt: paramsSchema.prompt ?? {},
+  });
   return Object.fromEntries(
     Object.entries(schemaWithDefault).map(([key, value]) => {
       return [key, value.default];

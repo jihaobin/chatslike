@@ -130,6 +130,17 @@ describe('video standard-parameters', () => {
       expect(result.prompt).toBe('');
     });
 
+    it('should extract a prompt default when schema omits prompt metadata', () => {
+      const schema: Partial<VideoModelParamsSchema> = {
+        duration: { default: 5, max: 10, min: 1 },
+      };
+
+      const result = extractVideoDefaultValues(schema);
+
+      expect(result.prompt).toBe('');
+      expect(result.duration).toBe(5);
+    });
+
     it('should extract null defaults for imageUrl and endImageUrl', () => {
       const schema: VideoModelParamsSchema = {
         endImageUrl: { default: null },
