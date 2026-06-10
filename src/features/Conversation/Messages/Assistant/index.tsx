@@ -66,14 +66,6 @@ const AssistantMessage = memo<AssistantMessageProps>(
 
     const errorContent = useErrorContent(error);
 
-    const shouldForceShowError =
-      error?.type === 'ProviderBizError' &&
-      (error?.body as any)?.provider === 'google' &&
-      !!(
-        (error?.body as any)?.context?.promptFeedback?.blockReason ||
-        (error?.body as any)?.context?.finishReason
-      );
-
     // remove line breaks in artifact tag to make the ast transform easier
     const message = !editing ? normalizeThinkTags(processWithArtifact(content)) : content;
 
@@ -123,11 +115,7 @@ const AssistantMessage = memo<AssistantMessageProps>(
             {!disableEditing && actionBarHolder}
           </>
         }
-        error={
-          errorContent && error && (message === LOADING_FLAT || !message || shouldForceShowError)
-            ? errorContent
-            : undefined
-        }
+        error={errorContent && error ? errorContent : undefined}
         messageExtra={
           <>
             {interrupted && <InterruptedHint />}
