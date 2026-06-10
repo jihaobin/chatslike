@@ -87,7 +87,10 @@ export class CommonActionImpl {
     phoneNumber: string;
   }): Promise<VerifyPhoneForTrialResult> => {
     const result = await userService.verifyPhoneForTrial(input);
-    await this.#get().refreshUserState();
+    await Promise.all([
+      this.#get().refreshUserState(),
+      result.trial.granted ? refreshBillingCredits() : Promise.resolve(),
+    ]);
 
     return result;
   };

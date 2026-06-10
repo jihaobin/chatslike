@@ -9,7 +9,13 @@ import { type GlobalServerConfig } from '@/types/serverConfig';
 import { type UserInitializationState, type UserPreference } from '@/types/user';
 import { withSWR } from '~test-utils';
 
+const refreshBillingCredits = vi.hoisted(() => vi.fn());
+
 vi.mock('zustand/traditional');
+
+vi.mock('@/services/billing', () => ({
+  refreshBillingCredits,
+}));
 
 vi.mock('swr', async (importOriginal) => {
   const modules = await importOriginal();
@@ -20,6 +26,7 @@ vi.mock('swr', async (importOriginal) => {
 });
 
 afterEach(() => {
+  refreshBillingCredits.mockReset();
   vi.restoreAllMocks();
 });
 

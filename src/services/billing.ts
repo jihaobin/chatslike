@@ -1,5 +1,12 @@
 import type { BillingOrderStatus } from '@/database/schemas';
 import { lambdaClient } from '@/libs/trpc/client';
+import { mutate } from '@/libs/swr';
+
+export const BILLING_BALANCE_KEY = 'billing.balance';
+export const BILLING_GRANT_PACKAGES_KEY = 'billing.grantPackages';
+
+export const refreshBillingCredits = () =>
+  Promise.all([mutate(BILLING_BALANCE_KEY), mutate(BILLING_GRANT_PACKAGES_KEY)]);
 
 interface EstimateTextCreditsParams {
   inputTokens: number;
