@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { message } from '@/components/AntdStaticMethods';
 import { imageService } from '@/services/image';
 import { useImageStore } from '@/store/image';
 
@@ -11,6 +12,25 @@ const { handleGenerationPromptModerationErrorMock } = vi.hoisted(() => ({
 // Mock external dependencies
 vi.mock('@/business/client/handleGenerationPromptModerationError', () => ({
   handleGenerationPromptModerationError: handleGenerationPromptModerationErrorMock,
+}));
+
+vi.mock('@/components/AntdStaticMethods', () => ({
+  message: {
+    error: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+vi.mock('@/store/aiInfra', () => ({
+  aiProviderSelectors: {
+    enabledImageModelList: vi.fn(() => [
+      {
+        children: [{ id: 'test-model' }],
+        id: 'test-provider',
+      },
+    ]),
+  },
+  getAiInfraStoreState: vi.fn(() => ({})),
 }));
 
 vi.mock('@/services/image', () => ({
@@ -214,6 +234,86 @@ describe('CreateImageAction', () => {
 
       // Verify prompt is NOT cleared when error occurs
       expect(result.current.parameters?.prompt).toBe('test prompt');
+    });
+
+    it('should show platform provider disabled error from create service', async () => {
+      const error = Object.assign(new Error('PLATFORM_PROVIDER_DISABLED'), {
+        data: {
+          code: 'FORBIDDEN',
+          errorData: {
+            code: 'PLATFORM_PROVIDER_DISABLED',
+            message: 'Platform provider is disabled',
+            provider: 'google',
+          },
+        },
+      });
+      mockImageService.createImage.mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useImageStore());
+
+      await expect(
+        act(async () => {
+          await result.current.createImage();
+        }),
+      ).rejects.toThrow('PLATFORM_PROVIDER_DISABLED');
+
+      expect(message.error).toHaveBeenCalledWith('Platform provider is disabled');
+    });
+
+    it('should add returned generation batch to current topic', async () => {
+      mockImageService.createImage.mockResolvedValueOnce({
+        data: {
+          batch: {
+            accessedAt: new Date(),
+            config: { prompt: 'test prompt' },
+            createdAt: new Date(),
+            generationTopicId: 'active-topic-id',
+            height: null,
+            id: 'failed-batch-id',
+            model: 'test-model',
+            prompt: 'test prompt',
+            provider: 'test-provider',
+            ratio: null,
+            updatedAt: new Date(),
+            userId: 'test-user-id',
+            width: null,
+          },
+          generations: [
+            {
+              accessedAt: new Date(),
+              asset: null,
+              asyncTaskId: 'failed-task-id',
+              createdAt: new Date(),
+              fileId: null,
+              generationBatchId: 'failed-batch-id',
+              id: 'failed-generation-id',
+              seed: null,
+              updatedAt: new Date(),
+              userId: 'test-user-id',
+            },
+          ],
+        },
+        success: true,
+      } as Awaited<ReturnType<typeof imageService.createImage>>);
+
+      const { result } = renderHook(() => useImageStore());
+
+      await act(async () => {
+        await result.current.createImage();
+      });
+
+      expect(result.current.generationBatchesMap['active-topic-id'][0]).toMatchObject({
+        id: 'failed-batch-id',
+        generations: [
+          {
+            id: 'failed-generation-id',
+            task: {
+              id: 'failed-task-id',
+              status: 'pending',
+            },
+          },
+        ],
+      });
     });
 
     it('should handle service error with new topic', async () => {

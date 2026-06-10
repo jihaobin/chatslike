@@ -7,6 +7,7 @@ import {
 import { extractDefaultValues, fluxSchnellParamsSchema } from 'model-bank';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { aiProviderSelectors } from '@/store/aiInfra';
 import { useImageStore } from '@/store/image';
 
 const localStorageMock = vi.hoisted(() => {
@@ -711,6 +712,44 @@ describe('GenerationConfigAction', () => {
 
       expect(result.current.isInit).toBe(true);
       expect(result.current.imageNum).toBe(4);
+    });
+
+    it('should fall back to the first enabled image model when remembered model was removed', () => {
+      const { result } = renderHook(() => useImageStore());
+
+      useImageStore.setState({
+        isInit: false,
+        model: 'removed-model',
+        provider: 'removed-provider',
+      });
+
+      act(() => {
+        result.current.initializeImageConfig(true, 'removed-model', 'removed-provider');
+      });
+
+      expect(result.current.isInit).toBe(true);
+      expect(result.current.model).toBe('flux/schnell');
+      expect(result.current.provider).toBe('fal');
+      expect(result.current.parameters).toEqual(fluxSchnellDefaultValues);
+    });
+
+    it('should clear image model selection when no image model is enabled', () => {
+      vi.mocked(aiProviderSelectors.enabledImageModelList).mockReturnValue([]);
+      const { result } = renderHook(() => useImageStore());
+
+      useImageStore.setState({
+        isInit: false,
+        model: 'removed-model',
+        provider: 'removed-provider',
+      });
+
+      act(() => {
+        result.current.initializeImageConfig(true, 'removed-model', 'removed-provider');
+      });
+
+      expect(result.current.isInit).toBe(true);
+      expect(result.current.model).toBe('');
+      expect(result.current.provider).toBe('');
     });
   });
 });

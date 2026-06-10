@@ -99,6 +99,15 @@ function preserveReusableSettings(
   return normalizeImageInputOnSchemaSwitch(reusableSettings, nextSchema, result);
 }
 
+function getFirstEnabledImageModel() {
+  const enabledImageModelList = aiProviderSelectors.enabledImageModelList(getAiInfraStoreState());
+
+  for (const providerItem of enabledImageModelList) {
+    const modelItem = providerItem.children[0];
+    if (modelItem) return { model: modelItem.id, provider: providerItem.id };
+  }
+}
+
 type Setter = StoreSetter<ImageStore>;
 export const createGenerationConfigSlice = (set: Setter, get: () => ImageStore, _api?: unknown) =>
   new GenerationConfigActionImpl(set, get, _api);
@@ -354,7 +363,36 @@ export class GenerationConfigActionImpl {
 
   _initializeDefaultImageConfig = (): void => {
     const { defaultImageNum } = settingsSelectors.currentImageSettings(useUserStore.getState());
-    this.#set({ imageNum: defaultImageNum, isInit: true }, false, 'initializeImageConfig/default');
+    const defaultSelection = getFirstEnabledImageModel();
+
+    if (!defaultSelection) {
+      this.#set(
+        { imageNum: defaultImageNum, isInit: true, model: '', provider: '' },
+        false,
+        'initializeImageConfig/default/empty',
+      );
+      return;
+    }
+
+    const { defaultValues, parametersSchema, initialActiveRatio } = prepareModelConfigState(
+      defaultSelection.model,
+      defaultSelection.provider,
+    );
+
+    this.#set(
+      {
+        activeAspectRatio: initialActiveRatio,
+        imageNum: defaultImageNum,
+        isAspectRatioLocked: false,
+        isInit: true,
+        model: defaultSelection.model,
+        parameters: defaultValues,
+        parametersSchema,
+        provider: defaultSelection.provider,
+      },
+      false,
+      `initializeImageConfig/default/${defaultSelection.model}/${defaultSelection.provider}`,
+    );
   };
 
   initializeImageConfig = (
