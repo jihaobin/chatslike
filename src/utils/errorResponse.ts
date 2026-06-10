@@ -1,8 +1,11 @@
 import { AUTH_REQUIRED_HEADER } from '@lobechat/desktop-bridge';
 import { type ILobeAgentRuntimeErrorType } from '@lobechat/model-runtime';
 import { AgentRuntimeErrorType } from '@lobechat/model-runtime';
-import { type ErrorResponse, type ErrorType } from '@lobechat/types';
+import { type ErrorType } from '@lobechat/types';
 import { ChatErrorType } from '@lobechat/types';
+
+import type { PlatformProviderErrorCode } from '@/business/shared/platformProviderErrors';
+import { isPlatformProviderErrorCode } from '@/business/shared/platformProviderErrors';
 
 /**
  * Error types that indicate a real authentication failure.
@@ -12,9 +15,18 @@ import { ChatErrorType } from '@lobechat/types';
 const AUTH_REQUIRED_ERROR_TYPES = new Set<ErrorType>([ChatErrorType.Unauthorized]);
 const FALLBACK_STATUS_CODE = 500;
 
-const getStatus = (errorType: ILobeAgentRuntimeErrorType | ErrorType) => {
+type LobeErrorResponseType = ILobeAgentRuntimeErrorType | ErrorType | PlatformProviderErrorCode;
+
+interface LobeErrorResponse {
+  body: unknown;
+  errorType: LobeErrorResponseType;
+}
+
+const getStatus = (errorType: LobeErrorResponseType) => {
   // InvalidAccessCode / InvalidAzureAPIKey / InvalidOpenAIAPIKey / InvalidZhipuAPIKey ....
   if (errorType.toString().includes('Invalid')) return 401;
+
+  if (isPlatformProviderErrorCode(errorType)) return 403;
 
   switch (errorType) {
     case ChatErrorType.InsufficientCredits: {
@@ -91,12 +103,12 @@ const resolveResponseStatus = (statusCode: unknown) => {
 };
 
 export const createErrorResponse = (
-  errorType: ErrorType | ILobeAgentRuntimeErrorType,
+  errorType: LobeErrorResponseType,
   body?: any,
 ) => {
   const statusCode = resolveResponseStatus(getStatus(errorType));
 
-  const data: ErrorResponse = { body, errorType };
+  const data: LobeErrorResponse = { body, errorType };
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

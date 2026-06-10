@@ -73,6 +73,18 @@ describe('createErrorResponse', () => {
     });
   });
 
+  it('returns a 403 status for platform provider guard errors', async () => {
+    const response = createErrorResponse('PLATFORM_PROVIDER_DISABLED', {
+      message: 'Platform provider is disabled',
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      body: { message: 'Platform provider is disabled' },
+      errorType: 'PLATFORM_PROVIDER_DISABLED',
+    });
+  });
+
   it('returns a 400 status for ExceededContextWindow error type', () => {
     const errorType = AgentRuntimeErrorType.ExceededContextWindow;
     const response = createErrorResponse(errorType);
