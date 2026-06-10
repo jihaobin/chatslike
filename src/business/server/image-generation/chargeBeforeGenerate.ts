@@ -35,6 +35,7 @@ interface ChargeBeforeResult {
   billing?: {
     estimatedCredits: number;
     operationId: string;
+    pricingMode?: 'fixed' | 'token';
     reservationId: string;
   };
   errorBatch?: {
@@ -166,18 +167,33 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
     },
     provider: params.provider,
   });
-  const estimatedCredits =
-    typeof pricing.fixedCreditsPerUnit === 'number'
-      ? calculateImageCredits({
-          fixedCreditsPerUnit: pricing.fixedCreditsPerUnit,
-          imageNum: params.imageNum,
-        })
-      : estimateImageTokenCreditsForRequest({
-          imageNum: params.imageNum,
-          inputCreditsPerMillionTokens: pricing.inputCreditsPerMillionTokens,
-          outputCreditsPerMillionTokens: pricing.outputCreditsPerMillionTokens,
-          prompt: params.generationParams.prompt,
-        });
+  const fixedCreditsPerUnit = pricing.fixedCreditsPerUnit;
+  const isFixedPricing = typeof fixedCreditsPerUnit === 'number';
+  let estimatedCredits: number;
+
+  if (isFixedPricing) {
+    estimatedCredits = calculateImageCredits({
+      fixedCreditsPerUnit,
+      imageNum: params.imageNum,
+    });
+  } else {
+    const inputCreditsPerMillionTokens = pricing.inputCreditsPerMillionTokens;
+    const outputCreditsPerMillionTokens = pricing.outputCreditsPerMillionTokens;
+
+    if (
+      typeof inputCreditsPerMillionTokens !== 'number' ||
+      typeof outputCreditsPerMillionTokens !== 'number'
+    ) {
+      throw new Error('IMAGE_TOKEN_PRICING_REQUIRED');
+    }
+
+    estimatedCredits = estimateImageTokenCreditsForRequest({
+      imageNum: params.imageNum,
+      inputCreditsPerMillionTokens,
+      outputCreditsPerMillionTokens,
+      prompt: params.generationParams.prompt,
+    });
+  }
   const operationId = [
     'image',
     params.userId,
@@ -205,7 +221,7 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
         clientIp: params.clientIp,
         imageNum: params.imageNum,
         params: params.generationParams as Record<string, unknown>,
-        pricingMode: typeof pricing.fixedCreditsPerUnit === 'number' ? 'fixed' : 'token',
+        pricingMode: isFixedPricing ? 'fixed' : 'token',
       },
       model: params.model,
       operationId,
@@ -224,7 +240,7 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
     billing: {
       estimatedCredits,
       operationId,
-      pricingMode: typeof pricing.fixedCreditsPerUnit === 'number' ? 'fixed' : 'token',
+      pricingMode: isFixedPricing ? 'fixed' : 'token',
       reservationId: reservation.id,
     },
   };
