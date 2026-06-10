@@ -12,6 +12,7 @@ import { assertGlobalProviderModelAvailable } from '@/business/server/globalProv
 import { chargeBeforeGenerate } from '@/business/server/image-generation/chargeBeforeGenerate';
 import { assertNewApiPlatformModelAvailable } from '@/business/server/platformCatalog/runtimeGuard';
 import { commercialRuntime } from '@/business/shared/commercialRuntime';
+import { getPlatformProviderErrorBody } from '@/business/shared/platformProviderErrors';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { type NewGeneration, type NewGenerationBatch } from '@/database/schemas';
 import { asyncTasks, generationBatches, generations } from '@/database/schemas';
@@ -27,6 +28,7 @@ import {
 } from '@/types/asyncTask';
 import { generateUniqueSeeds } from '@/utils/number';
 
+import { createFailedGenerationBatch } from '../_helpers/createFailedGenerationBatch';
 import { validateNoUrlsInConfig } from './utils';
 
 const log = debug('lobe-image:lambda');
@@ -97,16 +99,6 @@ export const imageRouter = router({
         cause: { data: { modelType: 'image', requestedModel: model } },
         code: 'BAD_REQUEST',
         message: ChatErrorType.LobeHubModelDeprecated,
-      });
-    }
-
-    if (commercialRuntime.platformHostedModels.enabled) {
-      await assertGlobalProviderModelAvailable({
-        db: serverDB,
-        modality: 'image',
-        model,
-        provider,
-        requirePricing: commercialRuntime.nativeBilling.enabled,
       });
     }
 
@@ -185,6 +177,36 @@ export const imageRouter = router({
 
     // Defensive check: ensure no full URLs enter the database
     validateNoUrlsInConfig(configForDatabase, 'configForDatabase');
+
+    if (commercialRuntime.platformHostedModels.enabled) {
+      try {
+        await assertGlobalProviderModelAvailable({
+          db: serverDB,
+          modality: 'image',
+          model,
+          provider,
+          requirePricing: commercialRuntime.nativeBilling.enabled,
+        });
+      } catch (error) {
+        const platformProviderError = getPlatformProviderErrorBody(error);
+        if (!platformProviderError) throw error;
+
+        return createFailedGenerationBatch({
+          asyncTaskType: AsyncTaskType.ImageGeneration,
+          config: configForDatabase,
+          error: new AsyncTaskError(platformProviderError.code, platformProviderError.message),
+          generationTopicId,
+          height: params.height,
+          imageNum,
+          model,
+          prompt: params.prompt,
+          provider,
+          serverDB,
+          userId,
+          width: params.width,
+        });
+      }
+    }
 
     const chargeResult = commercialRuntime.nativeBilling.enabled
       ? await chargeBeforeGenerate({

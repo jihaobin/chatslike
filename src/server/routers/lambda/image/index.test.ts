@@ -516,6 +516,39 @@ describe('imageRouter', () => {
       });
     });
 
+    it('returns a failed generation batch when platform provider is disabled', async () => {
+      platformHostedModelsEnabled.value = true;
+      mockAssertGlobalProviderModelAvailable.mockRejectedValue(
+        Object.assign(new Error('PLATFORM_PROVIDER_DISABLED'), {
+          code: 'PLATFORM_PROVIDER_DISABLED',
+          meta: { provider: 'google' },
+        }),
+      );
+
+      const ctx = createMockCtx();
+      const input = createDefaultInput({ imageNum: 1, model: 'imagen-4', provider: 'google' });
+
+      const caller = imageRouter.createCaller(ctx);
+      const result = await caller.createImage(input);
+
+      expect(result.success).toBe(true);
+      expect(result.data.generations.length).toBeGreaterThan(0);
+      expect(result.data.generations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            task: expect.objectContaining({
+              error: expect.objectContaining({
+                body: { detail: 'Platform provider is disabled' },
+                name: 'PLATFORM_PROVIDER_DISABLED',
+              }),
+              status: AsyncTaskStatus.Error,
+            }),
+          }),
+        ]),
+      );
+      expect(mockCreateAsyncCaller).not.toHaveBeenCalled();
+    });
+
     it('should skip pre-charge and billing metadata when native billing is disabled', async () => {
       nativeBillingEnabled.value = false;
       mockChargeBeforeGenerate.mockResolvedValue({
