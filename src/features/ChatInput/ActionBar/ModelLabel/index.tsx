@@ -1,9 +1,11 @@
 import { Center, Flexbox } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
 import { ChevronDownIcon } from 'lucide-react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
+import { getEffectiveChatModel, useEnabledChatModels } from '@/hooks/useEnabledChatModels';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
 import { aiModelSelectors, useAiInfraStore } from '@/store/aiInfra';
@@ -36,6 +38,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 }));
 
 const ModelLabel = memo(() => {
+  const { t } = useTranslation('components');
   const { dropdownPlacement } = useActionBarContext();
 
   const agentId = useAgentId();
@@ -44,9 +47,21 @@ const ModelLabel = memo(() => {
     agentByIdSelectors.getAgentModelProviderById(agentId)(s),
     s.updateAgentConfigById,
   ]);
+  const enabledList = useEnabledChatModels();
+  const effectiveSelection = getEffectiveChatModel(enabledList, model, provider);
+  const effectiveModel = effectiveSelection?.model ?? '';
+  const effectiveProvider = effectiveSelection?.provider ?? '';
 
-  const enabledModel = useAiInfraStore(aiModelSelectors.getEnabledModelById(model, provider));
-  const displayName = enabledModel?.displayName || model;
+  const enabledModel = useAiInfraStore(
+    aiModelSelectors.getEnabledModelById(effectiveModel, effectiveProvider),
+  );
+  const displayName = enabledModel?.displayName || effectiveModel || t('ModelSwitchPanel.emptyModel');
+
+  useEffect(() => {
+    if (!effectiveSelection || (effectiveModel === model && effectiveProvider === provider)) return;
+
+    updateAgentConfigById(agentId, effectiveSelection);
+  }, [agentId, effectiveModel, effectiveProvider, effectiveSelection, model, provider, updateAgentConfigById]);
 
   const handleModelChange = useCallback(
     async (params: { model: string; provider: string }) => {
@@ -57,10 +72,10 @@ const ModelLabel = memo(() => {
 
   return (
     <ModelSwitchPanel
-      model={model}
+      model={effectiveModel}
       openOnHover={false}
       placement={dropdownPlacement}
-      provider={provider}
+      provider={effectiveProvider}
       onModelChange={handleModelChange}
     >
       <Center horizontal className={styles.trigger} height={28} paddingInline={6}>

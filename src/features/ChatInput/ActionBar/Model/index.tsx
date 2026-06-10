@@ -1,9 +1,10 @@
 import { ModelIcon } from '@lobehub/icons';
 import { Center } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
+import { getEffectiveChatModel, useEnabledChatModels } from '@/hooks/useEnabledChatModels';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
 
@@ -41,6 +42,24 @@ const ModelSwitch = memo(() => {
     agentByIdSelectors.getAgentModelProviderById(agentId)(s),
     s.updateAgentConfigById,
   ]);
+  const enabledList = useEnabledChatModels();
+  const effectiveSelection = getEffectiveChatModel(enabledList, model, provider);
+  const effectiveModel = effectiveSelection?.model ?? '';
+  const effectiveProvider = effectiveSelection?.provider ?? '';
+
+  useEffect(() => {
+    if (!effectiveSelection || (effectiveModel === model && effectiveProvider === provider)) return;
+
+    updateAgentConfigById(agentId, effectiveSelection);
+  }, [
+    agentId,
+    effectiveModel,
+    effectiveProvider,
+    effectiveSelection,
+    model,
+    provider,
+    updateAgentConfigById,
+  ]);
 
   const handleModelChange = useCallback(
     async (params: { model: string; provider: string }) => {
@@ -51,14 +70,14 @@ const ModelSwitch = memo(() => {
 
   return (
     <ModelSwitchPanel
-      model={model}
+      model={effectiveModel}
       placement={dropdownPlacement}
-      provider={provider}
+      provider={effectiveProvider}
       onModelChange={handleModelChange}
     >
       <Center className={styles.model} height={blockSize} width={blockSize}>
         <div className={styles.icon}>
-          <ModelIcon model={model} size={iconSize} />
+          <ModelIcon model={effectiveModel} size={iconSize} />
         </div>
       </Center>
     </ModelSwitchPanel>

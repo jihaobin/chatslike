@@ -26,6 +26,7 @@ import { t } from 'i18next';
 
 import { markUserValidAction } from '@/business/client/markUserValidAction';
 import { message as antdMessage } from '@/components/AntdStaticMethods';
+import { getEffectiveChatModel } from '@/hooks/useEnabledChatModels';
 import { agentService } from '@/services/agent';
 import { aiChatService } from '@/services/aiChat';
 import { chatService } from '@/services/chat';
@@ -39,6 +40,7 @@ import {
   chatConfigByIdSelectors,
 } from '@/store/agent/selectors';
 import { agentGroupByIdSelectors, getChatGroupStoreState } from '@/store/agentGroup';
+import { getAiInfraStoreState } from '@/store/aiInfra';
 import { selectRuntimeType } from '@/store/chat/slices/aiChat/actions/agentDispatcher';
 import { resolveHeteroResume } from '@/store/chat/slices/aiChat/actions/heteroResume';
 import { dispatchNonHeteroSubAgent } from '@/store/chat/slices/aiChat/actions/nonHeteroSubAgentDispatcher';
@@ -225,6 +227,29 @@ export class ConversationLifecycleActionImpl {
     if (!agentId) return;
 
     const agentConfig = agentSelectors.getAgentConfigById(agentId)(getAgentStoreState());
+    const aiInfraState = getAiInfraStoreState();
+    const effectiveChatModel = aiInfraState.isInitAiProviderRuntimeState
+      ? getEffectiveChatModel(
+          aiInfraState.enabledChatModelList ?? [],
+          agentConfig?.model,
+          agentConfig?.provider,
+        )
+      : undefined;
+
+    if (aiInfraState.isInitAiProviderRuntimeState) {
+      if (!effectiveChatModel) {
+        antdMessage.warning(t('ModelSwitchPanel.emptyModel', { ns: 'components' }));
+        return;
+      }
+
+      if (
+        effectiveChatModel.model !== agentConfig?.model ||
+        effectiveChatModel.provider !== agentConfig?.provider
+      ) {
+        await useAgentStore.getState().updateAgentConfigById(agentId, effectiveChatModel);
+      }
+    }
+
     const heterogeneousProvider = agentConfig?.agencyConfig?.heterogeneousProvider;
     const runtimeType = selectRuntimeType({
       executionTarget: agentConfig?.agencyConfig?.executionTarget,
