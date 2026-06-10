@@ -3,10 +3,14 @@ import { t } from 'i18next';
 
 import { handleGenerationPromptModerationError } from '@/business/client/handleGenerationPromptModerationError';
 import { handleLobeHubModelDeprecatedError } from '@/business/client/handleLobeHubModelDeprecatedError';
+import { handlePlatformProviderError } from '@/business/client/handlePlatformProviderError';
 import { markUserValidAction } from '@/business/client/markUserValidAction';
 import { message } from '@/components/AntdStaticMethods';
 import { videoService } from '@/services/video';
+import { aiProviderSelectors, getAiInfraStoreState } from '@/store/aiInfra';
 import { type StoreSetter } from '@/store/types';
+import { AsyncTaskStatus } from '@/types/asyncTask';
+import type { Generation, GenerationBatch } from '@/types/generation';
 
 import { type VideoStore } from '../../store';
 import { generationBatchSelectors } from '../generationBatch/selectors';
@@ -14,6 +18,54 @@ import { videoGenerationConfigSelectors } from '../generationConfig/selectors';
 import { generationTopicSelectors } from '../generationTopic';
 
 type Setter = StoreSetter<VideoStore>;
+
+const getFirstEnabledVideoModel = () => {
+  const enabledVideoModelList = aiProviderSelectors.enabledVideoModelList(getAiInfraStoreState());
+
+  for (const providerItem of enabledVideoModelList) {
+    const modelItem = providerItem.children[0];
+    if (modelItem) return { model: modelItem.id, provider: providerItem.id };
+  }
+};
+
+const getEffectiveVideoModel = (model: string, provider: string) => {
+  const enabledVideoModelList = aiProviderSelectors.enabledVideoModelList(getAiInfraStoreState());
+  const currentModel = enabledVideoModelList
+    .flatMap((providerItem) =>
+      providerItem.children.map((modelItem) => ({ model: modelItem.id, provider: providerItem.id })),
+    )
+    .find((item) => item.model === model && item.provider === provider);
+
+  return currentModel ?? getFirstEnabledVideoModel();
+};
+
+type CreatedGeneration = Omit<Generation, 'task'> & Partial<Pick<Generation, 'task'>>;
+
+const normalizeCreatedGenerations = (generations: CreatedGeneration[]): Generation[] =>
+  generations.map((generation) => ({
+    ...generation,
+    task: generation.task ?? {
+      id: generation.asyncTaskId ?? generation.id,
+      status: AsyncTaskStatus.Pending,
+    },
+  }));
+
+const createGenerationBatchPayload = (
+  batch: Omit<GenerationBatch, 'config' | 'generations'>,
+  generations: CreatedGeneration[],
+  config: GenerationBatch['config'],
+): GenerationBatch => ({
+  avgLatencyMs: batch.avgLatencyMs,
+  config,
+  createdAt: batch.createdAt,
+  generations: normalizeCreatedGenerations(generations),
+  height: batch.height,
+  id: batch.id,
+  model: batch.model,
+  prompt: batch.prompt,
+  provider: batch.provider,
+  width: batch.width,
+});
 
 export const createCreateVideoSlice = (set: Setter, get: () => VideoStore, _api?: unknown) =>
   new CreateVideoActionImpl(set, get, _api);
@@ -31,12 +83,32 @@ export class CreateVideoActionImpl {
   createVideo = async (): Promise<void> => {
     this.#set({ isCreating: true }, false, 'createVideo/startCreateVideo');
 
-    const store = this.#get();
-    const parameters = videoGenerationConfigSelectors.parameters(store);
-    const provider = videoGenerationConfigSelectors.provider(store);
-    const model = videoGenerationConfigSelectors.model(store);
+    let store = this.#get();
+    let parameters = videoGenerationConfigSelectors.parameters(store);
+    let provider = videoGenerationConfigSelectors.provider(store);
+    let model = videoGenerationConfigSelectors.model(store);
     const activeGenerationTopicId = generationTopicSelectors.activeGenerationTopicId(store);
     const { createGenerationTopic, switchGenerationTopic, setTopicBatchLoaded } = store;
+
+    const effectiveModel = getEffectiveVideoModel(model, provider);
+
+    if (!effectiveModel) {
+      message.warning({
+        content: t('ModelSwitchPanel.emptyModel', { ns: 'components' }),
+        duration: 3,
+      });
+      this.#set({ isCreating: false }, false, 'createVideo/endCreateVideo');
+      return;
+    }
+
+    if (effectiveModel.model !== model || effectiveModel.provider !== provider) {
+      this.#get().setModelAndProviderOnSelect(effectiveModel.model, effectiveModel.provider);
+
+      store = this.#get();
+      parameters = videoGenerationConfigSelectors.parameters(store);
+      provider = videoGenerationConfigSelectors.provider(store);
+      model = videoGenerationConfigSelectors.model(store);
+    }
 
     if (!parameters) {
       throw new TypeError('parameters is not initialized');
@@ -99,12 +171,23 @@ export class CreateVideoActionImpl {
       }
 
       // 4. Create video via service
-      await videoService.createVideo({
+      const result = await videoService.createVideo({
         generationTopicId: finalTopicId!,
         model,
         params: parameters as any,
         provider,
       });
+
+      if (result?.data?.batch && result.data.generations) {
+        this.#get().internal_dispatchGenerationBatch(
+          finalTopicId!,
+          {
+            type: 'addBatch',
+            value: createGenerationBatchPayload(result.data.batch, result.data.generations, parameters),
+          },
+          'createVideo/addCreatedBatch',
+        );
+      }
 
       // 5. Refresh generation batches to show the new batch
       if (!isNewTopic) {
@@ -122,6 +205,7 @@ export class CreateVideoActionImpl {
     } catch (error) {
       handleGenerationPromptModerationError(error);
       handleLobeHubModelDeprecatedError(error);
+      handlePlatformProviderError(error);
       throw error;
     } finally {
       // 7. Reset all creating states
@@ -152,17 +236,33 @@ export class CreateVideoActionImpl {
     try {
       await removeGenerationBatch(generationBatchId, activeGenerationTopicId);
 
-      await videoService.createVideo({
+      const result = await videoService.createVideo({
         generationTopicId: activeGenerationTopicId,
         model: batch.model,
         params: batch.config as any,
         provider: batch.provider,
       });
 
+      if (result?.data?.batch && result.data.generations) {
+        this.#get().internal_dispatchGenerationBatch(
+          activeGenerationTopicId,
+          {
+            type: 'addBatch',
+            value: createGenerationBatchPayload(
+              result.data.batch,
+              result.data.generations,
+              batch.config,
+            ),
+          },
+          'recreateVideo/addCreatedBatch',
+        );
+      }
+
       await store.refreshGenerationBatches();
     } catch (error) {
       handleGenerationPromptModerationError(error);
       handleLobeHubModelDeprecatedError(error);
+      handlePlatformProviderError(error);
       throw error;
     } finally {
       this.#set({ isCreating: false }, false, 'recreateVideo/end');

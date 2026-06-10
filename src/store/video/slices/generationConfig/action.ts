@@ -94,7 +94,11 @@ export class GenerationConfigActionImpl {
       const defaultSelection = getFirstEnabledVideoModel();
 
       if (!defaultSelection) {
-        this.#set({ isInit: true }, false, 'initializeVideoConfig/default');
+        this.#set(
+          { isInit: true, model: '', provider: '' },
+          false,
+          'initializeVideoConfig/default/empty',
+        );
         return;
       }
 

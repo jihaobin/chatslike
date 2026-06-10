@@ -7,6 +7,7 @@ import {
 } from 'model-bank';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { aiProviderSelectors } from '@/store/aiInfra';
 import { useVideoStore } from '@/store/video';
 
 const modelASchema: VideoModelParamsSchema = {
@@ -132,6 +133,44 @@ describe('video generationConfig actions', () => {
     expect(result.current.model).toBe('video-model-a');
     expect(result.current.provider).toBe('provider-a');
     expect(result.current.parameters.prompt).toBe('');
+  });
+
+  it('should fall back to the first enabled video model when remembered model was removed', () => {
+    useVideoStore.setState({
+      isInit: false,
+      model: 'removed-video-model',
+      provider: 'removed-provider',
+    });
+
+    const { result } = renderHook(() => useVideoStore());
+
+    act(() => {
+      result.current.initializeVideoConfig(true, 'removed-video-model', 'removed-provider');
+    });
+
+    expect(result.current.isInit).toBe(true);
+    expect(result.current.model).toBe('video-model-a');
+    expect(result.current.provider).toBe('provider-a');
+    expect(result.current.parametersSchema).toBe(modelASchema);
+  });
+
+  it('should clear video model selection when no video model is enabled', () => {
+    vi.mocked(aiProviderSelectors.enabledVideoModelList).mockReturnValue([]);
+    useVideoStore.setState({
+      isInit: false,
+      model: 'removed-video-model',
+      provider: 'removed-provider',
+    });
+
+    const { result } = renderHook(() => useVideoStore());
+
+    act(() => {
+      result.current.initializeVideoConfig(true, 'removed-video-model', 'removed-provider');
+    });
+
+    expect(result.current.isInit).toBe(true);
+    expect(result.current.model).toBe('');
+    expect(result.current.provider).toBe('');
   });
 
   it('should preserve prompt and frame images when switching model', () => {
