@@ -142,5 +142,30 @@ describe('POST handler', () => {
         errorType: 500,
       });
     });
+
+    it('should expose platform provider guard errors with their business code', async () => {
+      const mockParams = Promise.resolve({ provider: 'openai' });
+      const error = Object.assign(new Error('Platform provider is disabled'), {
+        code: 'PLATFORM_PROVIDER_DISABLED',
+        meta: { provider: 'openai' },
+      });
+
+      vi.mocked(initModelRuntimeFromDB).mockRejectedValue(error);
+
+      const response = await POST(request, { params: mockParams });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({
+        body: {
+          error: {
+            code: 'PLATFORM_PROVIDER_DISABLED',
+            message: 'Platform provider is disabled',
+            provider: 'openai',
+          },
+          provider: 'openai',
+        },
+        errorType: 'PLATFORM_PROVIDER_DISABLED',
+      });
+    });
   });
 });

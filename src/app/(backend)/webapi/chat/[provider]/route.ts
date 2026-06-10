@@ -3,6 +3,7 @@ import { AGENT_RUNTIME_ERROR_SET } from '@lobechat/model-runtime';
 import { ChatErrorType } from '@lobechat/types';
 
 import { checkAuth } from '@/app/(backend)/middleware/auth';
+import { getPlatformProviderErrorBody } from '@/business/shared/platformProviderErrors';
 import { createTraceOptions, initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import { type ChatStreamPayload } from '@/types/openai/chat';
 import { createErrorResponse } from '@/utils/errorResponse';
@@ -37,6 +38,16 @@ export const POST = checkAuth(async (req: Request, { params, userId, serverDB })
       signal: req.signal,
     });
   } catch (e) {
+    const platformProviderError = getPlatformProviderErrorBody(e);
+    if (platformProviderError) {
+      console.warn(`Route: [${provider}] ${platformProviderError.code}:`, e);
+
+      return createErrorResponse(platformProviderError.code, {
+        error: platformProviderError,
+        provider,
+      });
+    }
+
     const {
       errorType = ChatErrorType.InternalServerError,
       error: errorContent,

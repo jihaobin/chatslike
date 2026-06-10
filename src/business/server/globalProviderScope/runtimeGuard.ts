@@ -7,11 +7,15 @@ import { aiModels, type UsageModality } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 
+import {
+  PLATFORM_MODEL_CREDENTIAL_MISSING,
+  PLATFORM_MODEL_DISABLED,
+  PLATFORM_PROVIDER_DISABLED,
+} from '@/business/shared/platformProviderErrors';
+
 import { GLOBAL_PROVIDER_CONFIG_USER_ID } from './constants';
 
-export const PLATFORM_PROVIDER_DISABLED = 'PLATFORM_PROVIDER_DISABLED';
-export const PLATFORM_MODEL_DISABLED = 'PLATFORM_MODEL_DISABLED';
-export const PLATFORM_MODEL_CREDENTIAL_MISSING = 'PLATFORM_MODEL_CREDENTIAL_MISSING';
+export { PLATFORM_MODEL_CREDENTIAL_MISSING, PLATFORM_MODEL_DISABLED, PLATFORM_PROVIDER_DISABLED };
 
 export interface AssertGlobalProviderModelAvailableParams {
   db: LobeChatDatabase;
