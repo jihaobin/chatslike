@@ -14,6 +14,7 @@ import {
   getInitialModelPricingRows,
   listPublicTextModelPricingRows,
   matchesParameterRules,
+  ModelPricingService,
 } from '../pricing';
 
 const serverDB: LobeChatDatabase = await getTestDB();
@@ -91,6 +92,31 @@ describe('billing pricing', () => {
     expect(calculateVideoCredits({ durationSeconds: 5, fixedCreditsPerSecond: 20_000 })).toBe(
       100_000,
     );
+  });
+
+  it('falls back to text token pricing for video models without a video pricing row', async () => {
+    await serverDB.insert(modelPricing).values({
+      effectiveAt: new Date('2026-01-01T00:00:00Z'),
+      inputCreditsPerMillionTokens: 5_000_000,
+      modality: 'text',
+      model: 'doubao-seedance-2.0',
+      outputCreditsPerMillionTokens: 5_000_000,
+      priceKey: 'text:doubao-seedance-2.0',
+      provider: 'amux',
+      status: 'active',
+    });
+
+    await expect(
+      new ModelPricingService(serverDB).findActivePricing({
+        modality: 'video',
+        model: 'doubao-seedance-2.0',
+        provider: 'amux',
+      }),
+    ).resolves.toMatchObject({
+      inputCreditsPerMillionTokens: 5_000_000,
+      modality: 'text',
+      outputCreditsPerMillionTokens: 5_000_000,
+    });
   });
 
   it('contains initial LobeHub-like model pricing rows', () => {

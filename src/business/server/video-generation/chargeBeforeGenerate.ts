@@ -15,7 +15,11 @@ import type { CreateVideoServicePayload } from '@/server/routers/lambda/video';
 import { AsyncTaskError, AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
 
 import { CreditsService } from '../billing/credits';
-import { calculateVideoCredits, getVideoPricing } from '../billing/pricing';
+import {
+  calculateVideoCredits,
+  estimateVideoTokenCreditsForRequest,
+  getVideoPricing,
+} from '../billing/pricing';
 import { assertPrechargeRisk } from '../billing/risk';
 
 const DEFAULT_VIDEO_DURATION_SECONDS = 5;
@@ -183,14 +187,33 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
     },
     provider: params.provider,
   });
-  if (typeof pricing.fixedCreditsPerUnit !== 'number') {
-    throw new Error('VIDEO_FIXED_PRICING_REQUIRED');
-  }
+  const fixedCreditsPerUnit = pricing.fixedCreditsPerUnit;
+  const isFixedPricing = typeof fixedCreditsPerUnit === 'number';
+  let estimatedCredits: number;
 
-  const estimatedCredits = calculateVideoCredits({
-    durationSeconds,
-    fixedCreditsPerSecond: pricing.fixedCreditsPerUnit,
-  });
+  if (isFixedPricing) {
+    estimatedCredits = calculateVideoCredits({
+      durationSeconds,
+      fixedCreditsPerSecond: fixedCreditsPerUnit,
+    });
+  } else {
+    const inputCreditsPerMillionTokens = pricing.inputCreditsPerMillionTokens;
+    const outputCreditsPerMillionTokens = pricing.outputCreditsPerMillionTokens;
+
+    if (
+      typeof inputCreditsPerMillionTokens !== 'number' ||
+      typeof outputCreditsPerMillionTokens !== 'number'
+    ) {
+      throw new Error('VIDEO_TOKEN_PRICING_REQUIRED');
+    }
+
+    estimatedCredits = estimateVideoTokenCreditsForRequest({
+      durationSeconds,
+      inputCreditsPerMillionTokens,
+      outputCreditsPerMillionTokens,
+      prompt: params.params.prompt,
+    });
+  }
   const operationId = createOperationId(params);
   const db = await getServerDB();
   const credits = new CreditsService(db, params.userId);
@@ -210,6 +233,7 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
       metadata: {
         durationSeconds,
         params: params.params as Record<string, unknown>,
+        pricingMode: isFixedPricing ? 'fixed' : 'token',
       },
       model: params.model,
       operationId,

@@ -108,6 +108,34 @@ describe('video generation billing', () => {
     });
   });
 
+  it('reserves estimated token credits before video generation when video pricing is token based', async () => {
+    getVideoPricing.mockResolvedValue({
+      inputCreditsPerMillionTokens: 10_000,
+      outputCreditsPerMillionTokens: 20_000,
+    });
+
+    const result = await chargeBeforeGenerate({
+      generationTopicId: 'topic-1',
+      model: 'default-video',
+      params: { duration: 5, prompt: 'city' } as never,
+      provider: 'lobehub',
+      userId: 'user-1',
+    });
+
+    expect(reserveUsageCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessType: 'video',
+        estimatedCredits: 101,
+        model: 'default-video',
+        provider: 'lobehub',
+      }),
+    );
+    expect(result.prechargeResult).toMatchObject({
+      estimatedCredits: 101,
+      reservationId: 'reservation-video-1',
+    });
+  });
+
   it('returns an error batch before provider submission when precharge fails', async () => {
     reserveUsageCredits.mockRejectedValue({
       availableCredits: 10_000,

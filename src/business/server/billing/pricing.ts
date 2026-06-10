@@ -51,6 +51,7 @@ interface ImageTokenCreditsParams {
 
 const ESTIMATED_CHARS_PER_TOKEN = 4;
 const ESTIMATED_IMAGE_OUTPUT_TOKENS = 1000;
+const ESTIMATED_VIDEO_OUTPUT_TOKENS_PER_SECOND = 1000;
 
 export function calculateImageTokenCredits(params: ImageTokenCreditsParams) {
   return calculateTextCredits({
@@ -82,6 +83,22 @@ export function calculateVideoCredits(params: {
   fixedCreditsPerSecond: number;
 }) {
   return params.durationSeconds * params.fixedCreditsPerSecond;
+}
+
+export function estimateVideoTokenCreditsForRequest(params: {
+  durationSeconds: number;
+  inputCreditsPerMillionTokens: number;
+  outputCreditsPerMillionTokens: number;
+  prompt?: string;
+}) {
+  const promptTokensEstimate = Math.ceil((params.prompt?.length ?? 0) / ESTIMATED_CHARS_PER_TOKEN);
+
+  return calculateTextCredits({
+    inputCreditsPerMillionTokens: params.inputCreditsPerMillionTokens,
+    inputTokens: promptTokensEstimate,
+    outputCreditsPerMillionTokens: params.outputCreditsPerMillionTokens,
+    outputTokens: params.durationSeconds * ESTIMATED_VIDEO_OUTPUT_TOKENS_PER_SECOND,
+  });
 }
 
 export interface PricingLookupParams {
@@ -211,9 +228,35 @@ export class ModelPricingService {
     const matched = rows.find((row) =>
       matchesParameterRules(row.parameterRules, params.parameters),
     );
-    if (!matched) throw new PricingNotFoundError({ ...params });
+    if (matched) return matched;
 
-    return matched;
+    if (params.modality === 'video') {
+      const fallbackRows = await this.db
+        .select()
+        .from(modelPricing)
+        .where(
+          and(
+            eq(modelPricing.provider, params.provider),
+            eq(modelPricing.model, params.model),
+            eq(modelPricing.modality, 'text'),
+            eq(modelPricing.status, 'active'),
+            lte(modelPricing.effectiveAt, new Date()),
+          ),
+        )
+        .orderBy(desc(modelPricing.effectiveAt), desc(modelPricing.createdAt));
+
+      const fallback = fallbackRows.find(
+        (row) =>
+          typeof row.inputCreditsPerMillionTokens === 'number' &&
+          typeof row.outputCreditsPerMillionTokens === 'number' &&
+          matchesParameterRules(row.parameterRules, params.parameters),
+      );
+
+      if (fallback) return fallback;
+    }
+
+    throw new PricingNotFoundError({ ...params });
+
   }
 }
 
