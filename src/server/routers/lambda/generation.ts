@@ -69,14 +69,16 @@ export const generationRouter = router({
         status: status as AsyncTaskStatus,
       };
 
-      if (asyncTask.status === AsyncTaskStatus.Success) {
+      if (asyncTask.status === AsyncTaskStatus.Success || asyncTask.status === AsyncTaskStatus.Error) {
         const generation = await ctx.generationModel.findByIdAndTransform(input.generationId);
         if (!generation) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Generation not found' });
         }
 
         result.generation = generation;
-      } else if (asyncTask.status === AsyncTaskStatus.Error) {
+      }
+
+      if (asyncTask.status === AsyncTaskStatus.Error) {
         result.error = error as AsyncTaskError;
       }
 

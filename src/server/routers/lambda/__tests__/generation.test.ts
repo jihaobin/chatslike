@@ -61,8 +61,16 @@ describe('generationRouter', () => {
       expect(mockFindByIdAndTransform).toHaveBeenCalledWith('gen-1');
     });
 
-    it('should return error when task failed', async () => {
+    it('should return error and generation when task failed', async () => {
       const mockError = { code: 'GENERATION_ERROR', message: 'Generation failed' };
+      const mockGeneration = {
+        id: 'gen-1',
+        task: {
+          error: mockError,
+          id: 'task-1',
+          status: AsyncTaskStatus.Error,
+        },
+      };
       const mockAsyncTask = {
         id: 'task-1',
         status: AsyncTaskStatus.Error,
@@ -70,12 +78,19 @@ describe('generationRouter', () => {
       };
       const mockCheckTimeoutTasks = vi.fn().mockResolvedValue(undefined);
       const mockFindById = vi.fn().mockResolvedValue(mockAsyncTask);
+      const mockFindByIdAndTransform = vi.fn().mockResolvedValue(mockGeneration);
 
       vi.mocked(AsyncTaskModel).mockImplementation(
         () =>
           ({
             checkTimeoutTasks: mockCheckTimeoutTasks,
             findById: mockFindById,
+          }) as any,
+      );
+      vi.mocked(GenerationModel).mockImplementation(
+        () =>
+          ({
+            findByIdAndTransform: mockFindByIdAndTransform,
           }) as any,
       );
 
@@ -87,8 +102,9 @@ describe('generationRouter', () => {
       });
 
       expect(result.status).toBe(AsyncTaskStatus.Error);
-      expect(result.generation).toBeNull();
+      expect(result.generation).toEqual(mockGeneration);
       expect(result.error).toEqual(mockError);
+      expect(mockFindByIdAndTransform).toHaveBeenCalledWith('gen-1');
     });
 
     it('should return pending status when task is running', async () => {
