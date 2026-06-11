@@ -296,7 +296,9 @@ describe('video generation billing', () => {
       expect.objectContaining({
         actualCredits: 20_000,
         estimatedCredits: 1,
+        inputTokens: 1_000_000,
         modality: 'video',
+        outputTokens: 500_000,
         reservationId: 'reservation-video-1',
       }),
     );

@@ -93,11 +93,17 @@ export async function chargeAfterGenerate(params: ChargeParams): Promise<void> {
     provider: params.provider,
     usage: params.usage,
   });
+  const outputTokens = params.usage?.completionTokens ?? null;
+  const inputTokens =
+    params.usage?.totalTokens === undefined || outputTokens === null
+      ? null
+      : Math.max(params.usage.totalTokens - outputTokens, 0);
 
   const usageRecord = await credits.createUsageRecord({
     actualCredits,
     businessId: params.metadata.generationBatchId,
     estimatedCredits: prechargeResult.estimatedCredits,
+    inputTokens,
     metadata: {
       asyncTaskId: params.metadata.asyncTaskId,
       latency: params.latency,
@@ -106,6 +112,7 @@ export async function chargeAfterGenerate(params: ChargeParams): Promise<void> {
     },
     modality: 'video',
     model: params.metadata.modelId,
+    outputTokens,
     params: params.computePriceParams ?? {},
     provider: params.provider,
     releasedCredits: 0,
