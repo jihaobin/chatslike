@@ -927,6 +927,18 @@ describe('Business billing pages', () => {
             provider: 'deepseek',
             status: 'captured',
           },
+          {
+            actualCredits: 21_775,
+            createdAt: new Date('2026-06-11T14:42:00.000Z'),
+            id: 'usage-video-1',
+            inputTokens: 1_000_000,
+            metadata: { latency: 5358.39 },
+            modality: 'video',
+            model: 'doubao-seedance-2.0-fast',
+            outputTokens: 500_000,
+            provider: 'volcengine',
+            status: 'captured',
+          },
         ],
       },
       isLoading: false,
@@ -951,15 +963,22 @@ describe('Business billing pages', () => {
       }),
     );
     expect(screen.getByText('Text Generation')).toBeInTheDocument();
-    expect(screen.getByText('Chat Message')).toBeInTheDocument();
+    expect(screen.getAllByText('Chat Message')).toHaveLength(2);
     expect(screen.getByText('deepseek-v4-flash')).toBeInTheDocument();
     expect(screen.getByText('43,123')).toBeInTheDocument();
-    expect(screen.getByText('=')).toBeInTheDocument();
+    expect(screen.getAllByText('=')).toHaveLength(2);
     expect(screen.getByText('42,008')).toBeInTheDocument();
-    expect(screen.getByText('+')).toBeInTheDocument();
+    expect(screen.getAllByText('+')).toHaveLength(2);
     expect(screen.getByText('1,115')).toBeInTheDocument();
     expect(screen.getByText('621')).toBeInTheDocument();
     expect(screen.getByText('13.46s')).toBeInTheDocument();
+    expect(screen.getByText('Video Generation')).toBeInTheDocument();
+    expect(screen.getByText('doubao-seedance-2.0-fast')).toBeInTheDocument();
+    expect(screen.getByText('1,500,000')).toBeInTheDocument();
+    expect(screen.getByText('1,000,000')).toBeInTheDocument();
+    expect(screen.getByText('500,000')).toBeInTheDocument();
+    expect(screen.getByText('21,775')).toBeInTheDocument();
+    expect(screen.getByText('5.36s')).toBeInTheDocument();
   }, 30_000);
 
   it('renders purchasable native subscription plans', async () => {

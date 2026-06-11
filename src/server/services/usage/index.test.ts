@@ -12,11 +12,19 @@ describe('UsageRecordService', () => {
   const userId = 'test-user-id';
 
   // Helper function to setup query chain mock
-  const setupQueryChainMock = (mockMessages: any[]) => {
-    const mockOrderBy = vi.fn().mockResolvedValue(mockMessages);
-    const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
-    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
-    mockDb.select = vi.fn().mockReturnValue({ from: mockFrom });
+  const setupQueryChainMock = (mockMessages: any[], mockUsageRecords: any[] = []) => {
+    const createQueryChain = (records: any[]) => {
+      const mockOrderBy = vi.fn().mockResolvedValue(records);
+      const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+
+      return { from: mockFrom };
+    };
+
+    mockDb.select = vi
+      .fn()
+      .mockReturnValueOnce(createQueryChain(mockMessages))
+      .mockReturnValueOnce(createQueryChain(mockUsageRecords));
   };
 
   beforeEach(() => {
@@ -132,6 +140,46 @@ describe('UsageRecordService', () => {
       const result = await service.findByMonth();
 
       expect(result).toHaveLength(0);
+    });
+
+    it('should include token usage from video billing records', async () => {
+      const createdAt = new Date('2024-06-11T14:42:00Z');
+      const mockUsageRecords = [
+        {
+          actualCredits: 21_775,
+          createdAt,
+          id: 'usage-video-1',
+          inputTokens: null,
+          metadata: {
+            latency: 5358.39,
+            usage: { completionTokens: 500_000, totalTokens: 1_500_000 },
+          },
+          modality: 'video',
+          model: 'doubao-seedance-2.0-fast',
+          outputTokens: null,
+          provider: 'volcengine',
+          userId,
+        },
+      ];
+
+      setupQueryChainMock([], mockUsageRecords);
+
+      const result = await service.findByMonth('2024-06');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'usage-video-1',
+        model: 'doubao-seedance-2.0-fast',
+        provider: 'volcengine',
+        spend: 21_775,
+        totalInputTokens: 1_000_000,
+        totalOutputTokens: 500_000,
+        totalTokens: 1_500_000,
+        tps: 0,
+        ttft: 5358.39,
+        type: 'video',
+        userId,
+      });
     });
   });
 
