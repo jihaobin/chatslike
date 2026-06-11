@@ -5,6 +5,10 @@ class GenerationService {
     return lambdaClient.generation.getGenerationStatus.query({ asyncTaskId, generationId });
   }
 
+  async retryVideoGenerationTask(generationId: string, asyncTaskId: string) {
+    return lambdaClient.generation.retryVideoGenerationTask.mutate({ asyncTaskId, generationId });
+  }
+
   /**
    * Delete a single generation
    */

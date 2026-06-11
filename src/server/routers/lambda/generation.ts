@@ -106,6 +106,76 @@ export const generationRouter = router({
 
       return result;
     }),
+
+  retryVideoGenerationTask: generationProcedure
+    .input(z.object({ asyncTaskId: z.string(), generationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const asyncTask = await ctx.asyncTaskModel.findById(input.asyncTaskId);
+      if (!asyncTask) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Async task not found' });
+      }
+
+      if (asyncTask.type !== AsyncTaskType.VideoGeneration) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Async task is not a video task' });
+      }
+
+      if (asyncTask.status !== AsyncTaskStatus.Error) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Async task is not failed' });
+      }
+
+      if (!asyncTask.inferenceId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Async task has no inference id' });
+      }
+
+      const generation = await ctx.generationModel.findById(input.generationId);
+      if (!generation) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Generation not found' });
+      }
+
+      if (generation.asyncTaskId !== input.asyncTaskId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Generation is not linked to task' });
+      }
+
+      await ctx.asyncTaskModel.update(input.asyncTaskId, {
+        error: null,
+        status: AsyncTaskStatus.Processing,
+      });
+
+      const retriedTask = await syncVideoGenerationTaskStatus({
+        asyncTask: {
+          ...asyncTask,
+          error: null,
+          status: AsyncTaskStatus.Processing,
+        },
+        db: ctx.serverDB,
+        generationId: input.generationId,
+        userId: ctx.userId,
+      });
+
+      const result: GetGenerationStatusResult = {
+        error: null,
+        generation: null,
+        status: retriedTask.status as AsyncTaskStatus,
+      };
+
+      if (
+        retriedTask.status === AsyncTaskStatus.Success ||
+        retriedTask.status === AsyncTaskStatus.Error
+      ) {
+        const generation = await ctx.generationModel.findByIdAndTransform(input.generationId);
+        if (!generation) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Generation not found' });
+        }
+
+        result.generation = generation;
+      }
+
+      if (retriedTask.status === AsyncTaskStatus.Error) {
+        result.error = retriedTask.error as AsyncTaskError;
+      }
+
+      return result;
+    }),
 });
 
 export type GenerationRouter = typeof generationRouter;
