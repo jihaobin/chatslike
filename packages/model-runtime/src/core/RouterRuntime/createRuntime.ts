@@ -30,6 +30,7 @@ import type {
   HandleCreateVideoWebhookPayload,
   HandleCreateVideoWebhookResult,
   ILobeAgentRuntimeErrorType,
+  PollVideoStatusResult,
   TextToSpeechPayload,
 } from '../../types';
 import { AgentRuntimeError } from '../../utils/createError';
@@ -701,6 +702,18 @@ export const createRouterRuntime = ({
       const routerOptions = this.normalizeRouterOptions(resolvedRouters[0]);
       const { runtime } = await this.createRuntimeFromOption(resolvedRouters[0], routerOptions[0]);
       return runtime.handleCreateVideoWebhook!(payload);
+    }
+
+    async handlePollVideoStatus(inferenceId: string): Promise<PollVideoStatusResult | undefined> {
+      const resolvedRouters = await this.resolveRouters();
+      const matchedRouter = this._options.baseURL
+        ? (resolvedRouters.find((router) => router.baseURLPattern?.test(this._options.baseURL!)) ??
+          resolvedRouters.at(-1)!)
+        : resolvedRouters.at(-1)!;
+      const routerOptions = this.normalizeRouterOptions(matchedRouter);
+      const { runtime } = await this.createRuntimeFromOption(matchedRouter, routerOptions[0]);
+
+      return runtime.handlePollVideoStatus?.(inferenceId);
     }
 
     async generateObject(payload: GenerateObjectPayload, options?: GenerateObjectOptions) {

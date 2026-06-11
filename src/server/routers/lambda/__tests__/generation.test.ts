@@ -4,16 +4,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { GenerationModel } from '@/database/models/generation';
 import { FileService } from '@/server/services/file';
-import { AsyncTaskStatus } from '@/types/asyncTask';
+import { syncVideoGenerationTaskStatus } from '@/server/services/generation/videoTaskStatusSync';
+import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
 
 import { generationRouter } from '../generation';
 
 vi.mock('@/database/models/asyncTask');
 vi.mock('@/database/models/generation');
 vi.mock('@/server/services/file');
+vi.mock('@/server/services/generation/videoTaskStatusSync', () => ({
+  syncVideoGenerationTaskStatus: vi.fn(),
+}));
 
 describe('generationRouter', () => {
   const mockCtx = {
+    serverDB: undefined,
     userId: 'test-user',
   };
 
@@ -132,6 +137,91 @@ describe('generationRouter', () => {
       });
 
       expect(result.status).toBe(AsyncTaskStatus.Pending);
+      expect(result.generation).toBeNull();
+      expect(result.error).toBeNull();
+    });
+
+    it('should sync completed video task before returning status', async () => {
+      const mockGeneration = {
+        id: 'gen-1',
+        asset: { url: 'https://example.com/video.mp4' },
+      };
+      const mockAsyncTask = {
+        id: 'task-1',
+        status: AsyncTaskStatus.Processing,
+        error: null,
+        inferenceId: 'upstream-task-1',
+        type: AsyncTaskType.VideoGeneration,
+      };
+      const mockSyncedTask = {
+        ...mockAsyncTask,
+        status: AsyncTaskStatus.Success,
+      };
+      const mockCheckTimeoutTasks = vi.fn().mockResolvedValue(undefined);
+      const mockFindById = vi.fn().mockResolvedValue(mockAsyncTask);
+      const mockFindByIdAndTransform = vi.fn().mockResolvedValue(mockGeneration);
+
+      vi.mocked(AsyncTaskModel).mockImplementation(
+        () =>
+          ({
+            checkTimeoutTasks: mockCheckTimeoutTasks,
+            findById: mockFindById,
+          }) as any,
+      );
+      vi.mocked(GenerationModel).mockImplementation(
+        () =>
+          ({
+            findByIdAndTransform: mockFindByIdAndTransform,
+          }) as any,
+      );
+      vi.mocked(syncVideoGenerationTaskStatus).mockResolvedValue(mockSyncedTask as any);
+
+      const caller = generationRouter.createCaller(mockCtx);
+
+      const result = await caller.getGenerationStatus({
+        generationId: 'gen-1',
+        asyncTaskId: 'task-1',
+      });
+
+      expect(syncVideoGenerationTaskStatus).toHaveBeenCalledWith({
+        asyncTask: mockAsyncTask,
+        db: expect.any(Object),
+        generationId: 'gen-1',
+        userId: 'test-user',
+      });
+      expect(result.status).toBe(AsyncTaskStatus.Success);
+      expect(result.generation).toEqual(mockGeneration);
+      expect(mockFindByIdAndTransform).toHaveBeenCalledWith('gen-1');
+    });
+
+    it('should keep video task processing when upstream is not completed', async () => {
+      const mockAsyncTask = {
+        id: 'task-1',
+        status: AsyncTaskStatus.Processing,
+        error: null,
+        inferenceId: 'upstream-task-1',
+        type: AsyncTaskType.VideoGeneration,
+      };
+      const mockCheckTimeoutTasks = vi.fn().mockResolvedValue(undefined);
+      const mockFindById = vi.fn().mockResolvedValue(mockAsyncTask);
+
+      vi.mocked(AsyncTaskModel).mockImplementation(
+        () =>
+          ({
+            checkTimeoutTasks: mockCheckTimeoutTasks,
+            findById: mockFindById,
+          }) as any,
+      );
+      vi.mocked(syncVideoGenerationTaskStatus).mockResolvedValue(mockAsyncTask as any);
+
+      const caller = generationRouter.createCaller(mockCtx);
+
+      const result = await caller.getGenerationStatus({
+        generationId: 'gen-1',
+        asyncTaskId: 'task-1',
+      });
+
+      expect(result.status).toBe(AsyncTaskStatus.Processing);
       expect(result.generation).toBeNull();
       expect(result.error).toBeNull();
     });

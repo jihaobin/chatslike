@@ -22,6 +22,9 @@ interface OpenAIVideoStatusResponse {
   expires_at?: number;
   height?: number;
   id?: string;
+  metadata?: {
+    url?: string;
+  };
   model?: string;
   object?: string;
   progress?: number;
@@ -33,6 +36,34 @@ interface OpenAIVideoStatusResponse {
   width?: number;
 }
 
+type NormalizedOpenAIVideoStatusResponse = OpenAIVideoStatusResponse & {
+  data?: {
+    content?: {
+      video_url?: string;
+    };
+    status?: string;
+  };
+  fail_reason?: string;
+  result_url?: string;
+  task_id?: string;
+};
+
+interface OpenAICompatibleWrappedVideoResponse {
+  code?: string;
+  data?: NormalizedOpenAIVideoStatusResponse;
+  message?: string;
+}
+
+const unwrapVideoResponse = (
+  response: OpenAIVideoStatusResponse | OpenAICompatibleWrappedVideoResponse,
+): NormalizedOpenAIVideoStatusResponse => {
+  if ('data' in response && response.data && typeof response.data === 'object') {
+    return response.data;
+  }
+
+  return response as OpenAIVideoStatusResponse;
+};
+
 /**
  * Query the status of a video generation task
  * Compatible with OpenAI Sora API
@@ -40,7 +71,7 @@ interface OpenAIVideoStatusResponse {
 export async function queryOpenAICompatibleVideoStatus(
   inferenceId: string,
   options: { apiKey: string; baseURL: string },
-): Promise<OpenAIVideoStatusResponse> {
+): Promise<NormalizedOpenAIVideoStatusResponse> {
   const statusUrl = `${options.baseURL}/videos/${inferenceId}`;
 
   log('Querying video status for: %s', inferenceId);
@@ -58,7 +89,11 @@ export async function queryOpenAICompatibleVideoStatus(
     throw new Error(`OpenAI-compatible video status API error: ${response.status} ${errorText}`);
   }
 
-  const data = (await response.json()) as OpenAIVideoStatusResponse;
+  const rawData = (await response.json()) as
+    | OpenAIVideoStatusResponse
+    | OpenAICompatibleWrappedVideoResponse;
+
+  const data = unwrapVideoResponse(rawData);
   log('Video status response: %O', data);
 
   return data;
@@ -74,14 +109,21 @@ export async function pollOpenAICompatibleVideoStatus(
 ): Promise<PollVideoStatusResult> {
   const response = await queryOpenAICompatibleVideoStatus(inferenceId, options);
 
-  if (response.status === 'completed') {
+  const status = response.status?.toLowerCase();
+  const videoUrl =
+    response.url ??
+    response.metadata?.url ??
+    response.result_url ??
+    response.data?.content?.video_url;
+
+  if (status === 'completed' || status === 'success' || status === 'succeeded') {
     // Some providers return the download URL directly in the url field
     // Others require calling /videos/{id}/content endpoint
-    let videoUrl = response.url;
+    let finalVideoUrl = videoUrl;
 
-    if (!videoUrl) {
+    if (!finalVideoUrl) {
       // If no URL returned, construct the content endpoint URL
-      videoUrl = `${options.baseURL}/videos/${inferenceId}/content`;
+      finalVideoUrl = `${options.baseURL}/videos/${inferenceId}/content`;
     }
 
     // Return headers for authenticated download
@@ -91,13 +133,13 @@ export async function pollOpenAICompatibleVideoStatus(
         Authorization: `Bearer ${options.apiKey}`,
       },
       status: 'success',
-      videoUrl,
+      videoUrl: finalVideoUrl,
     };
   }
 
-  if (response.status === 'failed') {
+  if (status === 'failed' || status === 'failure' || status === 'error') {
     return {
-      error: response.error?.message || 'Video generation failed',
+      error: response.error?.message || response.fail_reason || 'Video generation failed',
       status: 'failed',
     };
   }
@@ -174,14 +216,15 @@ export async function createOpenAICompatibleVideo(
     throw new Error(`OpenAI-compatible video API error: ${response.status} ${errorText}`);
   }
 
-  const data = await response.json();
+  const data = unwrapVideoResponse(await response.json());
   log('OpenAI-compatible video API response: %O', data);
 
-  if (!data?.id) {
-    throw new Error('Invalid response: missing id');
+  const inferenceId = data?.task_id ?? data?.id;
+
+  if (!inferenceId) {
+    throw new Error('Invalid response: missing task id');
   }
 
-  const inferenceId = data.id;
   log('Video task created with id: %s, returning immediately for frontend polling', inferenceId);
 
   // Return immediately with inferenceId only

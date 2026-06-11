@@ -61,6 +61,10 @@ const getModelProperty = async <T>(
   return getModelPropertyWithFallback<T | undefined>(model.id, propertyName, model.providerId);
 };
 
+const hasModelParameters = (parameters: EnabledAiModel['parameters']) => {
+  return !!parameters && Object.keys(parameters).length > 0;
+};
+
 const dedupeById = (models: ProviderModelListItem[]) => uniqBy(models, 'id');
 
 const createProviderModelCollector = (
@@ -99,7 +103,8 @@ export const normalizeChatModel = async (model: EnabledAiModel): Promise<Provide
 export const normalizeImageModel = async (
   model: EnabledAiModel,
 ): Promise<ProviderModelListItem> => {
-  const fallbackParametersPromise = model.parameters
+  const hasParameters = hasModelParameters(model.parameters);
+  const fallbackParametersPromise = hasParameters
     ? Promise.resolve<ModelParamsSchema | undefined>(model.parameters)
     : getModelPropertyWithFallback<ModelParamsSchema | undefined>(
         model.id,
@@ -116,7 +121,7 @@ export const normalizeImageModel = async (
     fallbackDescriptionPromise,
   ]);
 
-  const parameters = model.parameters ?? fallbackParameters;
+  const parameters = hasParameters ? model.parameters : fallbackParameters;
   const pricing = fallbackPricing;
   const description = fallbackDescription;
   const { price, approximatePrice } = resolveImageSinglePrice(pricing);
@@ -138,7 +143,8 @@ export const normalizeImageModel = async (
 export const normalizeVideoModel = async (
   model: EnabledAiModel,
 ): Promise<ProviderModelListItem> => {
-  const fallbackParametersPromise = model.parameters
+  const hasParameters = hasModelParameters(model.parameters);
+  const fallbackParametersPromise = hasParameters
     ? Promise.resolve<ModelParamsSchema | undefined>(model.parameters)
     : getModelPropertyWithFallback<ModelParamsSchema | undefined>(
         model.id,
@@ -155,7 +161,7 @@ export const normalizeVideoModel = async (
     fallbackDescriptionPromise,
   ]);
 
-  const parameters = model.parameters ?? fallbackParameters;
+  const parameters = hasParameters ? model.parameters : fallbackParameters;
   const pricing = fallbackPricing;
   const description = fallbackDescription;
   const { approximatePrice } = resolveVideoSinglePrice(pricing);

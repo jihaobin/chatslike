@@ -61,6 +61,49 @@ describe('createOpenAICompatibleVideo', () => {
       expect(result).toEqual({ inferenceId: 'video-task-123' });
     });
 
+    it('should use task_id as inferenceId when provider returns task_id', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'queued', task_id: 'amux-task-123' }),
+      });
+
+      const payload: CreateVideoPayload = {
+        model: 'doubao-seedance-2.0',
+        params: {
+          prompt: 'A beautiful sunset over the ocean',
+        },
+      };
+
+      const result = await createOpenAICompatibleVideo(payload, mockOptions);
+
+      expect(result).toEqual({ inferenceId: 'amux-task-123' });
+    });
+
+    it('should use wrapped data task_id as inferenceId when provider wraps the response', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 'success',
+          data: {
+            id: 4,
+            status: 'SUBMITTED',
+            task_id: 'task_YbhZHJzQFB3IxZcIFwq9DsfLxfI98GNS',
+          },
+        }),
+      });
+
+      const payload: CreateVideoPayload = {
+        model: 'doubao-seedance-2.0-fast',
+        params: {
+          prompt: 'A beautiful sunset over the ocean',
+        },
+      };
+
+      const result = await createOpenAICompatibleVideo(payload, mockOptions);
+
+      expect(result).toEqual({ inferenceId: 'task_YbhZHJzQFB3IxZcIFwq9DsfLxfI98GNS' });
+    });
+
     it('should include duration as string', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
@@ -161,7 +204,7 @@ describe('createOpenAICompatibleVideo', () => {
       );
     });
 
-    it('should throw when response missing id', async () => {
+    it('should throw when response missing task id', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
@@ -173,7 +216,7 @@ describe('createOpenAICompatibleVideo', () => {
       };
 
       await expect(createOpenAICompatibleVideo(payload, mockOptions)).rejects.toThrow(
-        'Invalid response: missing id',
+        'Invalid response: missing task id',
       );
     });
   });
@@ -197,6 +240,64 @@ describe('pollOpenAICompatibleVideoStatus', () => {
     expect(result).toEqual({
       status: 'success',
       videoUrl: 'https://cdn.openai.com/video.mp4',
+      headers: {
+        Authorization: 'Bearer test-key',
+      },
+    });
+  });
+
+  it('should return success with metadata url when completed', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        metadata: {
+          url: 'https://cdn.newapi.com/video.mp4',
+        },
+        status: 'completed',
+      }),
+    });
+
+    const result = await pollOpenAICompatibleVideoStatus('task-123', {
+      apiKey: 'test-key',
+      baseURL: 'https://api.openai.com/v1',
+    });
+
+    expect(result).toEqual({
+      status: 'success',
+      videoUrl: 'https://cdn.newapi.com/video.mp4',
+      headers: {
+        Authorization: 'Bearer test-key',
+      },
+    });
+  });
+
+  it('should return success for wrapped provider response with result_url', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        code: 'success',
+        data: {
+          data: {
+            content: {
+              video_url: 'https://r.amux.ai/video-from-content.mp4',
+            },
+            status: 'succeeded',
+          },
+          result_url: 'https://r.amux.ai/video-from-result.mp4',
+          status: 'SUCCESS',
+          task_id: 'task_YbhZHJzQFB3IxZcIFwq9DsfLxfI98GNS',
+        },
+      }),
+    });
+
+    const result = await pollOpenAICompatibleVideoStatus('task_YbhZHJzQFB3IxZcIFwq9DsfLxfI98GNS', {
+      apiKey: 'test-key',
+      baseURL: 'https://api.openai.com/v1',
+    });
+
+    expect(result).toEqual({
+      status: 'success',
+      videoUrl: 'https://r.amux.ai/video-from-result.mp4',
       headers: {
         Authorization: 'Bearer test-key',
       },

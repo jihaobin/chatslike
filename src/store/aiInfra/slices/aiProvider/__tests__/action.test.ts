@@ -21,6 +21,7 @@ import {
   getImageModelList,
   normalizeChatModel,
   normalizeImageModel,
+  normalizeVideoModel,
 } from '../action';
 
 vi.mock('@/libs/swr', async (importOriginal) => {
@@ -73,6 +74,17 @@ const createImageModel = (overrides: Partial<ImageEnabledModel> = {}): ImageEnab
   id: overrides.id ?? 'image-model',
   providerId: overrides.providerId ?? 'openai',
   type: 'image',
+  ...overrides,
+});
+
+const createVideoModel = (overrides: Partial<EnabledAiModel> = {}): EnabledAiModel => ({
+  abilities: overrides.abilities ?? {},
+  contextWindowTokens: overrides.contextWindowTokens,
+  displayName: overrides.displayName ?? 'Video Model',
+  enabled: overrides.enabled ?? true,
+  id: overrides.id ?? 'video-model',
+  providerId: overrides.providerId ?? 'local-new-api',
+  type: 'video',
   ...overrides,
 });
 
@@ -301,6 +313,38 @@ describe('aiProvider action helpers', () => {
       expect(fallbackSpy).toHaveBeenCalledWith('stable-diffusion', 'parameters', 'stability');
       expect(fallbackSpy).toHaveBeenCalledWith('stable-diffusion', 'pricing', 'stability');
       expect(fallbackSpy).toHaveBeenCalledWith('stable-diffusion', 'description', 'stability');
+    });
+  });
+
+  describe('normalizeVideoModel', () => {
+    it('fetches fallback parameters when remote video model stores an empty parameters object', async () => {
+      const fallbackParameters = {
+        aspectRatio: { default: 'adaptive', enum: ['adaptive', '16:9'] },
+        duration: { default: 5, max: 15, min: 4 },
+        prompt: { default: '' },
+        resolution: { default: '720p', enum: ['480p', '720p', '1080p'] },
+      } satisfies ModelParamsSchema;
+      const fallbackSpy = vi
+        .mocked(runtimeModule.getModelPropertyWithFallback)
+        .mockImplementation(async (_id, key) => {
+          if (key === 'parameters') return fallbackParameters;
+          return undefined;
+        });
+
+      const model = createVideoModel({
+        id: 'doubao-seedance-2.0',
+        parameters: {},
+        providerId: 'local-new-api',
+      });
+
+      const result = await normalizeVideoModel(model);
+
+      expect(result.parameters).toEqual(fallbackParameters);
+      expect(fallbackSpy).toHaveBeenCalledWith(
+        'doubao-seedance-2.0',
+        'parameters',
+        'local-new-api',
+      );
     });
   });
 

@@ -314,6 +314,29 @@ describe('AsyncTaskModel', () => {
       expect(updatedTask?.status).toBe(AsyncTaskStatus.Processing);
       expect(updatedTask?.error).toBeNull();
     });
+
+    it('should keep video generation tasks active within the video timeout window', async () => {
+      const activeVideoDate = new Date(Date.now() - ASYNC_TASK_TIMEOUT - 1000);
+
+      const { id } = await serverDB
+        .insert(asyncTasks)
+        .values({
+          type: AsyncTaskType.VideoGeneration,
+          status: AsyncTaskStatus.Processing,
+          userId,
+          createdAt: activeVideoDate,
+        })
+        .returning()
+        .then((res) => res[0]);
+
+      await asyncTaskModel.checkTimeoutTasks([id]);
+
+      const updatedTask = await serverDB.query.asyncTasks.findFirst({
+        where: eq(asyncTasks.id, id),
+      });
+      expect(updatedTask?.status).toBe(AsyncTaskStatus.Processing);
+      expect(updatedTask?.error).toBeNull();
+    });
   });
 
   describe('isUserMemoryExtractionCancellationRequested', () => {

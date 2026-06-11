@@ -1,4 +1,3 @@
-import { ASYNC_TASK_TIMEOUT } from '@lobechat/business-config/server';
 import { buildMappedBusinessModelFields } from '@lobechat/business-model-runtime';
 import {
   AsyncTaskError,
@@ -16,6 +15,11 @@ import { GenerationModel } from '@/database/models/generation';
 import { asyncAuthedProcedure, asyncRouter as router } from '@/libs/trpc/async';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import { VideoGenerationService } from '@/server/services/generation/video';
+import {
+  VIDEO_GENERATION_MAX_RETRIES,
+  VIDEO_GENERATION_POLLING_INTERVAL,
+  VIDEO_GENERATION_TASK_TIMEOUT,
+} from '@/server/services/generation/videoPollingConfig';
 import { FileSource } from '@/types/files';
 import { sanitizeFileName } from '@/utils/sanitizeFileName';
 
@@ -56,8 +60,8 @@ async function pollUntilCompletion(
   inferenceId: string,
   signal: AbortSignal,
 ): Promise<{ headers?: Record<string, string>; videoUrl: string } | null> {
-  const maxRetries = 120;
-  const pollingInterval = 5000;
+  const maxRetries = VIDEO_GENERATION_MAX_RETRIES;
+  const pollingInterval = VIDEO_GENERATION_POLLING_INTERVAL;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     checkAbortSignal(signal);
@@ -240,7 +244,7 @@ export const videoRouter = router({
       timeoutId = setTimeout(() => {
         log('Video generation timeout, aborting operation: %s', asyncTaskId);
         abortController.abort();
-      }, ASYNC_TASK_TIMEOUT);
+      }, VIDEO_GENERATION_TASK_TIMEOUT);
 
       const result = await pollingPromise(abortController.signal);
 

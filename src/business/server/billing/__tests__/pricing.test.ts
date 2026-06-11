@@ -179,6 +179,13 @@ describe('billing pricing', () => {
         sort: 2,
         userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
       },
+      {
+        id: 'nullable-relay',
+        name: 'Nullable Relay',
+        source: 'custom',
+        sort: 3,
+        userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+      },
     ]);
     await serverDB.insert(aiModels).values([
       {
@@ -205,6 +212,15 @@ describe('billing pricing', () => {
         enabled: true,
         id: 'disabled-provider-model',
         providerId: 'disabled-relay',
+        source: 'custom',
+        type: 'chat',
+        userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+      },
+      {
+        displayName: 'Nullable Provider Model',
+        enabled: true,
+        id: 'nullable-provider-model',
+        providerId: 'nullable-relay',
         source: 'custom',
         type: 'chat',
         userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
@@ -258,6 +274,16 @@ describe('billing pricing', () => {
         outputCreditsPerMillionTokens: 8_000,
         priceKey: 'disabled-provider',
         provider: 'disabled-relay',
+        status: 'active',
+      },
+      {
+        effectiveAt: new Date('2026-02-01T00:00:00Z'),
+        inputCreditsPerMillionTokens: 9_000,
+        modality: 'text',
+        model: 'nullable-provider-model',
+        outputCreditsPerMillionTokens: 10_000,
+        priceKey: 'nullable-provider',
+        provider: 'nullable-relay',
         status: 'active',
       },
       {

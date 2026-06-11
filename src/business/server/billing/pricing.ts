@@ -140,7 +140,7 @@ export const listPublicTextModelPricingRows = async (
     .where(eq(aiProviders.userId, GLOBAL_PROVIDER_CONFIG_USER_ID))
     .orderBy(asc(aiProviders.sort), asc(aiProviders.id));
   const enabledProviderIds = new Set(
-    providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id),
+    providers.filter((provider) => provider.enabled === true).map((provider) => provider.id),
   );
 
   if (enabledProviderIds.size === 0) return [];
@@ -256,7 +256,6 @@ export class ModelPricingService {
     }
 
     throw new PricingNotFoundError({ ...params });
-
   }
 }
 

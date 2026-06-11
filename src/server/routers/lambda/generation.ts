@@ -3,11 +3,13 @@ import { z } from 'zod';
 
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { GenerationModel } from '@/database/models/generation';
+import type { AsyncTaskSelectItem } from '@/database/schemas';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { FileService } from '@/server/services/file';
+import { syncVideoGenerationTaskStatus } from '@/server/services/generation/videoTaskStatusSync';
 import { type AsyncTaskError } from '@/types/asyncTask';
-import { AsyncTaskStatus } from '@/types/asyncTask';
+import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
 import { type Generation } from '@/types/generation';
 
 const generationProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
@@ -57,9 +59,26 @@ export const generationRouter = router({
       // Check for timeout tasks before querying
       await ctx.asyncTaskModel.checkTimeoutTasks([input.asyncTaskId]);
 
-      const asyncTask = await ctx.asyncTaskModel.findById(input.asyncTaskId);
+      let asyncTask: AsyncTaskSelectItem | undefined = await ctx.asyncTaskModel.findById(
+        input.asyncTaskId,
+      );
       if (!asyncTask) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Async task not found' });
+      }
+
+      if (
+        asyncTask.type === AsyncTaskType.VideoGeneration &&
+        asyncTask.inferenceId &&
+        [AsyncTaskStatus.Pending, AsyncTaskStatus.Processing].includes(
+          asyncTask.status as AsyncTaskStatus,
+        )
+      ) {
+        asyncTask = await syncVideoGenerationTaskStatus({
+          asyncTask,
+          db: ctx.serverDB,
+          generationId: input.generationId,
+          userId: ctx.userId,
+        });
       }
 
       const { status, error } = asyncTask;
@@ -69,7 +88,10 @@ export const generationRouter = router({
         status: status as AsyncTaskStatus,
       };
 
-      if (asyncTask.status === AsyncTaskStatus.Success || asyncTask.status === AsyncTaskStatus.Error) {
+      if (
+        asyncTask.status === AsyncTaskStatus.Success ||
+        asyncTask.status === AsyncTaskStatus.Error
+      ) {
         const generation = await ctx.generationModel.findByIdAndTransform(input.generationId);
         if (!generation) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Generation not found' });

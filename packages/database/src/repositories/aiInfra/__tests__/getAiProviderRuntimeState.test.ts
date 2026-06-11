@@ -377,6 +377,38 @@ describe('AiInfraRepos', () => {
       expect(result.enabledChatAiProviders).toEqual([]);
     });
 
+    it('excludes global platform providers that are not explicitly enabled from runtime state', async () => {
+      await serverDB.insert(users).values([{ id: GLOBAL_PROVIDER_CONFIG_USER_ID }, { id: userId }]);
+      await serverDB.insert(aiProviders).values({
+        id: 'nullable-relay',
+        name: 'Nullable Relay',
+        source: 'custom',
+        sort: 1,
+        userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+      });
+      await serverDB.insert(aiModels).values({
+        enabled: true,
+        id: 'unexpected-model',
+        providerId: 'nullable-relay',
+        source: 'custom',
+        type: 'chat',
+        userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+      });
+
+      const platformRepo = new AiInfraRepos(
+        serverDB,
+        userId,
+        {},
+        { platformHostedModelsEnabled: true },
+      );
+
+      const result = await platformRepo.getAiProviderRuntimeState();
+
+      expect(result.enabledAiProviders).toEqual([]);
+      expect(result.enabledAiModels).toEqual([]);
+      expect(result.enabledChatAiProviders).toEqual([]);
+    });
+
     it('uses enabled builtin provider server model lists in platform hosted mode', async () => {
       await serverDB.insert(users).values([{ id: GLOBAL_PROVIDER_CONFIG_USER_ID }, { id: userId }]);
       await serverDB.insert(aiProviders).values({

@@ -12,6 +12,8 @@ import type { AsyncTaskSelectItem, NewAsyncTaskItem } from '../schemas';
 import { asyncTasks } from '../schemas';
 import type { LobeChatDatabase } from '../type';
 
+const VIDEO_GENERATION_TASK_TIMEOUT = 60 * 60 * 1000;
+
 export class AsyncTaskModel {
   private userId: string;
   private db: LobeChatDatabase;
@@ -132,8 +134,9 @@ export class AsyncTaskModel {
    * make the task status to be `error` if the task is not finished in 20 seconds
    */
   checkTimeoutTasks = async (ids: string[]) => {
+    const now = Date.now();
     const tasks = await this.db
-      .select({ id: asyncTasks.id })
+      .select({ createdAt: asyncTasks.createdAt, id: asyncTasks.id, type: asyncTasks.type })
       .from(asyncTasks)
       .where(
         and(
@@ -142,11 +145,19 @@ export class AsyncTaskModel {
             eq(asyncTasks.status, AsyncTaskStatus.Pending),
             eq(asyncTasks.status, AsyncTaskStatus.Processing),
           ),
-          lt(asyncTasks.createdAt, new Date(Date.now() - ASYNC_TASK_TIMEOUT)),
+          lt(asyncTasks.createdAt, new Date(now - ASYNC_TASK_TIMEOUT)),
         ),
       );
 
-    if (tasks.length > 0) {
+    const timedOutTaskIds = tasks
+      .filter((task) => {
+        if (task.type !== AsyncTaskType.VideoGeneration) return true;
+
+        return task.createdAt < new Date(now - VIDEO_GENERATION_TASK_TIMEOUT);
+      })
+      .map((item) => item.id);
+
+    if (timedOutTaskIds.length > 0) {
       await this.db
         .update(asyncTasks)
         .set({
@@ -156,12 +167,7 @@ export class AsyncTaskModel {
           ),
           status: AsyncTaskStatus.Error,
         })
-        .where(
-          inArray(
-            asyncTasks.id,
-            tasks.map((item) => item.id),
-          ),
-        );
+        .where(inArray(asyncTasks.id, timedOutTaskIds));
     }
   };
 }

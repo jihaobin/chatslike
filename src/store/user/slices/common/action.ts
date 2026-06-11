@@ -7,6 +7,7 @@ import { type PartialDeep } from 'type-fest';
 
 import { DEFAULT_PREFERENCE } from '@/const/user';
 import { mutate, useOnlyFetchOnceSWR } from '@/libs/swr';
+import { refreshBillingCredits } from '@/services/billing';
 import type {
   RetryVerifiedPhoneTrialGrantResult,
   VerifyPhoneForTrialResult,

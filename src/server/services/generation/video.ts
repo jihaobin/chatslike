@@ -23,7 +23,20 @@ let _ffmpegPath: string | null = null;
 
 function getFfmpegPath(): string {
   if (_ffmpegPath) return _ffmpegPath;
-  _ffmpegPath = require('ffmpeg-static') as string;
+  if (process.env.FFMPEG_PATH) {
+    _ffmpegPath = process.env.FFMPEG_PATH;
+    return _ffmpegPath;
+  }
+
+  // The bundled ffmpeg-static binary can be incompatible on some Windows installs
+  // (spawn EFTYPE). Prefer a PATH-resolved ffmpeg there when available.
+  if (process.platform === 'win32') {
+    _ffmpegPath = 'ffmpeg';
+    return _ffmpegPath;
+  }
+
+  const ffmpegStatic = require('ffmpeg-static') as string | { default?: string };
+  _ffmpegPath = typeof ffmpegStatic === 'string' ? ffmpegStatic : ffmpegStatic.default || 'ffmpeg';
   return _ffmpegPath;
 }
 

@@ -450,7 +450,7 @@ export class AiInfraRepos {
       .orderBy(asc(aiProviders.sort), asc(aiProviders.id));
 
     return providers
-      .filter((provider) => provider.enabled !== false)
+      .filter((provider) => provider.enabled === true)
       .map(
         (provider): EnabledProvider => ({
           id: provider.id,
@@ -468,7 +468,7 @@ export class AiInfraRepos {
       .where(eq(aiProviders.userId, GLOBAL_PROVIDER_CONFIG_USER_ID))
       .orderBy(asc(aiProviders.sort), asc(aiProviders.id));
 
-    const enabledProviders = providers.filter((provider) => provider.enabled !== false);
+    const enabledProviders = providers.filter((provider) => provider.enabled === true);
     const enabledProviderIds = new Set(enabledProviders.map((provider) => provider.id));
 
     if (enabledProviderIds.size === 0) return [];
