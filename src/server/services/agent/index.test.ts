@@ -192,7 +192,28 @@ describe('AgentService', () => {
       const result = await newService.getBuiltinAgent('inbox');
 
       // Avatar should be merged from BUILTIN_AGENTS definition
-      expect((result as any)?.avatar).toBe('/avatars/lobe-ai.png');
+      expect((result as any)?.avatar).toBe('/icons/icon-512x512.png');
+    });
+
+    it('should migrate legacy builtin avatar to branded avatar', async () => {
+      const mockAgent = {
+        avatar: '/avatars/lobe-ai.png',
+        id: 'agent-1',
+        model: 'gpt-4',
+        slug: 'inbox',
+      };
+
+      const mockAgentModel = {
+        getBuiltinAgent: vi.fn().mockResolvedValue(mockAgent),
+      };
+
+      (AgentModel as any).mockImplementation(() => mockAgentModel);
+      (parseAgentConfig as any).mockReturnValue({});
+
+      const newService = new AgentService(mockDb, mockUserId);
+      const result = await newService.getBuiltinAgent('inbox');
+
+      expect((result as any)?.avatar).toBe('/icons/icon-512x512.png');
     });
 
     it('should not include avatar for non-builtin agents', async () => {

@@ -67,11 +67,13 @@ const Nav = memo<NavProps>(({ mobile, setActiveTab, activeTab = GroupAgentNavKey
   ) : (
     <Flexbox horizontal align={'center'} className={styles.nav} justify={'space-between'}>
       {nav}
-      <Flexbox horizontal gap={12}>
-        <a className={styles.link} href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
-          {t('groupAgents.details.nav.needHelp', { defaultValue: 'Need help?' })}
-        </a>
-      </Flexbox>
+      {SOCIAL_URL.discord && (
+        <Flexbox horizontal gap={12}>
+          <a className={styles.link} href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
+            {t('groupAgents.details.nav.needHelp', { defaultValue: 'Need help?' })}
+          </a>
+        </Flexbox>
+      )}
     </Flexbox>
   );
 });

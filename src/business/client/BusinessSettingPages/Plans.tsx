@@ -13,14 +13,13 @@ import {
   SparklesIcon,
   ZapIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { billingService } from '@/services/billing';
 import { formatNumber } from '@/utils/format';
 
-import { type PaymentChannel, PaymentChannelModal } from './components/PaymentChannelModal';
+import { type PaymentChannel } from './components/PaymentChannelModal';
 import { PaymentQrCodeModal, type PaymentQrCodeStatus } from './components/PaymentQrCodeModal';
 import {
   refreshBillingOrders,
@@ -40,12 +39,13 @@ type OneTimeDuration = 'halfYear' | 'month' | 'quarter' | 'year';
 type SubscriptionPlanId = 'starter' | 'premium' | 'ultimate';
 type SubscriptionPeriod = 'month' | 'year';
 
-interface CompareFeature {
-  premium: string | true;
-  starter: string | true;
-  titleKey: string;
-  ultimate: string | true;
-}
+// TODO: Restore this plan comparison feature type when the /settings/plans comparison UI returns.
+// interface CompareFeature {
+//   premium: string | true;
+//   starter: string | true;
+//   titleKey: string;
+//   ultimate: string | true;
+// }
 
 interface CreatedSubscriptionOrder {
   order: Awaited<ReturnType<typeof billingService.createSubscriptionOrder>>['order'];
@@ -113,7 +113,8 @@ const translateString = (
 
 const PaymentChannelMarks = memo(() => (
   <>
-    <img alt="Alipay" className={styles.channelIcon} src="/icons/Alipay.svg" />
+    {/* TODO: Restore the Alipay mark when Alipay checkout is supported. */}
+    {/* <img alt="Alipay" className={styles.channelIcon} src="/icons/Alipay.svg" /> */}
     <img alt="WeChat Pay" className={styles.channelIcon} src="/icons/Wechat.svg" />
   </>
 ));
@@ -238,79 +239,88 @@ const MODEL_ALLOWANCES: ModelAllowance[] = [
   },
 ];
 
-const COMPARE_GROUPS: { features: CompareFeature[]; title: string }[] = [
-  {
-    features: [
-      {
-        premium: '15,000,000',
-        starter: '5,000,000',
-        titleKey: 'billingNative.plans.pixelCompare.monthlyCredits',
-        ultimate: '35,000,000',
-      },
-      {
-        premium: true,
-        starter: true,
-        titleKey: 'billingNative.plans.pixelCompare.hostedModels',
-        ultimate: true,
-      },
-      {
-        premium: true,
-        starter: true,
-        titleKey: 'billingNative.plans.pixelCompare.modelApi',
-        ultimate: true,
-      },
-    ],
-    title: 'plans.credit.title',
-  },
-  {
-    features: [
-      {
-        premium: true,
-        starter: true,
-        titleKey: 'billingNative.plans.pixelCompare.filesKnowledgeBase',
-        ultimate: true,
-      },
-      {
-        premium: '2.0 GB',
-        starter: '1.0 GB',
-        titleKey: 'plans.fileStorage.title',
-        ultimate: '4.0 GB',
-      },
-      {
-        premium: '10,000',
-        starter: '5,000',
-        titleKey: 'plans.embeddingStorage.title',
-        ultimate: '20,000',
-      },
-    ],
-    title: 'billingNative.plans.pixelCompare.fileManagement',
-  },
-  {
-    features: [
-      {
-        premium: true,
-        starter: true,
-        titleKey: 'billingNative.plans.pixelCompare.multiAgent',
-        ultimate: true,
-      },
-      {
-        premium: true,
-        starter: true,
-        titleKey: 'billingNative.plans.pixelCompare.writing',
-        ultimate: true,
-      },
-      {
-        premium: true,
-        starter: true,
-        titleKey: 'plans.features.internet',
-        ultimate: true,
-      },
-    ],
-    title: 'plans.features.title',
-  },
-];
+// TODO: Restore these plan comparison groups when the /settings/plans comparison UI returns.
+// const COMPARE_GROUPS: { features: CompareFeature[]; title: string }[] = [
+//   {
+//     features: [
+//       {
+//         premium: '15,000,000',
+//         starter: '5,000,000',
+//         titleKey: 'billingNative.plans.pixelCompare.monthlyCredits',
+//         ultimate: '35,000,000',
+//       },
+//       {
+//         premium: true,
+//         starter: true,
+//         titleKey: 'billingNative.plans.pixelCompare.hostedModels',
+//         ultimate: true,
+//       },
+//       {
+//         premium: true,
+//         starter: true,
+//         titleKey: 'billingNative.plans.pixelCompare.modelApi',
+//         ultimate: true,
+//       },
+//     ],
+//     title: 'plans.credit.title',
+//   },
+//   {
+//     features: [
+//       {
+//         premium: true,
+//         starter: true,
+//         titleKey: 'billingNative.plans.pixelCompare.filesKnowledgeBase',
+//         ultimate: true,
+//       },
+//       {
+//         premium: '2.0 GB',
+//         starter: '1.0 GB',
+//         titleKey: 'plans.fileStorage.title',
+//         ultimate: '4.0 GB',
+//       },
+//       {
+//         premium: '10,000',
+//         starter: '5,000',
+//         titleKey: 'plans.embeddingStorage.title',
+//         ultimate: '20,000',
+//       },
+//     ],
+//     title: 'billingNative.plans.pixelCompare.fileManagement',
+//   },
+//   {
+//     features: [
+//       {
+//         premium: true,
+//         starter: true,
+//         titleKey: 'billingNative.plans.pixelCompare.multiAgent',
+//         ultimate: true,
+//       },
+//       {
+//         premium: true,
+//         starter: true,
+//         titleKey: 'billingNative.plans.pixelCompare.writing',
+//         ultimate: true,
+//       },
+//       {
+//         premium: true,
+//         starter: true,
+//         titleKey: 'plans.features.internet',
+//         ultimate: true,
+//       },
+//     ],
+//     title: 'plans.features.title',
+//   },
+// ];
 
-const FAQ_KEYS = ['free', 'credit', 'limit', 'highUsage', 'management', 'embeddings'] as const;
+// TODO: Restore FAQ keys after the /settings/plans FAQ UI pass.
+// const FAQ_KEYS = [
+//   'free',
+//   'credit',
+//   'limit',
+//   'highUsage',
+//   'management',
+//   'embeddings',
+// ] as const;
 
 const PLAN_FEATURE_GROUPS = [
   {
@@ -916,18 +926,19 @@ const getPlanIcon = (planId: SubscriptionPlanId) => {
   return AtomIcon;
 };
 
-const renderCompareValue = (
-  value: string | true,
-  t: TranslateString,
-  unitKey?: string,
-): ReactNode =>
-  value === true ? (
-    <Icon color="#29a34a" icon={CheckIcon} size={14} />
-  ) : unitKey ? (
-    translateString(t, unitKey, value, { amount: value })
-  ) : (
-    value
-  );
+// TODO: Restore the plan comparison value renderer when the /settings/plans comparison UI returns.
+// const renderCompareValue = (
+//   value: string | true,
+//   t: TranslateString,
+//   unitKey?: string,
+// ): ReactNode =>
+//   value === true ? (
+//     <Icon color="#29a34a" icon={CheckIcon} size={14} />
+//   ) : unitKey ? (
+//     translateString(t, unitKey, value, { amount: value })
+//   ) : (
+//     value
+//   );
 
 const Plans = memo(() => {
   const { t } = useTranslation('subscription');
@@ -939,7 +950,8 @@ const Plans = memo(() => {
   const [createOrderError, setCreateOrderError] = useState<string>();
   const [isCreatingOrder, setIsCreatingOrder] = useState<string>();
   const [isPaymentQrCodeModalOpen, setIsPaymentQrCodeModalOpen] = useState(false);
-  const [pendingPaymentPlan, setPendingPaymentPlan] = useState<HeroPlan>();
+  // TODO: Restore pendingPaymentPlan when the payment channel picker returns.
+  // const [pendingPaymentPlan, setPendingPaymentPlan] = useState<HeroPlan>();
   const [mode, setMode] = useState<BillingMode>('year');
   const [openOneTimePlanId, setOpenOneTimePlanId] = useState<SubscriptionPlanId>();
   const [oneTimeDurations, setOneTimeDurations] = useState<
@@ -1092,7 +1104,6 @@ const Plans = memo(() => {
     const { action, id: planId } = plan;
     if (action === 'availableAfterExpiry' || action === 'unavailable') return;
 
-    setPendingPaymentPlan(undefined);
     setIsCreatingOrder(`${action}:${planId}`);
     setCreateOrderError(undefined);
 
@@ -1344,10 +1355,7 @@ const Plans = memo(() => {
                       ) : null}
                     </div>
                     <Flexbox horizontal align={'center'} className={styles.oneTimePayment} gap={4}>
-                      {t(
-                        'billingNative.plans.pixel.payment.supports',
-                        'Supports credit card / Alipay / WeChat Pay',
-                      )}
+                      {t('billingNative.paymentChannel.wechat', 'WeChat Pay')}
                       <PaymentChannelMarks />
                     </Flexbox>
                   </Flexbox>
@@ -1397,7 +1405,7 @@ const Plans = memo(() => {
                     disabled={
                       plan.action === 'availableAfterExpiry' || plan.action === 'unavailable'
                     }
-                    onClick={() => setPendingPaymentPlan(plan)}
+                    onClick={() => void handleCreateOrder(plan, 'wechat')}
                   >
                     {getPrimaryActionLabel(plan.action)}
                   </Button>
@@ -1534,6 +1542,8 @@ const Plans = memo(() => {
         </div>
       </div>
 
+      {/* TODO: Restore and fine-tune the plan comparison section after the /settings/plans UI pass. */}
+      {/*
       <Flexbox gap={18}>
         <Text className={styles.sectionTitle}>{t('compare.title')}</Text>
         <div className={styles.compareGrid}>
@@ -1589,18 +1599,11 @@ const Plans = memo(() => {
           ))}
         </div>
       </Flexbox>
+      */}
 
+      {/* TODO: Restore the FAQ question list after the /settings/plans FAQ UI pass. */}
+      {/*
       <Flexbox horizontal align={'flex-start'} gap={44} wrap={'wrap'}>
-        <Flexbox gap={10} style={{ width: 250 }}>
-          <Text className={styles.sectionTitle}>{t('qa.title', 'FAQ')}</Text>
-          <Text color={cssVar.colorTextSecondary} fontSize={12}>
-            {t('billingNative.plans.pixel.qa.desc')}
-          </Text>
-          <Flexbox horizontal gap={8}>
-            <Button className={styles.supportButton}>{t('qa.support.community')}</Button>
-            <Button className={styles.supportButton}>{t('qa.support.email')}</Button>
-          </Flexbox>
-        </Flexbox>
         <Flexbox flex={1} gap={8} style={{ minWidth: 300 }}>
           {FAQ_KEYS.map((key) => (
             <details className={styles.faqItem} key={key} open={key === 'free'}>
@@ -1635,7 +1638,10 @@ const Plans = memo(() => {
           ))}
         </Flexbox>
       </Flexbox>
+      */}
 
+      {/* TODO: Restore the payment channel picker when Alipay checkout is supported. */}
+      {/*
       <PaymentChannelModal
         open={Boolean(pendingPaymentPlan)}
         onOpenChange={(open) => {
@@ -1645,12 +1651,14 @@ const Plans = memo(() => {
           if (pendingPaymentPlan) void handleCreateOrder(pendingPaymentPlan, selectedChannel);
         }}
       />
+      */}
       {createdOrder ? (
         <PaymentQrCodeModal
           amountCents={createdOrder.order.amountCents}
           currency={createdOrder.order.currency}
           open={isPaymentQrCodeModalOpen}
           orderId={createdOrder.order.id}
+          paymentMethod={t('billingNative.paymentChannel.wechat', 'WeChat Pay')}
           qrCodeUrl={createdOrder.payment.qrCodeUrl ?? createdOrder.payment.paymentUrl}
           status={paymentQrCodeStatus}
           onOpenChange={setIsPaymentQrCodeModalOpen}
@@ -1660,97 +1668,98 @@ const Plans = memo(() => {
   );
 });
 
-const getCompareValueUnitKey = (titleKey: string) => {
-  if (titleKey === 'billingNative.plans.pixelCompare.monthlyCredits')
-    return 'billingNative.plans.pixel.perMonthAmount';
-  if (titleKey === 'plans.embeddingStorage.title') return 'plans.embeddingStorage.entries';
-
-  return undefined;
-};
-
-const MemoCompareGroup = memo<{
-  group: (typeof COMPARE_GROUPS)[number];
-  t: TranslateString;
-}>(({ group, t }) => (
-  <>
-    <Flexbox className={styles.featureSection} paddingBlock={16}>
-      {translateString(t, group.title, group.title)}
-    </Flexbox>
-    <div />
-    <div />
-    <div />
-    {group.features.map((feature) => (
-      <MemoCompareFeature
-        feature={feature}
-        key={feature.titleKey}
-        t={t}
-        unitKey={getCompareValueUnitKey(feature.titleKey)}
-      />
-    ))}
-  </>
-));
-
-MemoCompareGroup.displayName = 'MemoCompareGroup';
-
-const MemoCompareFeature = memo<{
-  feature: CompareFeature;
-  t: TranslateString;
-  unitKey?: string;
-}>(({ feature, t, unitKey }) => (
-  <>
-    <Flexbox className={styles.compareTitleCell}>
-      {translateString(t, feature.titleKey, feature.titleKey)}
-    </Flexbox>
-    <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-      {renderCompareValue(feature.starter, t, unitKey)}
-    </Flexbox>
-    <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-      {renderCompareValue(feature.premium, t, unitKey)}
-    </Flexbox>
-    <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-      {renderCompareValue(feature.ultimate, t, unitKey)}
-    </Flexbox>
-  </>
-));
-
-MemoCompareFeature.displayName = 'MemoCompareFeature';
-
-const MemoCompareAllowance = memo<{
-  item: ModelAllowance;
-  planCards: HeroPlan[];
-  pricing?: TextModelPricing;
-  t: TranslateString;
-}>(({ item, planCards, pricing, t }) => {
-  const key =
-    item.kind === 'image'
-      ? 'billingNative.plans.pixel.approxImages'
-      : 'billingNative.plans.pixel.approxMessages';
-  const starter = getEstimatedAllowanceAmount({ item, planCards, planId: 'starter', pricing });
-  const premium = getEstimatedAllowanceAmount({ item, planCards, planId: 'premium', pricing });
-  const ultimate = getEstimatedAllowanceAmount({ item, planCards, planId: 'ultimate', pricing });
-
-  return (
-    <>
-      <Flexbox className={styles.compareTitleCell}>
-        <Flexbox horizontal align={'center'} gap={8}>
-          <span className={styles.modelIcon} data-kind={item.iconClassName} />
-          {item.name}
-        </Flexbox>
-      </Flexbox>
-      <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, starter, { amount: starter })}
-      </Flexbox>
-      <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, premium, { amount: premium })}
-      </Flexbox>
-      <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
-        {translateString(t, key, ultimate, { amount: ultimate })}
-      </Flexbox>
-    </>
-  );
-});
-
-MemoCompareAllowance.displayName = 'MemoCompareAllowance';
+// TODO: Restore these plan comparison components when the /settings/plans comparison UI returns.
+// const getCompareValueUnitKey = (titleKey: string) => {
+//   if (titleKey === 'billingNative.plans.pixelCompare.monthlyCredits')
+//     return 'billingNative.plans.pixel.perMonthAmount';
+//   if (titleKey === 'plans.embeddingStorage.title') return 'plans.embeddingStorage.entries';
+//
+//   return undefined;
+// };
+//
+// const MemoCompareGroup = memo<{
+//   group: (typeof COMPARE_GROUPS)[number];
+//   t: TranslateString;
+// }>(({ group, t }) => (
+//   <>
+//     <Flexbox className={styles.featureSection} paddingBlock={16}>
+//       {translateString(t, group.title, group.title)}
+//     </Flexbox>
+//     <div />
+//     <div />
+//     <div />
+//     {group.features.map((feature) => (
+//       <MemoCompareFeature
+//         feature={feature}
+//         key={feature.titleKey}
+//         t={t}
+//         unitKey={getCompareValueUnitKey(feature.titleKey)}
+//       />
+//     ))}
+//   </>
+// ));
+//
+// MemoCompareGroup.displayName = 'MemoCompareGroup';
+//
+// const MemoCompareFeature = memo<{
+//   feature: CompareFeature;
+//   t: TranslateString;
+//   unitKey?: string;
+// }>(({ feature, t, unitKey }) => (
+//   <>
+//     <Flexbox className={styles.compareTitleCell}>
+//       {translateString(t, feature.titleKey, feature.titleKey)}
+//     </Flexbox>
+//     <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
+//       {renderCompareValue(feature.starter, t, unitKey)}
+//     </Flexbox>
+//     <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
+//       {renderCompareValue(feature.premium, t, unitKey)}
+//     </Flexbox>
+//     <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
+//       {renderCompareValue(feature.ultimate, t, unitKey)}
+//     </Flexbox>
+//   </>
+// ));
+//
+// MemoCompareFeature.displayName = 'MemoCompareFeature';
+//
+// const MemoCompareAllowance = memo<{
+//   item: ModelAllowance;
+//   planCards: HeroPlan[];
+//   pricing?: TextModelPricing;
+//   t: TranslateString;
+// }>(({ item, planCards, pricing, t }) => {
+//   const key =
+//     item.kind === 'image'
+//       ? 'billingNative.plans.pixel.approxImages'
+//       : 'billingNative.plans.pixel.approxMessages';
+//   const starter = getEstimatedAllowanceAmount({ item, planCards, planId: 'starter', pricing });
+//   const premium = getEstimatedAllowanceAmount({ item, planCards, planId: 'premium', pricing });
+//   const ultimate = getEstimatedAllowanceAmount({ item, planCards, planId: 'ultimate', pricing });
+//
+//   return (
+//     <>
+//       <Flexbox className={styles.compareTitleCell}>
+//         <Flexbox horizontal align={'center'} gap={8}>
+//           <span className={styles.modelIcon} data-kind={item.iconClassName} />
+//           {item.name}
+//         </Flexbox>
+//       </Flexbox>
+//       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
+//         {translateString(t, key, starter, { amount: starter })}
+//       </Flexbox>
+//       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
+//         {translateString(t, key, premium, { amount: premium })}
+//       </Flexbox>
+//       <Flexbox align={'center'} className={styles.compareCell} justify={'center'}>
+//         {translateString(t, key, ultimate, { amount: ultimate })}
+//       </Flexbox>
+//     </>
+//   );
+// });
+//
+// MemoCompareAllowance.displayName = 'MemoCompareAllowance';
 
 Plans.displayName = 'Plans';
 export default Plans;

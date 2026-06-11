@@ -6,6 +6,7 @@ import { createStaticStyles } from 'antd-style';
 import { Loader2 } from 'lucide-react';
 import { type CSSProperties } from 'react';
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import NavItem from '@/features/NavPanel/components/NavItem';
@@ -50,6 +51,7 @@ interface InboxItemProps {
 }
 
 const InboxItem = memo<InboxItemProps>(({ className, style }) => {
+  const { t } = useTranslation('chat');
   const inboxAgentId = useAgentStore(builtinAgentSelectors.inboxAgentId);
   const inboxMeta = useAgentStore(agentSelectors.getAgentMetaById(inboxAgentId!));
 
@@ -57,11 +59,11 @@ const InboxItem = memo<InboxItemProps>(({ className, style }) => {
     inboxAgentId ? operationSelectors.isAgentRunning(inboxAgentId) : () => false,
   );
   const prefetchAgent = usePrefetchAgent();
-  const inboxAgentTitle = inboxMeta.title || 'Lobe AI';
+  const inboxAgentTitle = inboxMeta.title || t('inbox.title');
   const inboxAgentAvatar = inboxMeta.avatar || DEFAULT_INBOX_AVATAR;
   const inboxUrl = usePreservedAgentUrl(inboxAgentId!);
 
-  // Prefetch agent layout chunk and data eagerly since Lobe AI is almost always clicked
+  // Prefetch agent layout chunk and data eagerly since the inbox agent is commonly opened.
   prefetchAgent(inboxAgentId!);
 
   const avatarNode = (

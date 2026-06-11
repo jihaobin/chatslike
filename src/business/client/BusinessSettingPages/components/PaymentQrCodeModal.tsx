@@ -16,6 +16,7 @@ interface PaymentQrCodeModalProps {
   onRefresh?: () => void;
   open: boolean;
   orderId: string;
+  paymentMethod?: string;
   qrCodeUrl?: string;
   refreshing?: boolean;
   status?: PaymentQrCodeStatus;
@@ -52,6 +53,7 @@ export const PaymentQrCodeModal = ({
   currency,
   open,
   orderId,
+  paymentMethod,
   qrCodeUrl,
   refreshing,
   status = 'waiting',
@@ -59,15 +61,23 @@ export const PaymentQrCodeModal = ({
   onRefresh,
 }: PaymentQrCodeModalProps) => {
   const { t } = useTranslation('subscription');
+  const currentPaymentMethod =
+    paymentMethod ?? t('billingNative.paymentChannel.wechat', 'WeChat Pay');
   const helperText =
     status === 'paying'
-      ? t('billingNative.paymentQrCode.payingDesc', 'Scanned. Confirm the payment on your phone.')
+      ? t(
+          'billingNative.paymentQrCode.payingDesc',
+          'Scanned. Confirm the payment in {{paymentMethod}}.',
+          { paymentMethod: currentPaymentMethod },
+        )
       : status === 'expired'
         ? t(
             'billingNative.paymentQrCode.expiredDesc',
             'The QR code has expired. Refresh to try again.',
           )
-        : t('billingNative.paymentQrCode.desc', 'Scan to pay');
+        : t('billingNative.paymentQrCode.desc', 'Use {{paymentMethod}} to scan and pay.', {
+            paymentMethod: currentPaymentMethod,
+          });
   const qrCodeStatus =
     status === 'paying'
       ? 'scanned'
@@ -81,8 +91,10 @@ export const PaymentQrCodeModal = ({
     <Modal
       footer={null}
       open={open && Boolean(qrCodeUrl)}
-      title={t('billingNative.paymentQrCode.title', 'Scan to pay')}
       width={420}
+      title={t('billingNative.paymentQrCode.title', 'Pay with {{paymentMethod}}', {
+        paymentMethod: currentPaymentMethod,
+      })}
       onCancel={() => onOpenChange(false)}
     >
       <Flexbox className={styles.panel} gap={14}>

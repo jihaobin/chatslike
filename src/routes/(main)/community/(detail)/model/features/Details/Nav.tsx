@@ -64,9 +64,11 @@ const Nav = memo<NavProps>(({ mobile, setActiveTab, activeTab = ModelNavKey.Over
     <Flexbox horizontal align={'center'} className={styles.nav} justify={'space-between'}>
       {nav}
       <Flexbox horizontal gap={12}>
-        <a className={styles.link} href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
-          {t('mcp.details.nav.needHelp')}
-        </a>
+        {SOCIAL_URL.discord && (
+          <a className={styles.link} href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
+            {t('mcp.details.nav.needHelp')}
+          </a>
+        )}
         <a
           className={styles.link}
           href="https://github.com/lobehub/lobe-chat/tree/main/src/config/aiModels"

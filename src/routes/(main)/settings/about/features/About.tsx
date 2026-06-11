@@ -8,7 +8,7 @@ import { createStaticStyles } from 'antd-style';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { BLOG, mailTo,OFFICIAL_SITE, PRIVACY_URL, TERMS_URL } from '@/const/url';
+import { BLOG, mailTo, OFFICIAL_SITE, PRIVACY_URL, TERMS_URL } from '@/const/url';
 
 import AboutList from './AboutList';
 import ItemCard from './ItemCard';
@@ -25,6 +25,32 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
 const About = memo<{ mobile?: boolean }>(({ mobile }) => {
   const { t } = useTranslation('common');
+  const socialItems = [
+    {
+      href: SOCIAL_URL.github,
+      icon: SiGithub,
+      label: 'GitHub',
+      value: 'feedback',
+    },
+    {
+      href: SOCIAL_URL.discord,
+      icon: SiDiscord,
+      label: 'Discord',
+      value: 'discord',
+    },
+    {
+      href: SOCIAL_URL.x,
+      icon: SiX as any,
+      label: 'X / Twitter',
+      value: 'x',
+    },
+    {
+      href: SOCIAL_URL.youtube,
+      icon: SiYoutube,
+      label: 'YouTube',
+      value: 'youtube',
+    },
+  ].filter(({ href }) => Boolean(href));
 
   return (
     <Form.Group
@@ -71,31 +97,7 @@ const About = memo<{ mobile?: boolean }>(({ mobile }) => {
               label: t('blog'),
               value: 'blog',
             },
-            {
-              href: SOCIAL_URL.github,
-              icon: SiGithub,
-              label: 'GitHub',
-              value: 'feedback',
-            },
-            {
-              href: SOCIAL_URL.discord,
-              icon: SiDiscord,
-              label: 'Discord',
-              value: 'discord',
-            },
-            {
-              href: SOCIAL_URL.x,
-              icon: SiX as any,
-              label: 'X / Twitter',
-              value: 'x',
-            },
-
-            {
-              href: SOCIAL_URL.youtube,
-              icon: SiYoutube,
-              label: 'YouTube',
-              value: 'youtube',
-            },
+            ...socialItems,
           ]}
         />
         <Divider style={{ marginBlock: 0 }} />

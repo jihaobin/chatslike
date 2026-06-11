@@ -5,6 +5,7 @@ import { Avatar, Icon } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
 import { Loader2 } from 'lucide-react';
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 import NavItem from '@/features/NavPanel/components/NavItem';
@@ -42,6 +43,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 }));
 
 const InboxEntry = memo(() => {
+  const { t } = useTranslation('chat');
   const navigate = useNavigate();
   const inboxAgentId = useAgentStore(builtinAgentSelectors.inboxAgentId);
   const inboxMeta = useAgentStore(agentSelectors.getAgentMetaById(inboxAgentId!));
@@ -49,7 +51,7 @@ const InboxEntry = memo(() => {
     inboxAgentId ? operationSelectors.isAgentRunning(inboxAgentId) : () => false,
   );
 
-  const title = inboxMeta.title || 'Lobe AI';
+  const title = inboxMeta.title || t('inbox.title');
   const avatar = inboxMeta.avatar || DEFAULT_INBOX_AVATAR;
   const url = SESSION_CHAT_URL(inboxAgentId, false);
 

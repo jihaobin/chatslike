@@ -5,7 +5,7 @@ const manifest = async (): Promise<MetadataRoute.Manifest> => {
   if (process.env.NODE_ENV === 'development') {
     return {
       background_color: '#000000',
-      description: 'LobeHub Development',
+      description: '风车 Development',
       display: 'standalone',
       icons: [
         {
@@ -14,8 +14,8 @@ const manifest = async (): Promise<MetadataRoute.Manifest> => {
           type: 'image/png',
         },
       ],
-      name: 'LobeHub',
-      short_name: 'LobeHub',
+      name: '风车',
+      short_name: '风车',
       start_url: '/',
       theme_color: '#000000',
     };
@@ -30,7 +30,7 @@ const manifest = async (): Promise<MetadataRoute.Manifest> => {
 
   // @ts-expect-error - manifestModule.generate returns extended manifest with custom properties
   return manifestModule.generate({
-    description: `${BRANDING_NAME} is a work-and-lifestyle space to find, build, and collaborate with agent teams that grow with you.`,
+    description: `${BRANDING_NAME} 提供面向工作与生活场景的 AI Agent 协作体验。`,
     icons: [
       {
         purpose: 'any',

@@ -7,8 +7,6 @@ import { createStaticStyles, cssVar } from 'antd-style';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { GITHUB } from '@/const/url';
-
 const styles = createStaticStyles(({ css }) => {
   return {
     icon: css`
@@ -27,32 +25,23 @@ const styles = createStaticStyles(({ css }) => {
 
 const Follow = memo(() => {
   const { t } = useTranslation('common');
+
+  const links = [
+    { icon: SiGithub, name: 'GitHub', url: SOCIAL_URL.github },
+    { icon: SiX, name: 'X', url: SOCIAL_URL.x },
+    { icon: SiDiscord, name: 'Discord', url: SOCIAL_URL.discord },
+    { icon: SiMedium, name: 'Medium', url: SOCIAL_URL.medium },
+  ].filter(({ url }) => Boolean(url));
+
+  if (links.length === 0) return null;
+
   return (
     <Flexbox horizontal gap={8}>
-      <a href={GITHUB} rel="noreferrer" target="_blank">
-        <ActionIcon
-          className={styles.icon}
-          icon={SiGithub as any}
-          title={t('follow', { name: 'GitHub' })}
-        />
-      </a>
-      <a href={SOCIAL_URL.x} rel="noreferrer" target="_blank">
-        <ActionIcon className={styles.icon} icon={SiX as any} title={t('follow', { name: 'X' })} />
-      </a>
-      <a href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
-        <ActionIcon
-          className={styles.icon}
-          icon={SiDiscord as any}
-          title={t('follow', { name: 'Discord' })}
-        />
-      </a>
-      <a href={SOCIAL_URL.medium} rel="noreferrer" target="_blank">
-        <ActionIcon
-          className={styles.icon}
-          icon={SiMedium as any}
-          title={t('follow', { name: 'Medium' })}
-        />
-      </a>
+      {links.map(({ icon, name, url }) => (
+        <a href={url} key={name} rel="noreferrer" target="_blank">
+          <ActionIcon className={styles.icon} icon={icon as any} title={t('follow', { name })} />
+        </a>
+      ))}
     </Flexbox>
   );
 });

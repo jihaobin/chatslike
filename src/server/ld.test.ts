@@ -29,8 +29,12 @@ describe('Ld', () => {
       const org = ld.genOrganization();
 
       expect(org['@type']).toBe('Organization');
-      expect(org.name).toBe('LobeHub');
-      expect(org.url).toBe('https://lobehub.com');
+      expect(org.name).toBe('湖北一欣数字科技有限公司');
+      expect(org.alternateName).toBe('风车');
+      expect(org.email).toBe('2191265529@qq.com');
+      expect(org.url).toBe('https://chatslike.com');
+      expect(org.logo.url).toBe('https://chatslike.com/icons/icon-512x512.png');
+      expect(org.sameAs).toEqual([]);
     });
   });
 
@@ -42,9 +46,10 @@ describe('Ld', () => {
 
     it('should return person when valid id provided', () => {
       const author = ld.getAuthors(['arvinxx']);
-      expect(author['@type']).toBe('Person');
-      // @ts-ignore
-      expect(author.name).toBe(AUTHOR_LIST.arvinxx.name);
+      expect(author).toMatchObject({
+        '@type': 'Person',
+        'name': AUTHOR_LIST.arvinxx.name,
+      });
     });
   });
 
@@ -81,6 +86,9 @@ describe('Ld', () => {
 
       expect(website['@type']).toBe('WebSite');
       expect(website.name).toBe(BRANDING_NAME);
+      expect(website.description).toBe(
+        '湖北一欣数字科技有限公司 旗下产品 风车，提供面向工作与生活场景的 AI Agent 协作体验。',
+      );
     });
   });
 
@@ -98,6 +106,7 @@ describe('Ld', () => {
       expect(article['@type']).toBe('Article');
       expect(article.headline).toBe(`Test Article · ${BRANDING_NAME}`);
       expect(article.author['@type']).toBe('Person');
+      expect(article.keywords).toBe(BRANDING_NAME);
     });
   });
 });

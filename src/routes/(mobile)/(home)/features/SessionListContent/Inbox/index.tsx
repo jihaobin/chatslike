@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { DEFAULT_INBOX_AVATAR } from '@/const/meta';
@@ -13,14 +14,17 @@ import { sessionSelectors } from '@/store/session/selectors';
 import ListItem from '../ListItem';
 
 const Inbox = memo(() => {
+  const { t } = useTranslation('chat');
   const mobile = useServerConfigStore((s) => s.isMobile);
   const isInboxActive = useSessionStore(sessionSelectors.isInboxSession);
   const navigateToAgent = useNavigateToAgent();
   const inboxAgentId = useAgentStore(builtinAgentSelectors.inboxAgentId);
 
+  const title = t('inbox.title');
+
   return (
     <Link
-      aria-label={'Lobe AI'}
+      aria-label={title}
       to={SESSION_CHAT_URL(inboxAgentId, mobile)}
       onClick={(e) => {
         e.preventDefault();
@@ -31,7 +35,7 @@ const Inbox = memo(() => {
         active={isInboxActive}
         avatar={DEFAULT_INBOX_AVATAR}
         key={'inbox'}
-        title={'Lobe AI'}
+        title={title}
         styles={{
           container: {
             gap: 12,

@@ -151,22 +151,26 @@ const MainMenu = memo(() => {
         >
           {t('cmdk.submitIssue')}
         </CommandItem>
-        <CommandItem
-          icon={<Star />}
-          keywords={t('cmdk.keywords.starGitHub').split(' ')}
-          value="star-github"
-          onSelect={() => handleExternalLink(SOCIAL_URL.github)}
-        >
-          {t('cmdk.starOnGitHub')}
-        </CommandItem>
-        <CommandItem
-          icon={<DiscordIcon />}
-          keywords={t('cmdk.keywords.discord').split(' ')}
-          value="discord"
-          onSelect={() => handleExternalLink(SOCIAL_URL.discord)}
-        >
-          {t('cmdk.communitySupport')}
-        </CommandItem>
+        {SOCIAL_URL.github && (
+          <CommandItem
+            icon={<Star />}
+            keywords={t('cmdk.keywords.starGitHub').split(' ')}
+            value="star-github"
+            onSelect={() => handleExternalLink(SOCIAL_URL.github)}
+          >
+            {t('cmdk.starOnGitHub')}
+          </CommandItem>
+        )}
+        {SOCIAL_URL.discord && (
+          <CommandItem
+            icon={<DiscordIcon />}
+            keywords={t('cmdk.keywords.discord').split(' ')}
+            value="discord"
+            onSelect={() => handleExternalLink(SOCIAL_URL.discord)}
+          >
+            {t('cmdk.communitySupport')}
+          </CommandItem>
+        )}
       </Command.Group>
     </>
   );

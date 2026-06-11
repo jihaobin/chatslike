@@ -183,9 +183,11 @@ const Nav = memo<NavProps>(
         {nav}
         {!inModal && (
           <Flexbox horizontal gap={12}>
-            <a className={styles.link} href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
-              {t('mcp.details.nav.needHelp')}
-            </a>
+            {SOCIAL_URL.discord && (
+              <a className={styles.link} href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
+                {t('mcp.details.nav.needHelp')}
+              </a>
+            )}
             {github?.url && (
               <>
                 <a className={styles.link} href={github.url} rel="noreferrer" target="_blank">

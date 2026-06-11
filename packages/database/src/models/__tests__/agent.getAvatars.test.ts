@@ -73,7 +73,7 @@ describe('AgentModel.getAgentAvatarsByIds', () => {
     expect(result[0].id).toBe('agent-mine');
   });
 
-  it('should fallback to LobeAI defaults for inbox agent without avatar/title', async () => {
+  it('should fallback to branded defaults for inbox agent without avatar/title', async () => {
     await serverDB.insert(agents).values({
       avatar: null,
       backgroundColor: null,
@@ -88,10 +88,10 @@ describe('AgentModel.getAgentAvatarsByIds', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
-      avatar: '/avatars/lobe-ai.png',
+      avatar: '/icons/icon-512x512.png',
       backgroundColor: null,
       id: 'agent-inbox',
-      title: 'Lobe AI',
+      title: '风车',
     });
   });
 

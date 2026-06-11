@@ -77,9 +77,11 @@ const Nav = memo<NavProps>(({ mobile, setActiveTab, activeTab = ProviderNavKey.O
     <Flexbox horizontal align={'center'} className={styles.nav} justify={'space-between'}>
       {nav}
       <Flexbox horizontal gap={12}>
-        <a className={styles.link} href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
-          {t('mcp.details.nav.needHelp')}
-        </a>
+        {SOCIAL_URL.discord && (
+          <a className={styles.link} href={SOCIAL_URL.discord} rel="noreferrer" target="_blank">
+            {t('mcp.details.nav.needHelp')}
+          </a>
+        )}
         {identifier && (
           <a
             className={styles.link}

@@ -2,8 +2,8 @@ export default {
   'changelog.description': 'Stay updated on the new features and improvements of {{appName}}',
   'changelog.title': 'Changelog',
   'chat.description':
-    '{{appName}} is a work-and-lifestyle space to find, build, and collaborate with agent teams that grow with you.',
-  'chat.title': '{{appName}} · Agent teammates that grow with you',
+    '{{appName}} provides an AI Agent workspace for focused work, daily tasks, and team collaboration.',
+  'chat.title': '{{appName}} · AI Agent workspace',
   'discover.assistants.description':
     'Content, Q&A, images, video, voice, workflows—browse and add Agents from the Community.',
   'discover.assistants.title': 'Agent Community',
@@ -29,6 +29,6 @@ export default {
     'Search, charts, academic tools, image/video/voice generation, workflows—add Skills to your Agents.',
   'plugins.title': 'Skill Community',
   'welcome.description':
-    '{{appName}} brings you the best UI experience for ChatGPT, Claude, Gemini, and OLLaMA.',
-  'welcome.title': 'Welcome to {{appName}} · Where Agents Collaborate',
+    '{{appName}} provides an AI Agent workspace for focused work, daily tasks, and team collaboration.',
+  'welcome.title': 'Welcome to {{appName}} · AI Agent workspace',
 };

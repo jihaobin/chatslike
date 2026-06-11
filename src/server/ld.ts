@@ -1,4 +1,4 @@
-import { BRANDING_EMAIL, BRANDING_NAME, SOCIAL_URL } from '@lobechat/business-const';
+import { BRANDING_EMAIL, BRANDING_NAME, ORG_NAME, SOCIAL_URL } from '@lobechat/business-const';
 import { isString } from 'es-toolkit/compat';
 import qs from 'query-string';
 import urlJoin from 'url-join';
@@ -8,9 +8,9 @@ import { OFFICIAL_SITE, OFFICIAL_URL } from '@/const/url';
 import { type Locales } from '@/locales/resources';
 import { getCanonicalUrl } from '@/server/utils/url';
 
-import pkg from '../../package.json';
-
 const LAST_MODIFIED = new Date().toISOString();
+const ORGANIZATION_DESCRIPTION = `${ORG_NAME} 旗下产品 ${BRANDING_NAME}，提供面向工作与生活场景的 AI Agent 协作体验。`;
+
 export const AUTHOR_LIST = {
   arvinxx: {
     avatar: 'https://avatars.githubusercontent.com/u/28616219?v=4',
@@ -25,10 +25,10 @@ export const AUTHOR_LIST = {
     url: 'https://github.com/canisminor1990',
   },
   lobehub: {
-    avatar: 'https://avatars.githubusercontent.com/u/131470832?v=4',
+    avatar: urlJoin(OFFICIAL_SITE, '/icons/icon-512x512.png'),
     desc: 'Official Account',
-    name: 'LobeHub',
-    url: 'https://github.com/lobehub',
+    name: ORG_NAME,
+    url: OFFICIAL_SITE,
   },
 };
 
@@ -84,29 +84,31 @@ export class Ld {
   }
 
   genOrganization() {
+    const logoUrl = urlJoin(OFFICIAL_SITE, '/icons/icon-512x512.png');
+    const sameAs = Array.from(
+      new Set([SOCIAL_URL.x, SOCIAL_URL.github, SOCIAL_URL.medium, SOCIAL_URL.youtube]),
+    ).filter((url) => url && url !== OFFICIAL_SITE);
+
     return {
       '@id': this.getId(OFFICIAL_URL, '#organization'),
       '@type': 'Organization',
-      'alternateName': 'LobeHub',
+      'alternateName': BRANDING_NAME,
       'contactPoint': {
         '@type': 'ContactPoint',
         'contactType': 'customer support',
         'email': BRANDING_EMAIL.support,
       },
-      'description':
-        'Agent teammates that grow with you\n' +
-        'LobeHub is a work-and-lifestyle space to find, build, and collaborate with agent teams that grow with you.',
+      'description': ORGANIZATION_DESCRIPTION,
       'email': BRANDING_EMAIL.business,
-      'founders': [this.getAuthors(['arvinxx']), this.getAuthors(['canisminor'])],
-      'image': urlJoin(OFFICIAL_SITE, '/icon-512x512.png'),
+      'image': logoUrl,
       'logo': {
         '@type': 'ImageObject',
         'height': 512,
-        'url': urlJoin(OFFICIAL_SITE, '/icon-512x512.png'),
+        'url': logoUrl,
         'width': 512,
       },
-      'name': 'LobeHub',
-      'sameAs': [SOCIAL_URL.x, SOCIAL_URL.github, SOCIAL_URL.medium, SOCIAL_URL.youtube],
+      'name': ORG_NAME,
+      'sameAs': sameAs,
       'url': OFFICIAL_SITE,
     };
   }
@@ -120,7 +122,7 @@ export class Ld {
     if (ids.length === 1 && ids[0] === 'lobehub') return defaultAuthor;
     const personId = ids.find((id) => id !== 'lobehub');
     if (!personId) return defaultAuthor;
-    const person = (AUTHOR_LIST as any)?.[personId];
+    const person = AUTHOR_LIST[personId as keyof typeof AUTHOR_LIST];
     if (!person) return defaultAuthor;
     return {
       '@type': 'Person',
@@ -206,7 +208,7 @@ export class Ld {
     const baseInfo: any = {
       '@id': this.getId(OFFICIAL_URL, '#website'),
       '@type': 'WebSite',
-      'description': pkg.description,
+      'description': ORGANIZATION_DESCRIPTION,
       'inLanguage': DEFAULT_LANG,
       'name': BRANDING_NAME,
       'publisher': {
@@ -256,7 +258,7 @@ export class Ld {
         '@id': this.getId(fixedUrl, '#primaryimage'),
       },
       'inLanguage': locale,
-      'keywords': tags?.join(' ') || 'LobeHub',
+      'keywords': tags?.join(' ') || BRANDING_NAME,
       'mainEntityOfPage': fixedUrl,
       'name': title,
       'publisher': {
