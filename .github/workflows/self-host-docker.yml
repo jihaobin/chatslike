@@ -60,7 +60,21 @@ jobs:
             echo "value=linux/amd64" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Free runner disk space
+        run: |
+          echo "Disk before cleanup:"
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker system prune -af || true
+          echo "Disk after cleanup:"
+          df -h
+
       - name: Set up QEMU
+        if: steps.platform.outputs.value == 'linux/arm64'
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
