@@ -1,8 +1,8 @@
 import dayjs from 'dayjs';
 import debug from 'debug';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, ne } from 'drizzle-orm';
 
-import { messages } from '@/database/schemas';
+import { messages, usageRecords } from '@/database/schemas';
 import { type LobeChatDatabase } from '@/database/type';
 import { genRangeWhere, genWhere } from '@/database/utils/genWhere';
 import { type MessageMetadata } from '@/types/message';
@@ -10,6 +10,34 @@ import { type UsageLog, type UsageRecordItem } from '@/types/usage/usageRecord';
 import { formatDate } from '@/utils/format';
 
 const log = debug('lobe-usage:service');
+
+interface BillingUsageMetadata {
+  latency?: number;
+  usage?: {
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+}
+
+const getBillingTokenUsage = (record: {
+  inputTokens?: number | null;
+  metadata?: Record<string, unknown> | null;
+  outputTokens?: number | null;
+}) => {
+  const metadata = record.metadata as BillingUsageMetadata | null;
+  const outputTokens = record.outputTokens ?? metadata?.usage?.completionTokens ?? 0;
+  const inputTokens =
+    record.inputTokens ??
+    (typeof metadata?.usage?.totalTokens === 'number'
+      ? Math.max(metadata.usage.totalTokens - outputTokens, 0)
+      : 0);
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+  };
+};
 
 export class UsageRecordService {
   private userId: string;
@@ -43,7 +71,31 @@ export class UsageRecordService {
         ]),
       )
       .orderBy(desc(messages.createdAt));
-    return spends.map((spend) => {
+
+    const billingRecords = await this.db
+      .select({
+        actualCredits: usageRecords.actualCredits,
+        createdAt: usageRecords.createdAt,
+        id: usageRecords.id,
+        inputTokens: usageRecords.inputTokens,
+        metadata: usageRecords.metadata,
+        modality: usageRecords.modality,
+        model: usageRecords.model,
+        outputTokens: usageRecords.outputTokens,
+        provider: usageRecords.provider,
+        userId: usageRecords.userId,
+      })
+      .from(usageRecords)
+      .where(
+        genWhere([
+          eq(usageRecords.userId, this.userId),
+          ne(usageRecords.modality, 'text'),
+          genRangeWhere([startAt, endAt], usageRecords.createdAt, (date) => date.toDate()),
+        ]),
+      )
+      .orderBy(desc(usageRecords.createdAt));
+
+    const messageRecords = spends.map((spend) => {
       const metadata = spend.metadata as MessageMetadata;
       return {
         createdAt: spend.createdAt,
@@ -62,6 +114,32 @@ export class UsageRecordService {
         userId: spend.userId,
       } as UsageRecordItem;
     });
+
+    const billingUsageRecords = billingRecords.map((record) => {
+      const metadata = record.metadata as BillingUsageMetadata | null;
+      const { inputTokens, outputTokens, totalTokens } = getBillingTokenUsage(record);
+
+      return {
+        createdAt: record.createdAt,
+        id: record.id,
+        metadata: record.metadata,
+        model: record.model,
+        provider: record.provider,
+        spend: record.actualCredits,
+        totalInputTokens: inputTokens,
+        totalOutputTokens: outputTokens,
+        totalTokens,
+        tps: 0,
+        ttft: metadata?.latency ?? 0,
+        type: record.modality,
+        updatedAt: record.createdAt,
+        userId: record.userId,
+      } as UsageRecordItem;
+    });
+
+    return [...messageRecords, ...billingUsageRecords].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
   };
 
   /**

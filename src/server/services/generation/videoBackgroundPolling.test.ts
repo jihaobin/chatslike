@@ -370,6 +370,40 @@ describe('videoBackgroundPolling', () => {
         expect.objectContaining({ status: AsyncTaskStatus.Success }),
       );
     });
+
+    it('should retry transient fetch failed errors during polling', async () => {
+      mockModelRuntime.handlePollVideoStatus
+        .mockRejectedValueOnce(new Error('fetch failed'))
+        .mockResolvedValueOnce({ status: 'processing' })
+        .mockResolvedValueOnce({
+          status: 'success',
+          videoUrl: 'https://example.com/video.mp4',
+        });
+
+      mockVideoService.processVideoForGeneration.mockResolvedValue({
+        coverKey: 'cover-key',
+        duration: 10,
+        fileHash: 'hash',
+        fileSize: 1024,
+        height: 1080,
+        mimeType: 'video/mp4',
+        thumbnailKey: 'thumb-key',
+        videoKey: 'video-key',
+        width: 1920,
+      });
+
+      mockGenerationModel.createAssetAndFile.mockResolvedValue(undefined);
+
+      const pollPromise = processBackgroundVideoPolling(mockDb, mockParams);
+      await vi.advanceTimersByTimeAsync(10000);
+      await pollPromise;
+
+      expect(mockModelRuntime.handlePollVideoStatus).toHaveBeenCalledTimes(3);
+      expect(mockAsyncTaskModel.update).toHaveBeenCalledWith(
+        'task-123',
+        expect.objectContaining({ status: AsyncTaskStatus.Success }),
+      );
+    });
   });
 
   describe('async task duration calculation', () => {

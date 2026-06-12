@@ -21,22 +21,16 @@ const execFileAsync = promisify(execFile);
 
 let _ffmpegPath: string | null = null;
 
+export function resolveFfmpegPath(ffmpegStatic: string | null, ffmpegPath = process.env.FFMPEG_PATH) {
+  return ffmpegPath || ffmpegStatic || 'ffmpeg';
+}
+
 function getFfmpegPath(): string {
   if (_ffmpegPath) return _ffmpegPath;
-  if (process.env.FFMPEG_PATH) {
-    _ffmpegPath = process.env.FFMPEG_PATH;
-    return _ffmpegPath;
-  }
-
-  // The bundled ffmpeg-static binary can be incompatible on some Windows installs
-  // (spawn EFTYPE). Prefer a PATH-resolved ffmpeg there when available.
-  if (process.platform === 'win32') {
-    _ffmpegPath = 'ffmpeg';
-    return _ffmpegPath;
-  }
 
   const ffmpegStatic = require('ffmpeg-static') as string | { default?: string };
-  _ffmpegPath = typeof ffmpegStatic === 'string' ? ffmpegStatic : ffmpegStatic.default || 'ffmpeg';
+  const bundledPath = typeof ffmpegStatic === 'string' ? ffmpegStatic : ffmpegStatic.default || null;
+  _ffmpegPath = resolveFfmpegPath(bundledPath);
   return _ffmpegPath;
 }
 

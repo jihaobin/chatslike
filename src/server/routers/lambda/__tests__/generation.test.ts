@@ -1,8 +1,9 @@
 import { TRPCError } from '@trpc/server';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { GenerationModel } from '@/database/models/generation';
+import type { AsyncTaskSelectItem } from '@/database/schemas';
 import { FileService } from '@/server/services/file';
 import { syncVideoGenerationTaskStatus } from '@/server/services/generation/videoTaskStatusSync';
 import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
@@ -17,10 +18,20 @@ vi.mock('@/server/services/generation/videoTaskStatusSync', () => ({
 }));
 
 describe('generationRouter', () => {
+  type RetryAsyncTaskModelMock = Pick<InstanceType<typeof AsyncTaskModel>, 'findById' | 'update'>;
+  type RetryGenerationModelMock = Pick<
+    InstanceType<typeof GenerationModel>,
+    'findById' | 'findByIdAndTransform'
+  >;
+
   const mockCtx = {
     serverDB: undefined,
     userId: 'test-user',
   };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe('getGenerationStatus', () => {
     it('should return generation status when task is successful', async () => {
@@ -280,6 +291,140 @@ describe('generationRouter', () => {
           asyncTaskId: 'task-1',
         }),
       ).rejects.toThrow(TRPCError);
+    });
+  });
+
+  describe('retryVideoGenerationTask', () => {
+    it('should retry a failed video task with the existing inference id', async () => {
+      const mockGeneration = {
+        id: 'gen-1',
+        task: {
+          id: 'task-1',
+          status: AsyncTaskStatus.Success,
+        },
+      };
+      const mockAsyncTask = {
+        accessedAt: new Date('2024-01-01T00:00:00Z'),
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        duration: null,
+        id: 'task-1',
+        status: AsyncTaskStatus.Error,
+        error: { message: 'Background polling failed: fetch failed' },
+        inferenceId: 'upstream-task-1',
+        metadata: {},
+        parentId: null,
+        type: AsyncTaskType.VideoGeneration,
+        updatedAt: new Date('2024-01-01T00:00:00Z'),
+        userId: 'test-user',
+      } satisfies AsyncTaskSelectItem;
+      const mockSyncedTask = {
+        ...mockAsyncTask,
+        error: null,
+        status: AsyncTaskStatus.Success,
+      } satisfies AsyncTaskSelectItem;
+      const mockFindById = vi.fn().mockResolvedValue(mockAsyncTask);
+      const mockFindGenerationById = vi.fn().mockResolvedValue({
+        asyncTaskId: 'task-1',
+        id: 'gen-1',
+        userId: 'test-user',
+      });
+      const mockFindByIdAndTransform = vi.fn().mockResolvedValue(mockGeneration);
+      const mockUpdate = vi.fn().mockResolvedValue(undefined);
+
+      vi.mocked(AsyncTaskModel).mockImplementation(
+        () =>
+          ({
+            findById: mockFindById,
+            update: mockUpdate,
+          }) as RetryAsyncTaskModelMock as AsyncTaskModel,
+      );
+      vi.mocked(GenerationModel).mockImplementation(
+        () =>
+          ({
+            findById: mockFindGenerationById,
+            findByIdAndTransform: mockFindByIdAndTransform,
+          }) as RetryGenerationModelMock as GenerationModel,
+      );
+      vi.mocked(syncVideoGenerationTaskStatus).mockResolvedValue(mockSyncedTask);
+
+      const caller = generationRouter.createCaller(mockCtx);
+
+      const result = await caller.retryVideoGenerationTask({
+        asyncTaskId: 'task-1',
+        generationId: 'gen-1',
+      });
+
+      expect(mockUpdate).toHaveBeenCalledWith('task-1', {
+        error: null,
+        status: AsyncTaskStatus.Processing,
+      });
+      expect(syncVideoGenerationTaskStatus).toHaveBeenCalledWith({
+        asyncTask: expect.objectContaining({
+          id: 'task-1',
+          inferenceId: 'upstream-task-1',
+          status: AsyncTaskStatus.Processing,
+          type: AsyncTaskType.VideoGeneration,
+        }),
+        db: expect.any(Object),
+        generationId: 'gen-1',
+        userId: 'test-user',
+      });
+      expect(result).toEqual({
+        error: null,
+        generation: mockGeneration,
+        status: AsyncTaskStatus.Success,
+      });
+    });
+
+    it('should reject retry when generation is not linked to the async task', async () => {
+      const mockAsyncTask = {
+        accessedAt: new Date('2024-01-01T00:00:00Z'),
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        duration: null,
+        id: 'task-1',
+        status: AsyncTaskStatus.Error,
+        error: { message: 'Background polling failed: fetch failed' },
+        inferenceId: 'upstream-task-1',
+        metadata: {},
+        parentId: null,
+        type: AsyncTaskType.VideoGeneration,
+        updatedAt: new Date('2024-01-01T00:00:00Z'),
+        userId: 'test-user',
+      } satisfies AsyncTaskSelectItem;
+      const mockFindById = vi.fn().mockResolvedValue(mockAsyncTask);
+      const mockUpdate = vi.fn().mockResolvedValue(undefined);
+      const mockFindGenerationById = vi.fn().mockResolvedValue({
+        asyncTaskId: 'another-task',
+        id: 'gen-1',
+        userId: 'test-user',
+      });
+
+      vi.mocked(AsyncTaskModel).mockImplementation(
+        () =>
+          ({
+            findById: mockFindById,
+            update: mockUpdate,
+          }) as RetryAsyncTaskModelMock as AsyncTaskModel,
+      );
+      vi.mocked(GenerationModel).mockImplementation(
+        () =>
+          ({
+            findById: mockFindGenerationById,
+            findByIdAndTransform: vi.fn(),
+          }) as RetryGenerationModelMock as GenerationModel,
+      );
+
+      const caller = generationRouter.createCaller(mockCtx);
+
+      await expect(
+        caller.retryVideoGenerationTask({
+          asyncTaskId: 'task-1',
+          generationId: 'gen-1',
+        }),
+      ).rejects.toThrow(TRPCError);
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(syncVideoGenerationTaskStatus).not.toHaveBeenCalled();
     });
   });
 

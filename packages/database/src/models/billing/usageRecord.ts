@@ -6,6 +6,13 @@ import type { LobeChatDatabase, Transaction } from '../../type';
 
 type BillingDb = LobeChatDatabase | Transaction;
 
+interface BillingUsageMetadata {
+  usage?: {
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+}
+
 export interface ListUsageRecordsParams {
   cursor?: string;
   pageSize: number;
@@ -62,8 +69,24 @@ export class UsageRecordModel {
     const pageItems = hasMore ? items.slice(0, params.pageSize) : items;
 
     return {
-      items: pageItems,
+      items: pageItems.map((item) => this.normalizeTokenUsage(item)),
       nextCursor: hasMore ? pageItems.at(-1)?.id : undefined,
+    };
+  };
+
+  private normalizeTokenUsage = (item: UsageRecordItem): UsageRecordItem => {
+    if (item.inputTokens !== null || item.outputTokens !== null) return item;
+
+    const metadata = item.metadata as BillingUsageMetadata | null;
+    const outputTokens = metadata?.usage?.completionTokens;
+    const totalTokens = metadata?.usage?.totalTokens;
+
+    if (typeof outputTokens !== 'number' || typeof totalTokens !== 'number') return item;
+
+    return {
+      ...item,
+      inputTokens: Math.max(totalTokens - outputTokens, 0),
+      outputTokens,
     };
   };
 }

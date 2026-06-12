@@ -20,6 +20,9 @@ export default {
   'generation.actions.errorCopied': 'Error Message Copied to Clipboard',
   'generation.actions.errorCopyFailed': 'Failed to Copy Error Message',
   'generation.actions.generate': 'Generate',
+  'generation.actions.retryProcessing': 'Retry Processing',
+  'generation.actions.retryProcessingFailed': 'Failed to Retry Processing',
+  'generation.actions.retryProcessingStarted': 'Retry Processing Started',
   'generation.freeQuota.exhausted': '🎁 Free quota used up, credits will be consumed',
   'generation.freeQuota.remaining': '🎁 {{remaining}} free videos today',
   'generation.validation.endFrameRequiresStartFrame':

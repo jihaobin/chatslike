@@ -1,11 +1,11 @@
 'use client';
 
 import { ModelTag } from '@lobehub/icons';
-import { ActionIconGroup, Block, Flexbox, Markdown, Tag, Text } from '@lobehub/ui';
+import { ActionIconGroup, Block, Button, Flexbox, Markdown, Tag, Text } from '@lobehub/ui';
 import { App } from 'antd';
 import { createStaticStyles } from 'antd-style';
 import dayjs from 'dayjs';
-import { CopyIcon, RotateCcwSquareIcon, Trash2 } from 'lucide-react';
+import { CopyIcon, RefreshCwIcon, RotateCcwSquareIcon, Trash2 } from 'lucide-react';
 import { type RuntimeVideoGenParamsKeys, type RuntimeVideoGenParamsValue } from 'model-bank';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +49,7 @@ export const VideoGenerationBatchItem = memo<VideoGenerationBatchItemProps>(({ b
   const useCheckGenerationStatus = useVideoStore((s) => s.useCheckGenerationStatus);
   const removeGeneration = useVideoStore((s) => s.removeGeneration);
   const removeGenerationBatch = useVideoStore((s) => s.removeGenerationBatch);
+  const retryVideoGenerationTask = useVideoStore((s) => s.retryVideoGenerationTask);
   const setModelAndProviderOnSelect = useVideoStore((s) => s.setModelAndProviderOnSelect);
   const setParamOnInput = useVideoStore((s) => s.setParamOnInput);
   const activeTopicId = useVideoStore((s) => s.activeGenerationTopicId);
@@ -147,6 +148,18 @@ export const VideoGenerationBatchItem = memo<VideoGenerationBatchItemProps>(({ b
     }
   }, [generation?.task.error, message, t]);
 
+  const handleRetryProcessing = useCallback(async () => {
+    if (!generation?.id || !generation.task.id) return;
+
+    try {
+      await retryVideoGenerationTask(generation.id, generation.task.id);
+      message.success(t('generation.actions.retryProcessingStarted'));
+    } catch (error) {
+      console.error('Failed to retry video processing:', error);
+      message.error(t('generation.actions.retryProcessingFailed'));
+    }
+  }, [generation?.id, generation?.task.id, message, retryVideoGenerationTask, t]);
+
   const displayAspectRatio = useMemo(() => {
     const ratio = batch.config?.aspectRatio;
     if (ratio && ratio !== 'adaptive') return ratio;
@@ -239,32 +252,44 @@ export const VideoGenerationBatchItem = memo<VideoGenerationBatchItemProps>(({ b
       <Flexbox
         horizontal
         align={'center'}
-        className={styles.batchActions}
         justify={'space-between'}
       >
-        <ActionIconGroup
-          items={[
-            {
-              icon: RotateCcwSquareIcon,
-              key: 'reuseSettings',
-              label: t('generation.actions.reuseSettings', { ns: 'image' }),
-              onClick: handleReuseSettings,
-            },
-            {
-              icon: CopyIcon,
-              key: 'copyPrompt',
-              label: t('generation.actions.copyPrompt', { ns: 'image' }),
-              onClick: handleCopyPrompt,
-            },
-            {
-              danger: true,
-              icon: Trash2,
-              key: 'deleteBatch',
-              label: t('generation.actions.deleteBatch', { ns: 'image' }),
-              onClick: handleDeleteBatch,
-            },
-          ]}
-        />
+        <Flexbox horizontal align={'center'} gap={8}>
+          {generation.task.status === AsyncTaskStatus.Error && (
+            <Button
+              icon={RefreshCwIcon}
+              size={'small'}
+              type={'primary'}
+              onClick={handleRetryProcessing}
+            >
+              {t('generation.actions.retryProcessing')}
+            </Button>
+          )}
+          <ActionIconGroup
+            className={styles.batchActions}
+            items={[
+              {
+                icon: RotateCcwSquareIcon,
+                key: 'reuseSettings',
+                label: t('generation.actions.reuseSettings', { ns: 'image' }),
+                onClick: handleReuseSettings,
+              },
+              {
+                icon: CopyIcon,
+                key: 'copyPrompt',
+                label: t('generation.actions.copyPrompt', { ns: 'image' }),
+                onClick: handleCopyPrompt,
+              },
+              {
+                danger: true,
+                icon: Trash2,
+                key: 'deleteBatch',
+                label: t('generation.actions.deleteBatch', { ns: 'image' }),
+                onClick: handleDeleteBatch,
+              },
+            ]}
+          />
+        </Flexbox>
         <Text as={'time'} fontSize={12} type={'secondary'}>
           {time}
         </Text>

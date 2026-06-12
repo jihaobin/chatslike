@@ -6,6 +6,7 @@ import { handleLobeHubModelDeprecatedError } from '@/business/client/handleLobeH
 import { handlePlatformProviderError } from '@/business/client/handlePlatformProviderError';
 import { markUserValidAction } from '@/business/client/markUserValidAction';
 import { message } from '@/components/AntdStaticMethods';
+import { generationService } from '@/services/generation';
 import { videoService } from '@/services/video';
 import { aiProviderSelectors, getAiInfraStoreState } from '@/store/aiInfra';
 import { type StoreSetter } from '@/store/types';
@@ -267,6 +268,11 @@ export class CreateVideoActionImpl {
     } finally {
       this.#set({ isCreating: false }, false, 'recreateVideo/end');
     }
+  };
+
+  retryVideoGenerationTask = async (generationId: string, asyncTaskId: string): Promise<void> => {
+    await generationService.retryVideoGenerationTask(generationId, asyncTaskId);
+    await this.#get().refreshGenerationBatches();
   };
 }
 

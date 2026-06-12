@@ -36,7 +36,6 @@ import { userProfileSelectors } from '@/store/user/selectors';
 import { formatNumber } from '@/utils/format';
 
 import CreditAmount from './components/CreditAmount';
-import { type PaymentChannel, PaymentChannelModal } from './components/PaymentChannelModal';
 import { PaymentQrCodeModal, type PaymentQrCodeStatus } from './components/PaymentQrCodeModal';
 import StatusTag from './components/StatusTag';
 import {
@@ -64,6 +63,7 @@ interface TabIndicatorStyle {
 const MILLION = 1_000_000;
 const CUSTOM_PRODUCT_ID = 'custom';
 const QR_CODE_EXPIRE_MS = 15 * 60 * 1000;
+const PAYMENT_CHANNEL = 'wechat';
 
 const styles = createStaticStyles(({ css, cssVar: token }) => ({
   autoTopUpAction: css`
@@ -360,11 +360,9 @@ const Credits = memo(() => {
   const [createdOrder, setCreatedOrder] = useState<CreatedTopUpOrder>();
   const [createOrderError, setCreateOrderError] = useState<string>();
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
-  const [isPaymentChannelModalOpen, setIsPaymentChannelModalOpen] = useState(false);
   const [isPaymentQrCodeModalOpen, setIsPaymentQrCodeModalOpen] = useState(false);
   const [isPaymentSuccessful, setIsPaymentSuccessful] = useState(false);
   const [isQrCodeExpired, setIsQrCodeExpired] = useState(false);
-  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel>();
   const [paymentQrCodeCreatedAt, setPaymentQrCodeCreatedAt] = useState<number>();
   const [productId, setProductId] = useState<TopUpProductId>(TOP_UP_PRODUCTS[0].id);
   const [customCreditsMillion, setCustomCreditsMillion] = useState(1);
@@ -565,16 +563,14 @@ const Credits = memo(() => {
     if (nearestProduct) setProductId(nearestProduct.id);
   };
 
-  const handleCreateOrder = async (channel: PaymentChannel) => {
-    setIsPaymentChannelModalOpen(false);
+  const handleCreateOrder = async () => {
     setIsCreatingOrder(true);
     setCreateOrderError(undefined);
     setIsPaymentSuccessful(false);
     setIsQrCodeExpired(false);
-    setPaymentChannel(channel);
 
     try {
-      const result = await billingService.createTopUpOrder({ channel, productId });
+      const result = await billingService.createTopUpOrder({ channel: PAYMENT_CHANNEL, productId });
       setCreatedOrder(result);
       setIsPaymentQrCodeModalOpen(Boolean(result.payment.qrCodeUrl));
       setPaymentQrCodeCreatedAt(Date.now());
@@ -594,13 +590,11 @@ const Credits = memo(() => {
   };
 
   const handleRefreshQrCode = async () => {
-    if (!paymentChannel) return;
-
     setIsCreatingOrder(true);
     setCreateOrderError(undefined);
 
     try {
-      const result = await billingService.createTopUpOrder({ channel: paymentChannel, productId });
+      const result = await billingService.createTopUpOrder({ channel: PAYMENT_CHANNEL, productId });
       setCreatedOrder(result);
       setIsQrCodeExpired(false);
       setIsPaymentQrCodeModalOpen(Boolean(result.payment.qrCodeUrl));
@@ -814,7 +808,7 @@ const Credits = memo(() => {
               icon={<Icon icon={ShoppingCartIcon} />}
               loading={isCreatingOrder}
               type={'primary'}
-              onClick={() => setIsPaymentChannelModalOpen(true)}
+              onClick={() => void handleCreateOrder()}
             >
               {t('billingNative.credits.purchase.buyNow', 'Buy Now')}
             </Button>
@@ -1045,11 +1039,6 @@ const Credits = memo(() => {
         </Button>
       </Flexbox>
 
-      <PaymentChannelModal
-        open={isPaymentChannelModalOpen}
-        onOpenChange={setIsPaymentChannelModalOpen}
-        onSelect={(selectedChannel) => void handleCreateOrder(selectedChannel)}
-      />
       {createdOrder ? (
         <PaymentQrCodeModal
           amountCents={createdOrder.order.amountCents}

@@ -302,7 +302,7 @@ async function pollUntilCompletion(
       log('Task %s still in progress', inferenceId);
       await sleep(pollingInterval);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('failed')) {
+      if (error instanceof Error && error.message.startsWith('Video generation failed:')) {
         throw error;
       }
       log('Polling attempt %d failed for task: %s: %O', attempt + 1, inferenceId, error);
