@@ -37,6 +37,7 @@ import {
   pluginSelectors,
 } from '@/store/tool/selectors';
 import { type LobeToolMetaWithAvailability } from '@/store/tool/slices/builtin/selectors';
+import { displayAuthor } from '@/utils/brandingAuthor';
 
 import PluginTag from './PluginTag';
 import PopoverContent from './PopoverContent';
@@ -274,7 +275,7 @@ const AgentTool = memo<AgentToolProps>(
                 <ToolItemDetailPopover
                   icon={<KlavisSkillIcon icon={type.icon} label={type.label} size={36} />}
                   identifier={type.identifier}
-                  sourceLabel={type.author}
+                  sourceLabel={displayAuthor(type.author)}
                   title={type.label}
                   description={t(`tools.klavis.servers.${type.identifier}.description` as any, {
                     defaultValue: type.description,
@@ -310,7 +311,7 @@ const AgentTool = memo<AgentToolProps>(
                 <ToolItemDetailPopover
                   icon={<LobehubSkillIcon icon={provider.icon} label={provider.label} size={36} />}
                   identifier={provider.id}
-                  sourceLabel={provider.author}
+                  sourceLabel={displayAuthor(provider.author)}
                   title={provider.label}
                   description={t(`tools.lobehubSkill.providers.${provider.id}.description` as any, {
                     defaultValue: provider.description,

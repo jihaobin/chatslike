@@ -113,7 +113,7 @@ export class MessengerTelegramBinder implements MessengerPlatformBinder {
       const api = new TelegramApi(config.botToken);
       await api.sendMessage(
         ctx.chatId,
-        'LobeHub is temporarily unavailable. Please try again in a moment.',
+        'Chatslike is temporarily unavailable. Please try again in a moment.',
       );
       return;
     }
@@ -128,13 +128,13 @@ export class MessengerTelegramBinder implements MessengerPlatformBinder {
 
     if (isLocalhostUrl(verifyUrl)) {
       log('handleUnlinkedMessage: APP_URL is localhost, falling back to plain text link');
-      const text = `Welcome to LobeHub! 🤖\n\nTo continue, link your Telegram account to LobeHub. The link expires in 30 minutes:\n\n${verifyUrl}\n\nAfter linking, send /agents anytime to list your agents and tap one to switch the active agent.`;
+      const text = `Welcome to Chatslike! 🤖\n\nTo continue, link your Telegram account to Chatslike. The link expires in 30 minutes:\n\n${verifyUrl}\n\nAfter linking, send /agents anytime to list your agents and tap one to switch the active agent.`;
       await api.sendMessage(ctx.chatId, text);
       return;
     }
 
     const text =
-      'Welcome to LobeHub! 🤖\n\nTo continue, link your Telegram account to LobeHub.\n\nTap the button below — the link expires in 30 minutes.\n\nAfter linking, send /agents anytime to list your agents and tap one to switch the active agent.';
+      'Welcome to Chatslike! 🤖\n\nTo continue, link your Telegram account to Chatslike.\n\nTap the button below — the link expires in 30 minutes.\n\nAfter linking, send /agents anytime to list your agents and tap one to switch the active agent.';
 
     await api.sendMessageWithUrlButton(ctx.chatId, text, {
       text: '🔗 Link Account',
@@ -152,7 +152,7 @@ export class MessengerTelegramBinder implements MessengerPlatformBinder {
     if (!config) return;
 
     const api = new TelegramApi(config.botToken);
-    const headline = '✅ Linked successfully! Your LobeHub account is now connected.';
+    const headline = '✅ Linked successfully! Your Chatslike account is now connected.';
     const tail = params.activeAgentName
       ? `\n\nActive agent: <b>${escapeHtml(params.activeAgentName)}</b>\n\nGo ahead and send your first message — send /agents any time to switch the active agent.`
       : '\n\nSend /agents to list your agents and tap one to set it as active.';

@@ -74,8 +74,8 @@ export const lobehubSkillStoreSelectors = {
   },
 
   /**
-   * Get all LobeHub Skill tools as LobeTool format for agent use
-   * Converts LobeHub Skill tools into the format expected by ToolNameResolver
+   * Get all Chatslike Skill tools as LobeTool format for agent use
+   * Converts Chatslike Skill tools into the format expected by ToolNameResolver
    */
   lobehubSkillAsLobeTools: (s: ToolStoreState) => {
     const servers = s.lobehubSkillServers || [];
@@ -95,12 +95,12 @@ export const lobehubSkillStoreSelectors = {
           identifier: server.identifier,
           manifest: {
             api: apis,
-            author: 'LobeHub Market',
+            author: 'Chatslike Market',
             homepage: 'https://lobehub.com/market',
             identifier: server.identifier,
             meta: {
               avatar: server.icon || '🔗',
-              description: `LobeHub Skill: ${server.name}`,
+              description: `Chatslike Skill: ${server.name}`,
               tags: ['lobehub-skill', server.identifier],
               title: server.name,
             },
@@ -128,7 +128,7 @@ export const lobehubSkillStoreSelectors = {
         identifier: server.identifier,
         meta: {
           avatar: server.icon || '🔗',
-          description: `LobeHub Skill: ${server.name}`,
+          description: `Chatslike Skill: ${server.name}`,
           title: server.name,
         },
       }));

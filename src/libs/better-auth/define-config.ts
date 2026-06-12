@@ -27,6 +27,7 @@ import {
   getVerificationEmailTemplate,
   getVerificationOTPEmailTemplate,
 } from '@/libs/better-auth/email-templates';
+import { getEmailTranslation } from '@/libs/better-auth/email-templates/locale';
 import { emailWhitelist } from '@/libs/better-auth/plugins/email-whitelist';
 import { initBetterAuthSSOProviders } from '@/libs/better-auth/sso';
 import { createSecondaryStorage, getTrustedOrigins } from '@/libs/better-auth/utils/config';
@@ -134,8 +135,9 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
         },
       },
 
-      sendResetPassword: async ({ user, url }) => {
-        const template = getResetPasswordEmailTemplate({ url });
+      sendResetPassword: async ({ user, url }, request) => {
+        const { t, lang } = await getEmailTranslation(request);
+        const template = getResetPasswordEmailTemplate({ lang, t, url });
 
         const emailService = new EmailService();
         await emailService.sendMail({
@@ -154,16 +156,22 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
           return;
         }
 
+        const { t, lang } = await getEmailTranslation(request);
+
         // Use different template for change-email vs signup verification
         const isChangeEmail = request?.url?.includes('/change-email');
         const template = isChangeEmail
           ? getChangeEmailVerificationTemplate({
               expiresInSeconds: VERIFICATION_LINK_EXPIRES_IN,
+              lang,
+              t,
               url,
               userName: user.name,
             })
           : getVerificationEmailTemplate({
               expiresInSeconds: VERIFICATION_LINK_EXPIRES_IN,
+              lang,
+              t,
               url,
               userName: user.name,
             });
@@ -295,14 +303,17 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
         allowedAttempts: 3,
         // Don't automatically send OTP on sign up - let mobile client manually trigger it
         sendVerificationOnSignUp: false,
-        async sendVerificationOTP({ email, otp }) {
+        async sendVerificationOTP({ email, otp }, request) {
           const emailService = new EmailService();
+          const { t, lang } = await getEmailTranslation(request);
 
           // For all OTP types, use the same template
           // userName is optional and will be null since we don't have user context here
           const template = getVerificationOTPEmailTemplate({
             expiresInSeconds: OTP_EXPIRES_IN,
+            lang,
             otp,
+            t,
             userName: null,
           });
 
@@ -313,7 +324,7 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
         },
       }),
       passkey({
-        rpName: 'LobeHub',
+        rpName: 'Chatslike',
         // Extract rpID from auth URL (e.g., 'lobehub.com' from 'https://lobehub.com')
         // Returns undefined if AUTH_URL is not set (e.g., in e2e tests)
         rpID: getPasskeyRpID(),
@@ -333,9 +344,12 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
         ? [
             magicLink({
               expiresIn: MAGIC_LINK_EXPIRES_IN,
-              sendMagicLink: async ({ email, url }) => {
+              sendMagicLink: async ({ email, url }, request) => {
+                const { t, lang } = await getEmailTranslation(request);
                 const template = getMagicLinkEmailTemplate({
                   expiresInSeconds: MAGIC_LINK_EXPIRES_IN,
+                  lang,
+                  t,
                   url,
                 });
 

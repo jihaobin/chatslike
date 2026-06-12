@@ -214,6 +214,7 @@ const config = {
     }
   },
   appId: 'com.chatslike.fengche-desktop',
+  productName: '风车',
   appImage: {
     artifactName: '${productName}-${version}.${ext}',
   },

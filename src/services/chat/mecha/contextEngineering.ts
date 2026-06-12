@@ -242,7 +242,7 @@ export const contextEngineering = async ({
             const server = allKlavisServers.find((s) => s.identifier === klavisType.identifier);
 
             officialTools.push({
-              description: `LobeHub Mcp Server: ${klavisType.label}`,
+              description: `Chatslike Mcp Server: ${klavisType.label}`,
               enabled: enabledPlugins.includes(klavisType.identifier),
               identifier: klavisType.identifier,
               installed: !!server,
@@ -264,7 +264,7 @@ export const contextEngineering = async ({
             const server = allLobehubSkillServers.find((s) => s.identifier === provider.id);
 
             officialTools.push({
-              description: `LobeHub Skill Provider: ${provider.label}`,
+              description: `Chatslike Skill Provider: ${provider.label}`,
               enabled: enabledPlugins.includes(provider.id),
               identifier: provider.id,
               installed: !!server,

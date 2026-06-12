@@ -80,7 +80,7 @@ export const lobehubSkillExecutor: RemoteToolExecutor = async (p, context) => {
   // Parse arguments
   const args = safeParseJSON(p.arguments) || {};
 
-  // Call LobeHub Skill tool via store action
+  // Call Chatslike Skill tool via store action
   // topicId comes from message context, not global active state
   const result = await useToolStore.getState().callLobehubSkillTool({
     args,
@@ -91,7 +91,7 @@ export const lobehubSkillExecutor: RemoteToolExecutor = async (p, context) => {
 
   if (!result.success) {
     return createFailedResult(
-      result.error || `LobeHub Skill tool ${provider} ${p.apiName} execution failed`,
+      result.error || `Chatslike Skill tool ${provider} ${p.apiName} execution failed`,
     );
   }
 

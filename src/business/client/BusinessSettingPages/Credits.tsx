@@ -675,7 +675,7 @@ const Credits = memo(() => {
             <Flexbox className={styles.balanceCard} justify={'space-between'}>
               <Flexbox horizontal align={'center'} justify={'space-between'}>
                 <Text className={styles.paymentCardBrand}>
-                  {t('billingNative.credits.card.brand', 'LobeHub Cloud Subscription')}
+                  {t('billingNative.credits.card.brand', 'Chatslike Cloud Subscription')}
                 </Text>
                 <Icon icon={WifiIcon} size={16} />
               </Flexbox>
@@ -687,7 +687,7 @@ const Credits = memo(() => {
                     {displayName || t('billingNative.credits.card.user', 'User')}
                   </Text>
                   <Text fontSize={11} type={'secondary'}>
-                    {t('billingNative.credits.card.account', 'LobeHub account')}
+                    {t('billingNative.credits.card.account', 'Chatslike account')}
                   </Text>
                 </Flexbox>
               </Flexbox>

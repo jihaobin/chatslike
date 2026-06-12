@@ -458,7 +458,7 @@ export class MarketService {
   }
 
   /**
-   * Execute a LobeHub Skill tool
+   * Execute a Chatslike Skill tool
    * @param params - The skill execution parameters (provider, toolName, args)
    * @returns Execution result with content and success status
    */
@@ -560,7 +560,7 @@ export class MarketService {
             identifier: providerId,
             meta: {
               avatar: icon || '🔗',
-              description: `LobeHub Skill: ${providerLabel}`,
+              description: `Chatslike Skill: ${providerLabel}`,
               tags: ['lobehub-skill', providerId],
               title: providerLabel,
             },

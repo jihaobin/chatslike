@@ -30,7 +30,7 @@ import {
 } from './hooks/useBillingData';
 import { formatBillingAmount } from './utils';
 
-const CLOUD_NAME = 'LobeHub Cloud';
+const CLOUD_NAME = 'Chatslike Cloud';
 const MESSAGE_ESTIMATE_TOKENS = 2500;
 
 type PlanAction = 'availableAfterExpiry' | 'purchase' | 'renew' | 'unavailable' | 'upgrade';
@@ -1626,7 +1626,7 @@ const Plans = memo(() => {
                   credit: '500,000',
                   funds: t('tab.credits', 'Credits'),
                   management: t('tab.billing', 'Billing'),
-                  name: 'LobeHub',
+                  name: 'Chatslike',
                   premium: t('plans.plan.premium.title', 'Premium'),
                   starter: t('plans.plan.starter.title', 'Starter'),
                   subscribe: t('tab.plans', 'Plans'),

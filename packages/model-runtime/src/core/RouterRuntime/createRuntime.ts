@@ -704,7 +704,7 @@ export const createRouterRuntime = ({
       return runtime.handleCreateVideoWebhook!(payload);
     }
 
-    async handlePollVideoStatus(inferenceId: string): Promise<PollVideoStatusResult | undefined> {
+    async handlePollVideoStatus(inferenceId: string): Promise<PollVideoStatusResult> {
       const resolvedRouters = await this.resolveRouters();
       const matchedRouter = this._options.baseURL
         ? (resolvedRouters.find((router) => router.baseURLPattern?.test(this._options.baseURL!)) ??
@@ -713,7 +713,7 @@ export const createRouterRuntime = ({
       const routerOptions = this.normalizeRouterOptions(matchedRouter);
       const { runtime } = await this.createRuntimeFromOption(matchedRouter, routerOptions[0]);
 
-      return runtime.handlePollVideoStatus?.(inferenceId);
+      return runtime.handlePollVideoStatus!(inferenceId);
     }
 
     async generateObject(payload: GenerateObjectPayload, options?: GenerateObjectOptions) {

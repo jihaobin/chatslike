@@ -5,6 +5,8 @@ import { ExternalLink } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { displayAuthor } from '@/utils/brandingAuthor';
+
 import { useDetailContext } from './DetailContext';
 import { styles } from './styles';
 
@@ -32,7 +34,7 @@ const Overview = memo(() => {
             style={{ cursor: authorUrl ? 'pointer' : 'default' }}
             onClick={handleAuthorClick}
           >
-            {author}
+            {displayAuthor(author)}
             {authorUrl && <Icon icon={ExternalLink} size={12} />}
           </span>
         </Flexbox>
@@ -52,7 +54,7 @@ const Overview = memo(() => {
               style={{ cursor: authorUrl ? 'pointer' : 'default' }}
               onClick={handleAuthorClick}
             >
-              {author}
+              {displayAuthor(author)}
               {authorUrl && <Icon icon={ExternalLink} size={12} />}
             </span>
           </div>

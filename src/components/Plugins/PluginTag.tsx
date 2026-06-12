@@ -3,6 +3,8 @@ import { BadgeCheck, CircleUser, Package } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { displayAuthor } from '@/utils/brandingAuthor';
+
 import MCPTag from './MCPTag';
 
 interface PluginTagProps {
@@ -42,7 +44,7 @@ const PluginTag = memo<PluginTagProps>(
         icon={showIcon && <Icon icon={isOfficial ? BadgeCheck : CircleUser} />}
         size={'small'}
       >
-        {showText && (author || t('store.communityPlugin'))}
+        {showText && (displayAuthor(author) || t('store.communityPlugin'))}
       </Tag>
     );
   },

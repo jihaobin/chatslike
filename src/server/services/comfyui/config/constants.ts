@@ -19,10 +19,10 @@ export const COMFYUI_DEFAULTS = {
  */
 export const FLUX_MODEL_CONFIG = {
   FILENAME_PREFIXES: {
-    DEV: 'LobeChat/%year%-%month%-%day%/FLUX_Dev',
-    KONTEXT: 'LobeChat/%year%-%month%-%day%/FLUX_Kontext',
-    KREA: 'LobeChat/%year%-%month%-%day%/FLUX_Krea',
-    SCHNELL: 'LobeChat/%year%-%month%-%day%/FLUX_Schnell',
+    DEV: 'Chatslike/%year%-%month%-%day%/FLUX_Dev',
+    KONTEXT: 'Chatslike/%year%-%month%-%day%/FLUX_Kontext',
+    KREA: 'Chatslike/%year%-%month%-%day%/FLUX_Krea',
+    SCHNELL: 'Chatslike/%year%-%month%-%day%/FLUX_Schnell',
   },
 } as const;
 
@@ -32,10 +32,10 @@ export const FLUX_MODEL_CONFIG = {
  */
 export const SD_MODEL_CONFIG = {
   FILENAME_PREFIXES: {
-    CUSTOM: 'LobeChat/%year%-%month%-%day%/CustomSD',
-    SD15: 'LobeChat/%year%-%month%-%day%/SD15',
-    SD35: 'LobeChat/%year%-%month%-%day%/SD35',
-    SDXL: 'LobeChat/%year%-%month%-%day%/SDXL',
+    CUSTOM: 'Chatslike/%year%-%month%-%day%/CustomSD',
+    SD15: 'Chatslike/%year%-%month%-%day%/SD15',
+    SD35: 'Chatslike/%year%-%month%-%day%/SD35',
+    SDXL: 'Chatslike/%year%-%month%-%day%/SDXL',
   },
 } as const;
 

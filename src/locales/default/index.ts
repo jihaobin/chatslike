@@ -11,6 +11,7 @@ import desktopOnboarding from './desktop-onboarding';
 import discover from './discover';
 import editor from './editor';
 import electron from './electron';
+import email from './email';
 import error from './error';
 import eval_ from './eval';
 import file from './file';
@@ -60,6 +61,7 @@ const resources = {
   discover,
   editor,
   electron,
+  email,
   error,
   'eval': eval_,
   file,

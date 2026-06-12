@@ -6,6 +6,7 @@ import type {
   EnabledAiModel,
   ModelParamsSchema,
   Pricing,
+  VideoModelParamsSchema,
 } from 'model-bank';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -323,7 +324,7 @@ describe('aiProvider action helpers', () => {
         duration: { default: 5, max: 15, min: 4 },
         prompt: { default: '' },
         resolution: { default: '720p', enum: ['480p', '720p', '1080p'] },
-      } satisfies ModelParamsSchema;
+      } satisfies VideoModelParamsSchema;
       const fallbackSpy = vi
         .mocked(runtimeModule.getModelPropertyWithFallback)
         .mockImplementation(async (_id, key) => {
@@ -333,7 +334,7 @@ describe('aiProvider action helpers', () => {
 
       const model = createVideoModel({
         id: 'doubao-seedance-2.0',
-        parameters: {},
+        parameters: {} as VideoModelParamsSchema,
         providerId: 'local-new-api',
       });
 

@@ -51,7 +51,7 @@ describe('OIDC Provider - Market Client Integration', () => {
 
       expect(marketClient).toBeDefined();
       expect(marketClient?.client_id).toBe('lobehub-market');
-      expect(marketClient?.client_name).toBe('LobeHub Marketplace');
+      expect(marketClient?.client_name).toBe('Chatslike Marketplace');
 
       vi.doUnmock('@/envs/app');
     });

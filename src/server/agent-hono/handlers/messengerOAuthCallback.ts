@@ -75,7 +75,7 @@ export async function messengerOAuthCallback(c: Context): Promise<Response> {
   if (!config) {
     log('callback[%s]: messenger env not configured', platform);
     return new Response(
-      `${definition.name} messenger is not configured on this LobeHub deployment.`,
+      `${definition.name} messenger is not configured on this Chatslike deployment.`,
       { status: 503 },
     );
   }

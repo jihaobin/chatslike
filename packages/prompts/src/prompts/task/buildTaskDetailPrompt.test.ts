@@ -34,7 +34,7 @@ describe('buildTaskDetailPrompt', () => {
     );
 
     expect(result).toContain('<task_manager_defaults>');
-    expect(result).toContain('Default Lobe AI agent id: agt_inbox');
+    expect(result).toContain('Default Chatslike agent id: agt_inbox');
     expect(result).toContain('Use this id as assigneeAgentId');
   });
 

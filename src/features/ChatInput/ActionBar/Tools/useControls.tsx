@@ -1,3 +1,4 @@
+import { BRANDING_NAME } from '@lobechat/business-const';
 import {
   KLAVIS_SERVER_TYPES,
   LOBEHUB_SKILL_PROVIDERS,
@@ -45,6 +46,7 @@ import {
 } from '@/store/tool/selectors';
 import { KlavisServerStatus } from '@/store/tool/slices/klavisStore';
 import { LobehubSkillStatus } from '@/store/tool/slices/lobehubSkillStore/types';
+import { displayAuthor } from '@/utils/brandingAuthor';
 
 import { useAgentId } from '../../hooks/useAgentId';
 import { useUpdateAgentConfig } from '../../hooks/useUpdateAgentConfig';
@@ -61,7 +63,7 @@ const SKILL_ICON_SIZE = 18;
 const CLOSE_TOOL_DETAIL_POPOVER_EVENT = 'lobe-chat-tool-detail-popover-close';
 
 const officialTag = (
-  <Tooltip placement={'top'} title={'LobeHub'}>
+  <Tooltip placement={'top'} title={BRANDING_NAME}>
     <Tag color={'success'} icon={<Icon icon={BadgeCheck} />} size={'small'} />
   </Tooltip>
 );
@@ -768,7 +770,7 @@ export const useControls = () => {
               <ToolItemDetailPopover
                 icon={<KlavisSkillIcon icon={type.icon} label={type.label} size={36} />}
                 identifier={type.identifier}
-                sourceLabel={type.author}
+                sourceLabel={displayAuthor(type.author)}
                 title={type.label}
                 description={t(`tools.klavis.servers.${type.identifier}.description` as any, {
                   defaultValue: type.description,
@@ -841,7 +843,7 @@ export const useControls = () => {
               <ToolItemDetailPopover
                 icon={<LobehubSkillIcon icon={provider.icon} label={provider.label} size={36} />}
                 identifier={provider.id}
-                sourceLabel={provider.author}
+                sourceLabel={displayAuthor(provider.author)}
                 title={provider.label}
                 description={t(`tools.lobehubSkill.providers.${provider.id}.description` as any, {
                   defaultValue: provider.description,

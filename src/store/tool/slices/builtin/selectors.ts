@@ -57,7 +57,7 @@ const getKlavisMetas = (s: ToolStoreState): LobeToolMeta[] =>
       identifier: server.identifier,
       meta: {
         avatar: '☁️',
-        description: `LobeHub Mcp Server: ${server.serverName}`,
+        description: `Chatslike Mcp Server: ${server.serverName}`,
         tags: ['klavis', 'mcp'],
         // title still uses serverName to display friendly name
         title: server.serverName,
