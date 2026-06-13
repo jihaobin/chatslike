@@ -126,3 +126,17 @@ cd packages/database && bunx vitest run --silent='passed-only' '[file]'
 ### Code Review
 
 Before reviewing a PR / diff / branch change, read the **review-checklist** skill (`.agents/skills/review-checklist/SKILL.md`) — it lists the recurring mistakes specific to this codebase.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues on `origin` (jihaobin/chatslike), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
