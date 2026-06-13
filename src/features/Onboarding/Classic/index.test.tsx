@@ -29,10 +29,6 @@ vi.mock('@/components/Loading/BrandTextLoading', () => ({
   default: ({ debugId }: { debugId: string }) => <div>Loading:{debugId}</div>,
 }));
 
-vi.mock('@/features/Onboarding/components/ModeSwitch', () => ({
-  default: () => <div>ModeSwitch</div>,
-}));
-
 vi.mock('@/hooks/useOnboardingAgentTemplates', () => ({
   useOnboardingAgentTemplates: vi.fn(),
 }));

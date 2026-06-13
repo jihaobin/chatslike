@@ -1,6 +1,5 @@
 'use client';
 
-import { isDesktop } from '@lobechat/const';
 import { MAX_ONBOARDING_STEPS } from '@lobechat/types';
 import { Flexbox } from '@lobehub/ui';
 import { memo, useCallback, useEffect, useRef } from 'react';
@@ -9,14 +8,12 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import Loading from '@/components/Loading/BrandTextLoading';
 import { useOnboardingAgentTemplates } from '@/hooks/useOnboardingAgentTemplates';
 import OnboardingContainer from '@/routes/onboarding/_layout';
-import { deriveOnboardingBranchPath } from '@/routes/onboarding/branch';
 import ResponseLanguageStep from '@/routes/onboarding/features/ResponseLanguageStep';
 import TelemetryStep from '@/routes/onboarding/features/TelemetryStep';
 import {
   trackOnboardingStepCompleted,
   trackOnboardingStepViewed,
 } from '@/services/onboardingMetrics';
-import { useServerConfigStore } from '@/store/serverConfig';
 import { useUserStore } from '@/store/user';
 import { onboardingSelectors } from '@/store/user/selectors';
 
@@ -45,8 +42,6 @@ const COMMON_STEP_TRACKING = {
 const CommonOnboardingPage = memo(() => {
   const isUserStateInit = useUserStore((s) => s.isUserStateInit);
   const commonStepsCompleted = useUserStore(onboardingSelectors.commonStepsCompleted);
-  const enableAgentOnboarding = useServerConfigStore((s) => s.featureFlags.enableAgentOnboarding);
-  const serverConfigInit = useServerConfigStore((s) => s.serverConfigInit);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const step: 1 | 2 = searchParams.get('step') === '2' ? 2 : 1;
@@ -78,7 +73,6 @@ const CommonOnboardingPage = memo(() => {
 
   useEffect(() => {
     if (__TEST__) return;
-    void import('@/routes/onboarding/agent');
     void import('@/routes/onboarding/classic');
   }, []);
 
@@ -113,14 +107,7 @@ const CommonOnboardingPage = memo(() => {
   // With the prefix complete, a bare `/onboarding` resumes the branch — but an
   // explicit `?step` (FullNameStep's back button) re-enters the shared prefix.
   if (commonStepsCompleted && !hasStepParam) {
-    if (!serverConfigInit) {
-      return <Loading debugId="CommonOnboarding/serverConfig" />;
-    }
-    const branchPath = deriveOnboardingBranchPath({
-      enableAgentOnboarding: !!enableAgentOnboarding,
-      isDesktop,
-    });
-    return <Navigate replace to={branchPath} />;
+    return <Navigate replace to="/onboarding/classic" />;
   }
 
   return (

@@ -7,10 +7,6 @@ export default {
   'alert.cloud.descOnMobile':
     'All registered users get {{credit}} free credits per month—no setup needed.',
   'alert.cloud.title': '{{name}} beta is live',
-  'agentOnboardingPromo.actionLabel': 'Try it now',
-  'agentOnboardingPromo.description':
-    'Set up your agent teams in a quick chat with Chatslike. Your existing agents remain unchanged.',
-  'agentOnboardingPromo.title': 'Quick Wizard',
   'appLoading.appIdle': 'Ready to start',
   'appLoading.appInitializing': 'Application is starting...',
   'appLoading.failed':

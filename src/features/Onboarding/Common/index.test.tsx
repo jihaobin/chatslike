@@ -8,28 +8,20 @@ const metrics = {
 };
 
 interface RenderOptions {
-  AGENT_ONBOARDING_ENABLED?: boolean;
   commonStepsCompleted: boolean;
-  desktop?: boolean;
-  enableAgentOnboarding?: boolean;
   finishedAt?: string;
   initialEntry?: string;
   isUserStateInit?: boolean;
   persistedStep?: number;
-  serverConfigInit?: boolean;
   setOnboardingStep?: ReturnType<typeof vi.fn>;
 }
 
 const renderCommon = async ({
-  AGENT_ONBOARDING_ENABLED = true,
   commonStepsCompleted,
-  desktop = false,
-  enableAgentOnboarding = true,
   finishedAt,
   initialEntry = '/onboarding',
   isUserStateInit = true,
   persistedStep,
-  serverConfigInit = true,
   setOnboardingStep = vi.fn(),
 }: RenderOptions) => {
   cleanup();
@@ -37,10 +29,6 @@ const renderCommon = async ({
   metrics.trackOnboardingStepCompleted.mockClear();
   metrics.trackOnboardingStepViewed.mockClear();
 
-  vi.doMock('@lobechat/business-const', () => ({
-    AGENT_ONBOARDING_ENABLED,
-  }));
-  vi.doMock('@lobechat/const', () => ({ isDesktop: desktop }));
   vi.doMock('@lobehub/ui', () => ({
     Flexbox: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   }));
@@ -77,16 +65,6 @@ const renderCommon = async ({
     ),
   }));
 
-  function selectFromServerConfigStore(selector: (state: Record<string, unknown>) => unknown) {
-    return selector({
-      featureFlags: { enableAgentOnboarding },
-      serverConfigInit,
-    });
-  }
-
-  vi.doMock('@/store/serverConfig', () => ({
-    useServerConfigStore: selectFromServerConfigStore,
-  }));
   vi.doMock('@/services/onboardingMetrics', () => metrics);
 
   const onboarding =
@@ -113,7 +91,6 @@ const renderCommon = async ({
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route element={<CommonOnboardingPage />} path="/onboarding" />
-        <Route element={<div>Agent onboarding</div>} path="/onboarding/agent" />
         <Route element={<div>Classic onboarding</div>} path="/onboarding/classic" />
       </Routes>
     </MemoryRouter>,
@@ -122,8 +99,6 @@ const renderCommon = async ({
 
 afterEach(() => {
   cleanup();
-  vi.doUnmock('@lobechat/business-const');
-  vi.doUnmock('@lobechat/const');
   vi.doUnmock('@lobehub/ui');
   vi.doUnmock('@/components/Loading/BrandTextLoading');
   vi.doUnmock('@/hooks/useOnboardingAgentTemplates');
@@ -131,7 +106,6 @@ afterEach(() => {
   vi.doUnmock('@/routes/onboarding/features/TelemetryStep');
   vi.doUnmock('@/routes/onboarding/features/ResponseLanguageStep');
   vi.doUnmock('@/services/onboardingMetrics');
-  vi.doUnmock('@/store/serverConfig');
   vi.doUnmock('@/store/user');
   vi.doUnmock('@/store/user/selectors');
 });
@@ -166,42 +140,14 @@ describe('CommonOnboardingPage', () => {
     expect(await screen.findByText('ResponseLanguageStep')).toBeInTheDocument();
   });
 
-  it('redirects to /onboarding/agent when shared prefix is complete and agent flag is on', async () => {
-    await renderCommon({ commonStepsCompleted: true, enableAgentOnboarding: true });
-    expect(screen.getByText('Agent onboarding')).toBeInTheDocument();
-  });
-
-  it('redirects to /onboarding/classic when shared prefix is complete and agent flag is off', async () => {
-    await renderCommon({ commonStepsCompleted: true, enableAgentOnboarding: false });
-    expect(screen.getByText('Classic onboarding')).toBeInTheDocument();
-  });
-
-  it('redirects to /onboarding/classic on desktop even when agent flag is on', async () => {
-    await renderCommon({
-      commonStepsCompleted: true,
-      desktop: true,
-      enableAgentOnboarding: true,
-    });
-    expect(screen.getByText('Classic onboarding')).toBeInTheDocument();
-  });
-
-  it('redirects to /onboarding/classic when AGENT_ONBOARDING_ENABLED master switch is off', async () => {
-    await renderCommon({
-      AGENT_ONBOARDING_ENABLED: false,
-      commonStepsCompleted: true,
-      enableAgentOnboarding: true,
-    });
+  it('redirects to /onboarding/classic when shared prefix is complete', async () => {
+    await renderCommon({ commonStepsCompleted: true });
     expect(screen.getByText('Classic onboarding')).toBeInTheDocument();
   });
 
   it('shows loading until user state initializes', async () => {
     await renderCommon({ commonStepsCompleted: false, isUserStateInit: false });
     expect(screen.getByText('Loading:CommonOnboarding/userState')).toBeInTheDocument();
-  });
-
-  it('shows loading until server config initializes when ready to redirect', async () => {
-    await renderCommon({ commonStepsCompleted: true, serverConfigInit: false });
-    expect(screen.getByText('Loading:CommonOnboarding/serverConfig')).toBeInTheDocument();
   });
 
   describe('shared-prefix re-entry', () => {
@@ -235,7 +181,6 @@ describe('CommonOnboardingPage', () => {
     it('redirects into the branch when finishing a revisited ResponseLanguageStep', async () => {
       await renderCommon({
         commonStepsCompleted: true,
-        enableAgentOnboarding: false,
         initialEntry: '/onboarding?step=2',
       });
       fireEvent.click(screen.getByText('rl-next'));

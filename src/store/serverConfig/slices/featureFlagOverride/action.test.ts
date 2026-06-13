@@ -44,15 +44,15 @@ describe('featureFlagOverride slice', () => {
     });
 
     it('merges valid persisted overrides into featureFlags after snapshot', () => {
-      writeStorage({ enableAgentOnboarding: true, showMarket: false });
+      writeStorage({ enableAgentSelfIteration: true, showMarket: false });
 
       const store = createStore();
       act(() => store.getState().syncDevFlagOverrides());
 
-      expect(store.getState().featureFlags.enableAgentOnboarding).toBe(true);
+      expect(store.getState().featureFlags.enableAgentSelfIteration).toBe(true);
       expect(store.getState().featureFlags.showMarket).toBe(false);
       expect(store.getState()._featureFlagOverrides).toEqual({
-        enableAgentOnboarding: true,
+        enableAgentSelfIteration: true,
         showMarket: false,
       });
       // original snapshot stays untouched by the override merge
@@ -61,30 +61,30 @@ describe('featureFlagOverride slice', () => {
 
     it('drops unknown keys from persisted overrides with a warning', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      writeStorage({ enableAgentOnboarding: true, somethingObsolete: true });
+      writeStorage({ enableAgentSelfIteration: true, somethingObsolete: true });
 
       const store = createStore();
       act(() => store.getState().syncDevFlagOverrides());
 
-      expect(store.getState()._featureFlagOverrides).toEqual({ enableAgentOnboarding: true });
+      expect(store.getState()._featureFlagOverrides).toEqual({ enableAgentSelfIteration: true });
       expect(warn).toHaveBeenCalled();
     });
 
     it('drops non-boolean values from persisted overrides', () => {
       vi.spyOn(console, 'warn').mockImplementation(() => {});
-      writeStorage({ enableAgentOnboarding: true, showMarket: 'yes' as unknown as boolean });
+      writeStorage({ enableAgentSelfIteration: true, showMarket: 'yes' as unknown as boolean });
 
       const store = createStore();
       act(() => store.getState().syncDevFlagOverrides());
 
-      expect(store.getState()._featureFlagOverrides).toEqual({ enableAgentOnboarding: true });
+      expect(store.getState()._featureFlagOverrides).toEqual({ enableAgentSelfIteration: true });
     });
 
     it('drops all persisted overrides on schema version mismatch', () => {
       vi.spyOn(console, 'warn').mockImplementation(() => {});
       window.localStorage.setItem(
         DEV_FLAG_OVERRIDE_STORAGE_KEY,
-        JSON.stringify({ version: 999, overrides: { enableAgentOnboarding: true } }),
+        JSON.stringify({ version: 999, overrides: { enableAgentSelfIteration: true } }),
       );
 
       const store = createStore();
@@ -134,11 +134,11 @@ describe('featureFlagOverride slice', () => {
       const store = createStore();
       act(() => store.getState().syncDevFlagOverrides());
 
-      act(() => store.getState().setFlagOverride('enableAgentOnboarding', true));
+      act(() => store.getState().setFlagOverride('enableAgentSelfIteration', true));
 
-      expect(store.getState()._featureFlagOverrides.enableAgentOnboarding).toBe(true);
-      expect(store.getState().featureFlags.enableAgentOnboarding).toBe(true);
-      expect(readStorage().overrides).toEqual({ enableAgentOnboarding: true });
+      expect(store.getState()._featureFlagOverrides.enableAgentSelfIteration).toBe(true);
+      expect(store.getState().featureFlags.enableAgentSelfIteration).toBe(true);
+      expect(readStorage().overrides).toEqual({ enableAgentSelfIteration: true });
     });
 
     it('writes a false override and mutates featureFlags', () => {
@@ -188,7 +188,7 @@ describe('featureFlagOverride slice', () => {
       const store = createStore();
       act(() => store.getState().syncDevFlagOverrides());
       act(() => store.getState().setFlagOverride('showMarket', false));
-      act(() => store.getState().setFlagOverride('enableAgentOnboarding', true));
+      act(() => store.getState().setFlagOverride('enableAgentSelfIteration', true));
 
       act(() => store.getState().resetFlagOverrides());
 

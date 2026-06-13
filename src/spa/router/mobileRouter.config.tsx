@@ -374,14 +374,6 @@ export const mobileRoutes: RouteObject[] = [
   },
   {
     element: dynamicElement(
-      () => import('@/routes/onboarding/agent'),
-      'Mobile > Onboarding > Agent',
-    ),
-    errorElement: <ErrorBoundary />,
-    path: '/onboarding/agent',
-  },
-  {
-    element: dynamicElement(
       () => import('@/routes/onboarding/classic'),
       'Mobile > Onboarding > Classic',
     ),

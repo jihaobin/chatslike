@@ -662,11 +662,5 @@ desktopRoutes.push({
 desktopRoutes.push({
   element: redirectElement('/desktop-onboarding'),
   errorElement: <ErrorBoundary />,
-  path: '/onboarding/agent',
-});
-
-desktopRoutes.push({
-  element: redirectElement('/desktop-onboarding'),
-  errorElement: <ErrorBoundary />,
   path: '/onboarding/classic',
 });

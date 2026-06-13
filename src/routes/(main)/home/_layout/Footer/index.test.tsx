@@ -1,4 +1,3 @@
-import type * as LobechatConst from '@lobechat/const';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -11,10 +10,6 @@ vi.mock('react-i18next', () => ({
     i18n: { language: 'en-US' },
     t: (key: string) =>
       ({
-        'agentOnboardingPromo.actionLabel': 'Try it now',
-        'agentOnboardingPromo.description':
-          'Set up your agent teams in a quick chat with Lobe AI. Your existing agents remain unchanged.',
-        'agentOnboardingPromo.title': 'Quick Wizard',
         'changelog': 'Changelog',
         'productHunt.actionLabel': 'Support us',
         'productHunt.description': 'Support us on Product Hunt.',
@@ -28,20 +23,19 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+// Within the Product Hunt window (2026-01-27 → 2026-02-01).
+const WITHIN_PRODUCT_HUNT_WINDOW = new Date('2026-01-28T00:00:00Z');
+// Outside the window.
+const OUTSIDE_PRODUCT_HUNT_WINDOW = new Date('2026-06-13T00:00:00Z');
+
 interface RenderFooterOptions {
-  agentFinished?: boolean;
-  agentStarted?: boolean;
-  classicFinished?: boolean;
-  desktop?: boolean;
-  enabled?: boolean;
-  mobile?: boolean;
+  now?: Date;
   readSlugs?: string[];
   serverConfigInit?: boolean;
 }
 
 let mockGlobalState: Record<string, unknown>;
 let mockServerConfigState: Record<string, unknown>;
-let mockUserState: Record<string, unknown>;
 
 interface MockStoreHook {
   (selector: (state: Record<string, unknown>) => unknown): unknown;
@@ -64,17 +58,28 @@ const createGlobalState = (readSlugs: string[] = []) => ({
 });
 
 const renderFooter = async ({
-  agentFinished = false,
-  agentStarted = false,
-  classicFinished = true,
-  desktop = false,
-  enabled = true,
-  mobile = false,
+  now = WITHIN_PRODUCT_HUNT_WINDOW,
   readSlugs = [],
   serverConfigInit = true,
 }: RenderFooterOptions = {}) => {
   vi.resetModules();
   analyticsTrack.mockReset();
+  // Pin the clock to a fixed instant WITHOUT fake timers — installing a fake
+  // timer (even Date-only) deadlocks RTL render / userEvent under React 19.
+  // Stub the Date constructor so `new Date()` / `Date.now()` are deterministic
+  // while setTimeout/microtasks stay real.
+  const fixedNow = now.getTime();
+  const RealDate = Date;
+  class MockDate extends RealDate {
+    constructor(...args: any[]) {
+      if (args.length === 0) super(fixedNow);
+      else super(...(args as []));
+    }
+    static now() {
+      return fixedNow;
+    }
+  }
+  vi.stubGlobal('Date', MockDate);
   vi.stubGlobal('localStorage', {
     getItem: vi.fn(() => null),
     removeItem: vi.fn(),
@@ -83,28 +88,10 @@ const renderFooter = async ({
 
   mockGlobalState = createGlobalState(readSlugs);
   mockServerConfigState = {
-    featureFlags: { enableAgentOnboarding: enabled },
-    isMobile: mobile,
+    featureFlags: {},
     serverConfigInit,
   };
-  mockUserState = {
-    agentOnboarding: {
-      activeTopicId: agentStarted ? 'topic-1' : undefined,
-      finishedAt: agentFinished ? '2026-04-15T00:00:00.000Z' : undefined,
-    },
-    defaultSettings: {},
-    onboarding: classicFinished ? { finishedAt: '2026-04-14T00:00:00.000Z' } : undefined,
-    settings: { general: { isDevMode: false } },
-  };
 
-  vi.doMock('@lobechat/const', async (importOriginal) => {
-    const actual = (await importOriginal()) as typeof LobechatConst;
-
-    return {
-      ...actual,
-      isDesktop: desktop,
-    };
-  });
   function createAnalyticsApi() {
     return {
       analytics: { track: analyticsTrack },
@@ -150,6 +137,14 @@ const renderFooter = async ({
   vi.doMock('@/features/User/UserPanel/ThemeButton', () => ({
     default: () => null,
   }));
+  // Isolate Footer from heavy siblings that pull in the tool store — under
+  // vi.resetModules() their dependency graph triggers a circular import.
+  vi.doMock('@/features/Billboard', () => ({
+    default: () => null,
+  }));
+  vi.doMock('@/features/NavPanel', () => ({
+    useActiveNavKey: () => 'home',
+  }));
   function createFeedbackModalApi() {
     return { open: vi.fn() };
   }
@@ -188,12 +183,6 @@ const renderFooter = async ({
   vi.doMock('@/store/serverConfig', () => ({
     useServerConfigStore: selectFromServerConfigStore,
   }));
-  function selectFromUserStore(selector: (state: Record<string, unknown>) => unknown) {
-    return selector(mockUserState);
-  }
-  vi.doMock('@/store/user', () => ({
-    useUserStore: selectFromUserStore,
-  }));
 
   const { default: Footer } = await import('./index');
 
@@ -201,7 +190,6 @@ const renderFooter = async ({
     <MemoryRouter initialEntries={['/']}>
       <Routes>
         <Route element={<Footer />} path="/" />
-        <Route element={<div>Agent onboarding route</div>} path="/onboarding/agent" />
       </Routes>
     </MemoryRouter>,
   );
@@ -210,34 +198,34 @@ const renderFooter = async ({
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  vi.doUnmock('@lobechat/const');
   vi.doUnmock('@lobehub/analytics/react');
   vi.doUnmock('@/components/ChangelogModal');
   vi.doUnmock('@/components/HighlightNotification');
   vi.doUnmock('@/features/User/UserPanel/ThemeButton');
+  vi.doUnmock('@/features/Billboard');
+  vi.doUnmock('@/features/NavPanel');
   vi.doUnmock('@/hooks/useFeedbackModal');
   vi.doUnmock('@/hooks/useNavLayout');
   vi.doUnmock('@/store/global');
   vi.doUnmock('@/store/serverConfig');
-  vi.doUnmock('@/store/user');
 });
 
-describe('Footer agent onboarding promotion', () => {
-  it('shows the agent onboarding promotion for eligible web users', async () => {
+describe('Footer product hunt promotion', () => {
+  it('auto-shows the product hunt promotion within the launch window', async () => {
     await renderFooter();
 
     expect(screen.getByTestId('highlight-notification')).toBeInTheDocument();
-    expect(screen.getByText('Quick Wizard')).toBeInTheDocument();
+    expect(screen.getByText("We're on Product Hunt!")).toBeInTheDocument();
     expect(analyticsTrack).toHaveBeenCalledWith({
-      name: 'agent_onboarding_promo_viewed',
+      name: 'product_hunt_card_viewed',
       properties: {
-        spm: 'homepage.agent_onboarding_promo.viewed',
+        spm: 'homepage.product_hunt.viewed',
         trigger: 'auto',
       },
     });
   }, 40000);
 
-  it('stores the dismiss slug when the agent onboarding promotion is closed', async () => {
+  it('stores the dismiss slug when the product hunt promotion is closed', async () => {
     const user = userEvent.setup();
     await renderFooter();
     const card = screen.getAllByTestId('highlight-notification').at(-1)!;
@@ -246,54 +234,17 @@ describe('Footer agent onboarding promotion', () => {
 
     expect(
       (mockGlobalState.status as { readNotificationSlugs: string[] }).readNotificationSlugs,
-    ).toContain('agent-onboarding-promo-v1');
+    ).toContain('product-hunt-2026');
   }, 20000);
 
-  it('marks the promotion as read and navigates into agent onboarding on CTA click', async () => {
-    const user = userEvent.setup();
-    await renderFooter();
-    const card = screen.getAllByTestId('highlight-notification').at(-1)!;
-
-    await user.click(within(card).getByRole('button', { name: 'Try it now' }));
-
-    expect(
-      (mockGlobalState.status as { readNotificationSlugs: string[] }).readNotificationSlugs,
-    ).toContain('agent-onboarding-promo-v1');
-    expect(screen.getByText('Agent onboarding route')).toBeInTheDocument();
-    expect(analyticsTrack).toHaveBeenCalledWith({
-      name: 'agent_onboarding_promo_clicked',
-      properties: {
-        spm: 'homepage.agent_onboarding_promo.clicked',
-      },
-    });
-  }, 20000);
-
-  it('does not show the promotion after agent onboarding has already started', async () => {
-    await renderFooter({ agentStarted: true });
+  it('does not auto-show the promotion outside the launch window', async () => {
+    await renderFooter({ now: OUTSIDE_PRODUCT_HUNT_WINDOW });
 
     expect(screen.queryByTestId('highlight-notification')).not.toBeInTheDocument();
   });
 
-  it('does not show the promotion when classic onboarding is not finished', async () => {
-    await renderFooter({ classicFinished: false });
-
-    expect(screen.queryByTestId('highlight-notification')).not.toBeInTheDocument();
-  });
-
-  it('does not show the promotion after the current device has dismissed it', async () => {
-    await renderFooter({ readSlugs: ['agent-onboarding-promo-v1'] });
-
-    expect(screen.queryByTestId('highlight-notification')).not.toBeInTheDocument();
-  });
-
-  it('does not show the promotion on mobile web variants', async () => {
-    await renderFooter({ mobile: true });
-
-    expect(screen.queryByTestId('highlight-notification')).not.toBeInTheDocument();
-  });
-
-  it('does not show the promotion on desktop builds', async () => {
-    await renderFooter({ desktop: true });
+  it('does not auto-show the promotion after the current device has dismissed it', async () => {
+    await renderFooter({ readSlugs: ['product-hunt-2026'] });
 
     expect(screen.queryByTestId('highlight-notification')).not.toBeInTheDocument();
   });

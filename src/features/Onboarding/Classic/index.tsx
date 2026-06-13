@@ -6,7 +6,6 @@ import { memo, useCallback, useEffect, useRef } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
 import Loading from '@/components/Loading/BrandTextLoading';
-import ModeSwitch from '@/features/Onboarding/components/ModeSwitch';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useOnboardingAgentTemplates } from '@/hooks/useOnboardingAgentTemplates';
 import OnboardingContainer from '@/routes/onboarding/_layout';
@@ -21,7 +20,6 @@ import {
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { useUserStore } from '@/store/user';
 import { onboardingSelectors } from '@/store/user/selectors';
-import { isDev } from '@/utils/env';
 
 const INTERESTS_STEP = 2;
 const PRO_SETTINGS_STEP = 3;
@@ -183,7 +181,6 @@ const ClassicOnboardingPage = memo(() => {
         paddingInline={isMobile ? 16 : 0}
         style={{ maxWidth: contentMaxWidth, width: '100%' }}
       >
-        {isDev && <ModeSwitch />}
         {renderStep()}
       </Flexbox>
     </OnboardingContainer>

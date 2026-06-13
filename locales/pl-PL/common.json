@@ -1,9 +1,6 @@
 {
   "about": "O nas",
   "advanceSettings": "Ustawienia zaawansowane",
-  "agentOnboardingPromo.actionLabel": "Wypróbuj teraz",
-  "agentOnboardingPromo.description": "Skonfiguruj swoje zespoły agentów w krótkiej rozmowie z Chatslike. Twoi obecni agenci pozostaną bez zmian.",
-  "agentOnboardingPromo.title": "Szybki kreator",
   "alert.cloud.action": "Wypróbuj teraz",
   "alert.cloud.desc": "Wszyscy zarejestrowani użytkownicy otrzymują {{credit}} darmowych kredytów obliczeniowych miesięcznie — bez potrzeby konfiguracji. Zawiera globalną synchronizację w chmurze i zaawansowane wyszukiwanie w sieci.",
   "alert.cloud.descOnMobile": "Wszyscy zarejestrowani użytkownicy otrzymują {{credit}} darmowych kredytów obliczeniowych miesięcznie — bez potrzeby konfiguracji.",

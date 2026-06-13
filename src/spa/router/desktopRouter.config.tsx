@@ -392,7 +392,9 @@ export const desktopRoutes: RouteObject[] = [
                   {
                     element: dynamicElement(
                       () =>
-                        import('@/routes/(main)/settings/provider').then((m) => m.ProviderDetailPage),
+                        import('@/routes/(main)/settings/provider').then(
+                          (m) => m.ProviderDetailPage,
+                        ),
                       'Desktop > Settings > Provider > Detail',
                     ),
                     handle: {
@@ -418,7 +420,9 @@ export const desktopRoutes: RouteObject[] = [
                   {
                     element: dynamicElement(
                       () =>
-                        import('@/routes/(main)/settings/provider').then((m) => m.ProviderDetailPage),
+                        import('@/routes/(main)/settings/provider').then(
+                          (m) => m.ProviderDetailPage,
+                        ),
                       'Desktop > Settings > Provider > Global > Detail',
                     ),
                     handle: {
@@ -428,7 +432,8 @@ export const desktopRoutes: RouteObject[] = [
                   },
                 ],
                 element: dynamicElement(
-                  () => import('@/routes/(main)/settings/provider').then((m) => m.ProviderGlobalLayout),
+                  () =>
+                    import('@/routes/(main)/settings/provider').then((m) => m.ProviderGlobalLayout),
                   'Desktop > Settings > Provider > Global > Layout',
                 ),
                 handle: {
@@ -791,15 +796,6 @@ desktopRoutes.push({
   element: dynamicElement(() => import('@/routes/onboarding'), 'Desktop > Onboarding'),
   errorElement: <ErrorBoundary />,
   path: '/onboarding',
-});
-
-desktopRoutes.push({
-  element: dynamicElement(
-    () => import('@/routes/onboarding/agent'),
-    'Desktop > Onboarding > Agent',
-  ),
-  errorElement: <ErrorBoundary />,
-  path: '/onboarding/agent',
 });
 
 desktopRoutes.push({
