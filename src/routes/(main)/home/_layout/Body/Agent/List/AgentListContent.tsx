@@ -6,6 +6,8 @@ import SkeletonList from '@/features/NavPanel/components/SkeletonList';
 import { useFetchAgentList } from '@/hooks/useFetchAgentList';
 import { useHomeStore } from '@/store/home';
 import { homeAgentListSelectors } from '@/store/home/selectors';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 import { SessionDefaultGroup } from '@/types/index';
 
 import Group from './Group';
@@ -21,6 +23,7 @@ interface AgentListContentProps {
 const AgentListContent = memo<AgentListContentProps>(({ onMoreClick }) => {
   const isInit = useHomeStore(homeAgentListSelectors.isAgentListInit);
   const { customList, pinnedList, defaultList } = useAgentList();
+  const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
   useFetchAgentList();
 
@@ -36,6 +39,11 @@ const AgentListContent = memo<AgentListContentProps>(({ onMoreClick }) => {
   }, [pinnedList?.length, customList?.length]);
 
   if (!isInit) return <SkeletonList rows={6} />;
+
+  // When hideAgentManagement is enabled, only show the inbox item
+  if (hideAgentManagement) {
+    return <InboxItem style={{ minHeight: 36 }} />;
+  }
 
   // Always render the default SessionList so the "+ Create Agent" entry is visible
   // even when the user has only the built-in Lobe AI inbox.

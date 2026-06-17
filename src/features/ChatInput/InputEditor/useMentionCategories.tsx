@@ -10,6 +10,8 @@ import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
 import { useHomeStore } from '@/store/home';
 import { homeAgentListSelectors } from '@/store/home/selectors';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 
 import { useAgentId } from '../hooks/useAgentId';
 import { useChatInputStore } from '../store';
@@ -25,6 +27,7 @@ export const useMentionCategories = (): MentionCategory[] => {
   const { t } = useTranslation('chat');
   const currentAgentId = useAgentId();
   const allAgents = useHomeStore(homeAgentListSelectors.allAgents);
+  const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
   const topicPageSize = useGlobalStore(systemStatusSelectors.topicPageSize);
   const topicsSelector = useMemo(
@@ -43,7 +46,7 @@ export const useMentionCategories = (): MentionCategory[] => {
     const categories: MentionCategory[] = [];
 
     // --- Agents (non-group only) ---
-    if (!isGroupChat) {
+    if (!isGroupChat && !hideAgentManagement) {
       const items = allAgents
         .filter((a) => a.type === 'agent' && a.id !== currentAgentId)
         .slice(0, MAX_AGENT_ITEMS)
@@ -175,6 +178,7 @@ export const useMentionCategories = (): MentionCategory[] => {
     isGroupChat,
     externalMentionItems,
     enabledSkills,
+    hideAgentManagement,
     t,
   ]);
 };

@@ -21,6 +21,8 @@ import { useAgentStore } from '@/store/agent';
 import { useAgentGroupStore } from '@/store/agentGroup';
 import { useHomeStore } from '@/store/home';
 import { usePageStore } from '@/store/page';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 import { useUserStore } from '@/store/user';
 import { labPreferSelectors } from '@/store/user/selectors';
 
@@ -201,6 +203,7 @@ export const useCreateMenuItems = () => {
   const agentModal = useOptionalAgentModal();
   const openCreateModal = agentModal?.openCreateModal;
   const enablePlatformAgent = useUserStore(labPreferSelectors.enablePlatformAgent);
+  const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
   /**
    * Create agent menu item
@@ -273,20 +276,23 @@ export const useCreateMenuItems = () => {
    * Creates an empty group and navigates to its profile page
    */
   const createGroupChatMenuItem = useCallback(
-    (options?: CreateAgentOptions): ItemType => ({
-      icon: <Icon icon={GroupBotSquareIcon} />,
-      key: 'newGroupChat',
-      label: t('newGroupChat'),
-      onClick: async (info) => {
-        info.domEvent?.stopPropagation();
-        if (openCreateModal) {
-          openCreateModal('group', options?.groupId ? { groupId: options.groupId } : undefined);
-        } else {
-          await createEmptyGroup(options);
-        }
-      },
-    }),
-    [t, createEmptyGroup, openCreateModal],
+    (options?: CreateAgentOptions): ItemType | null => {
+      if (hideAgentManagement) return null;
+      return {
+        icon: <Icon icon={GroupBotSquareIcon} />,
+        key: 'newGroupChat',
+        label: t('newGroupChat'),
+        onClick: async (info) => {
+          info.domEvent?.stopPropagation();
+          if (openCreateModal) {
+            openCreateModal('group', options?.groupId ? { groupId: options.groupId } : undefined);
+          } else {
+            await createEmptyGroup(options);
+          }
+        },
+      };
+    },
+    [t, createEmptyGroup, openCreateModal, hideAgentManagement],
   );
 
   /**

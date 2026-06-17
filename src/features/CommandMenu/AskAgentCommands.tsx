@@ -8,6 +8,8 @@ import { useAgentStore } from '@/store/agent';
 import { builtinAgentSelectors } from '@/store/agent/selectors/builtinAgentSelectors';
 import { useHomeStore } from '@/store/home';
 import { homeAgentListSelectors } from '@/store/home/selectors';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 
 import { useCommandMenuContext } from './CommandMenuContext';
 import { styles } from './styles';
@@ -15,6 +17,7 @@ import { styles } from './styles';
 const AskAgentCommands = memo(() => {
   const { t } = useTranslation('common');
   const { search, setSearch, setSelectedAgent } = useCommandMenuContext();
+  const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
   const inboxAgentId = useAgentStore(builtinAgentSelectors.inboxAgentId);
   const allAgents = useHomeStore(homeAgentListSelectors.allAgents);
@@ -51,8 +54,8 @@ const AskAgentCommands = memo(() => {
     setSearch('');
   };
 
-  // Only show when user types "@"
-  if (!isAtMention) return null;
+  // Hide the entire @mention feature when hideAgentManagement is enabled
+  if (hideAgentManagement || !isAtMention) return null;
 
   const inboxTitle = DEFAULT_INBOX_TITLE;
   const showInboxAgent = !mentionQuery || inboxTitle.toLowerCase().includes(mentionQuery);

@@ -70,6 +70,7 @@ import GroupPage from '@/routes/(main)/group';
 import DesktopGroupLayout from '@/routes/(main)/group/_layout';
 import { groupRouteMeta } from '@/routes/(main)/group/features/routeMeta';
 import GroupProfilePage from '@/routes/(main)/group/profile';
+import AgentManagementGuard from '@/routes/(main)/guards/AgentManagementGuard';
 import DesktopMemoryLayout from '@/routes/(main)/memory/_layout';
 import MemoryHomePage from '@/routes/(main)/memory/(home)';
 import MemoryActivitiesPage from '@/routes/(main)/memory/activities';
@@ -130,8 +131,13 @@ export const desktopRoutes: RouteObject[] = [
                 element: <DesktopAgentChatLayout />,
               },
               {
-                element: <AgentProfilePage />,
-                path: 'profile',
+                children: [
+                  {
+                    element: <AgentProfilePage />,
+                    path: 'profile',
+                  },
+                ],
+                element: <AgentManagementGuard />,
               },
               {
                 element: <AgentChannelPage />,
@@ -159,24 +165,29 @@ export const desktopRoutes: RouteObject[] = [
       {
         children: [
           {
-            element: redirectElement('/'),
-            index: true,
-          },
-          {
             children: [
               {
-                element: <GroupPage />,
-                handle: { meta: groupRouteMeta },
+                element: redirectElement('/'),
                 index: true,
               },
               {
-                element: <GroupProfilePage />,
-                path: 'profile',
+                children: [
+                  {
+                    element: <GroupPage />,
+                    handle: { meta: groupRouteMeta },
+                    index: true,
+                  },
+                  {
+                    element: <GroupProfilePage />,
+                    path: 'profile',
+                  },
+                ],
+                element: <DesktopGroupLayout />,
+                errorElement: <ErrorBoundary />,
+                path: ':gid',
               },
             ],
-            element: <DesktopGroupLayout />,
-            errorElement: <ErrorBoundary />,
-            path: ':gid',
+            element: <AgentManagementGuard />,
           },
         ],
         path: 'group',
@@ -185,118 +196,129 @@ export const desktopRoutes: RouteObject[] = [
       // Discover routes with nested structure
       {
         children: [
-          // List routes (with ListLayout)
           {
             children: [
+              // List routes (with ListLayout)
               {
                 children: [
                   {
-                    element: <CommunityListAgentPage />,
+                    children: [
+                      {
+                        element: <CommunityListAgentPage />,
+                        handle: {
+                          meta: routeMeta({
+                            icon: ShapesIcon,
+                            titleKey: 'navigation.discoverAssistants',
+                          }),
+                        },
+                        index: true,
+                      },
+                    ],
+                    element: <CommunityListAgentLayout />,
+                    path: 'agent',
+                  },
+                  {
+                    children: [
+                      {
+                        element: <CommunityListModelPage />,
+                        handle: {
+                          meta: routeMeta({
+                            icon: ShapesIcon,
+                            titleKey: 'navigation.discoverModels',
+                          }),
+                        },
+                        index: true,
+                      },
+                    ],
+                    element: <CommunityListModelLayout />,
+                    path: 'model',
+                  },
+                  {
+                    element: <CommunityListProviderPage />,
                     handle: {
                       meta: routeMeta({
                         icon: ShapesIcon,
-                        titleKey: 'navigation.discoverAssistants',
+                        titleKey: 'navigation.discoverProviders',
                       }),
                     },
-                    index: true,
+                    path: 'provider',
                   },
-                ],
-                element: <CommunityListAgentLayout />,
-                path: 'agent',
-              },
-              {
-                children: [
                   {
-                    element: <CommunityListModelPage />,
-                    handle: {
-                      meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discoverModels' }),
-                    },
-                    index: true,
+                    children: [
+                      {
+                        element: <CommunityListSkillPage />,
+                        handle: {
+                          meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discover' }),
+                        },
+                        index: true,
+                      },
+                    ],
+                    element: <CommunityListSkillLayout />,
+                    path: 'skill',
                   },
-                ],
-                element: <CommunityListModelLayout />,
-                path: 'model',
-              },
-              {
-                element: <CommunityListProviderPage />,
-                handle: {
-                  meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discoverProviders' }),
-                },
-                path: 'provider',
-              },
-              {
-                children: [
                   {
-                    element: <CommunityListSkillPage />,
+                    children: [
+                      {
+                        element: <CommunityListMcpPage />,
+                        handle: {
+                          meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discoverMcp' }),
+                        },
+                        index: true,
+                      },
+                    ],
+                    element: <CommunityListMcpLayout />,
+                    path: 'mcp',
+                  },
+                  {
+                    element: <CommunityListHomePage />,
                     handle: {
                       meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discover' }),
                     },
                     index: true,
                   },
                 ],
-                element: <CommunityListSkillLayout />,
-                path: 'skill',
+                element: <CommunityListLayout />,
               },
+              // Detail routes (with DetailLayout)
               {
                 children: [
                   {
-                    element: <CommunityListMcpPage />,
-                    handle: {
-                      meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discoverMcp' }),
-                    },
-                    index: true,
+                    element: <CommunityDetailAgentPage />,
+                    path: 'agent/:slug',
+                  },
+                  {
+                    element: <CommunityDetailGroupAgentPage />,
+                    path: 'group_agent/:slug',
+                  },
+                  {
+                    element: <CommunityDetailModelPage />,
+                    path: 'model/:slug',
+                  },
+                  {
+                    element: <CommunityDetailProviderPage />,
+                    path: 'provider/:slug',
+                  },
+                  {
+                    element: <CommunityDetailSkillPage />,
+                    path: 'skill/:slug',
+                  },
+                  {
+                    element: <CommunityDetailMcpPage />,
+                    path: 'mcp/:slug',
+                  },
+                  {
+                    element: <CommunityDetailUserPage />,
+                    path: 'user/:slug',
                   },
                 ],
-                element: <CommunityListMcpLayout />,
-                path: 'mcp',
-              },
-              {
-                element: <CommunityListHomePage />,
-                handle: {
-                  meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discover' }),
-                },
-                index: true,
+                element: <CommunityDetailLayout />,
               },
             ],
-            element: <CommunityListLayout />,
-          },
-          // Detail routes (with DetailLayout)
-          {
-            children: [
-              {
-                element: <CommunityDetailAgentPage />,
-                path: 'agent/:slug',
-              },
-              {
-                element: <CommunityDetailGroupAgentPage />,
-                path: 'group_agent/:slug',
-              },
-              {
-                element: <CommunityDetailModelPage />,
-                path: 'model/:slug',
-              },
-              {
-                element: <CommunityDetailProviderPage />,
-                path: 'provider/:slug',
-              },
-              {
-                element: <CommunityDetailSkillPage />,
-                path: 'skill/:slug',
-              },
-              {
-                element: <CommunityDetailMcpPage />,
-                path: 'mcp/:slug',
-              },
-              {
-                element: <CommunityDetailUserPage />,
-                path: 'user/:slug',
-              },
-            ],
-            element: <CommunityDetailLayout />,
+            element: <CommunityLayout />,
+            errorElement: <ErrorBoundary />,
           },
         ],
-        element: <CommunityLayout />,
-        errorElement: <ErrorBoundary />,
+        element: <AgentManagementGuard />,
         path: 'community',
       },
 

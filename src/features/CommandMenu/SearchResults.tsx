@@ -25,6 +25,8 @@ import { type SearchResult } from '@/database/repositories/search';
 import { useCommandMenuContext } from '@/features/CommandMenu/CommandMenuContext';
 import { useImageStore } from '@/store/image';
 import { generationTopicSelectors as imageGenerationTopicSelectors } from '@/store/image/slices/generationTopic/selectors';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 import { useVideoStore } from '@/store/video';
 import { generationTopicSelectors as videoGenerationTopicSelectors } from '@/store/video/slices/generationTopic/selectors';
 import { markdownToTxt } from '@/utils/markdownToTxt';
@@ -63,6 +65,7 @@ const SearchResults = memo<SearchResultsProps>(
     const activeImageTopicId = useImageStore((s) => s.activeGenerationTopicId);
     const videoTopics = useVideoStore(videoGenerationTopicSelectors.generationTopics);
     const activeVideoTopicId = useVideoStore((s) => s.activeGenerationTopicId);
+    const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
     const handleNavigate = (result: SearchResult) => {
       switch (result.type) {
@@ -341,8 +344,10 @@ const SearchResults = memo<SearchResultsProps>(
 
     // Group results by type
     const messageResults = results.filter((r) => r.type === 'message');
-    const chatGroupResults = results.filter((r) => r.type === 'chatGroup');
-    const agentResults = results.filter((r) => r.type === 'agent');
+    const chatGroupResults = hideAgentManagement
+      ? []
+      : results.filter((r) => r.type === 'chatGroup');
+    const agentResults = hideAgentManagement ? [] : results.filter((r) => r.type === 'agent');
     const topicResults = results.filter((r) => r.type === 'topic');
     const fileResults = results.filter((r) => r.type === 'file');
     const folderResults = results.filter((r) => r.type === 'folder');

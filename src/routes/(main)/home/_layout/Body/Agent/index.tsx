@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 import NeuralNetworkLoading from '@/components/NeuralNetworkLoading';
 import SkeletonList from '@/features/NavPanel/components/SkeletonList';
 import { useFetchAgentList } from '@/hooks/useFetchAgentList';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 
 import { useCreateMenuItems } from '../../hooks';
 import Actions from './Actions';
@@ -21,6 +23,7 @@ interface AgentProps {
 const Agent = memo<AgentProps>(({ itemKey }) => {
   const { t } = useTranslation('common');
   const { isRevalidating } = useFetchAgentList();
+  const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
   const { openConfigGroupModal } = useAgentModal();
 
@@ -36,10 +39,11 @@ const Agent = memo<AgentProps>(({ itemKey }) => {
   const addMenuItems = useMemo(() => {
     const heterogeneousItems = createHeterogeneousAgentMenuItems();
     const platformItem = createPlatformAgentMenuItem();
+    const groupChatItem = createGroupChatMenuItem();
 
     return [
       createAgentMenuItem(),
-      createGroupChatMenuItem(),
+      ...(groupChatItem ? [groupChatItem] : []),
       ...(heterogeneousItems.length > 0
         ? [{ type: 'divider' as const }, ...heterogeneousItems]
         : []),
@@ -66,11 +70,17 @@ const Agent = memo<AgentProps>(({ itemKey }) => {
       paddingBlock={4}
       paddingInline={'8px 4px'}
       action={
-        <Actions addMenuItems={addMenuItems} dropdownMenu={dropdownMenu} isLoading={isLoading} />
+        hideAgentManagement ? undefined : (
+          <Actions addMenuItems={addMenuItems} dropdownMenu={dropdownMenu} isLoading={isLoading} />
+        )
       }
-      headerWrapper={(header) => (
-        <ContextMenuTrigger items={dropdownMenu}>{header}</ContextMenuTrigger>
-      )}
+      headerWrapper={(header) =>
+        hideAgentManagement ? (
+          header
+        ) : (
+          <ContextMenuTrigger items={dropdownMenu}>{header}</ContextMenuTrigger>
+        )
+      }
       title={
         <Flexbox horizontal align="center" gap={4}>
           <Text ellipsis fontSize={12} type={'secondary'} weight={500}>

@@ -20,6 +20,7 @@ import { taskRouteMeta, tasksRouteMeta } from '@/features/AgentTasks/routeMeta';
 import { pageRouteMeta } from '@/features/Pages/routeMeta';
 import { agentRouteMeta } from '@/routes/(main)/agent/features/routeMeta';
 import { groupRouteMeta } from '@/routes/(main)/group/features/routeMeta';
+import AgentManagementGuard from '@/routes/(main)/guards/AgentManagementGuard';
 import { settingsRouteMeta } from '@/routes/(main)/settings/features/routeMeta';
 import { routeMeta } from '@/spa/router/routeMeta';
 import { dynamicElement, dynamicLayout, ErrorBoundary, redirectElement } from '@/utils/router';
@@ -58,11 +59,16 @@ export const desktopRoutes: RouteObject[] = [
                 ),
               },
               {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/agent/profile'),
-                  'Desktop > Chat > Profile',
-                ),
-                path: 'profile',
+                children: [
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/agent/profile'),
+                      'Desktop > Chat > Profile',
+                    ),
+                    path: 'profile',
+                  },
+                ],
+                element: <AgentManagementGuard />,
               },
               {
                 element: dynamicElement(
@@ -102,33 +108,38 @@ export const desktopRoutes: RouteObject[] = [
       {
         children: [
           {
-            element: redirectElement('/'),
-            index: true,
-          },
-          {
             children: [
               {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/group'),
-                  'Desktop > Agent Group',
-                ),
-                handle: { meta: groupRouteMeta },
+                element: redirectElement('/'),
                 index: true,
               },
               {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/group/profile'),
-                  'Desktop > Agent Group > Profile',
+                children: [
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/group'),
+                      'Desktop > Agent Group',
+                    ),
+                    handle: { meta: groupRouteMeta },
+                    index: true,
+                  },
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/group/profile'),
+                      'Desktop > Agent Group > Profile',
+                    ),
+                    path: 'profile',
+                  },
+                ],
+                element: dynamicLayout(
+                  () => import('@/routes/(main)/group/_layout'),
+                  'Desktop > Group > Layout',
                 ),
-                path: 'profile',
+                errorElement: <ErrorBoundary />,
+                path: ':gid',
               },
             ],
-            element: dynamicLayout(
-              () => import('@/routes/(main)/group/_layout'),
-              'Desktop > Group > Layout',
-            ),
-            errorElement: <ErrorBoundary />,
-            path: ':gid',
+            element: <AgentManagementGuard />,
           },
         ],
         path: 'group',
@@ -137,66 +148,110 @@ export const desktopRoutes: RouteObject[] = [
       // Discover routes with nested structure
       {
         children: [
-          // List routes (with ListLayout)
           {
             children: [
+              // List routes (with ListLayout)
               {
                 children: [
                   {
+                    children: [
+                      {
+                        element: dynamicElement(
+                          () => import('@/routes/(main)/community/(list)/agent'),
+                          'Desktop > Discover > List > Agent',
+                        ),
+                        handle: {
+                          meta: routeMeta({
+                            icon: ShapesIcon,
+                            titleKey: 'navigation.discoverAssistants',
+                          }),
+                        },
+                        index: true,
+                      },
+                    ],
                     element: dynamicElement(
-                      () => import('@/routes/(main)/community/(list)/agent'),
-                      'Desktop > Discover > List > Agent',
+                      () => import('@/routes/(main)/community/(list)/agent/_layout'),
+                      'Desktop > Discover > List > Agent > Layout',
+                    ),
+                    path: 'agent',
+                  },
+                  {
+                    children: [
+                      {
+                        element: dynamicElement(
+                          () => import('@/routes/(main)/community/(list)/model'),
+                          'Desktop > Discover > List > Model',
+                        ),
+                        handle: {
+                          meta: routeMeta({
+                            icon: ShapesIcon,
+                            titleKey: 'navigation.discoverModels',
+                          }),
+                        },
+                        index: true,
+                      },
+                    ],
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(list)/model/_layout'),
+                      'Desktop > Discover > List > Model > Layout',
+                    ),
+                    path: 'model',
+                  },
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(list)/provider'),
+                      'Desktop > Discover > List > Provider',
                     ),
                     handle: {
                       meta: routeMeta({
                         icon: ShapesIcon,
-                        titleKey: 'navigation.discoverAssistants',
+                        titleKey: 'navigation.discoverProviders',
                       }),
                     },
-                    index: true,
+                    path: 'provider',
                   },
-                ],
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(list)/agent/_layout'),
-                  'Desktop > Discover > List > Agent > Layout',
-                ),
-                path: 'agent',
-              },
-              {
-                children: [
                   {
+                    children: [
+                      {
+                        element: dynamicElement(
+                          () => import('@/routes/(main)/community/(list)/skill'),
+                          'Desktop > Discover > List > Skill',
+                        ),
+                        handle: {
+                          meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discover' }),
+                        },
+                        index: true,
+                      },
+                    ],
                     element: dynamicElement(
-                      () => import('@/routes/(main)/community/(list)/model'),
-                      'Desktop > Discover > List > Model',
+                      () => import('@/routes/(main)/community/(list)/skill/_layout'),
+                      'Desktop > Discover > List > Skill > Layout',
                     ),
-                    handle: {
-                      meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discoverModels' }),
-                    },
-                    index: true,
+                    path: 'skill',
                   },
-                ],
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(list)/model/_layout'),
-                  'Desktop > Discover > List > Model > Layout',
-                ),
-                path: 'model',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(list)/provider'),
-                  'Desktop > Discover > List > Provider',
-                ),
-                handle: {
-                  meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discoverProviders' }),
-                },
-                path: 'provider',
-              },
-              {
-                children: [
+                  {
+                    children: [
+                      {
+                        element: dynamicElement(
+                          () => import('@/routes/(main)/community/(list)/mcp'),
+                          'Desktop > Discover > List > MCP',
+                        ),
+                        handle: {
+                          meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discoverMcp' }),
+                        },
+                        index: true,
+                      },
+                    ],
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(list)/mcp/_layout'),
+                      'Desktop > Discover > List > MCP > Layout',
+                    ),
+                    path: 'mcp',
+                  },
                   {
                     element: dynamicElement(
-                      () => import('@/routes/(main)/community/(list)/skill'),
-                      'Desktop > Discover > List > Skill',
+                      () => import('@/routes/(main)/community/(list)/(home)'),
+                      'Desktop > Discover > List > Home',
                     ),
                     handle: {
                       meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discover' }),
@@ -205,110 +260,77 @@ export const desktopRoutes: RouteObject[] = [
                   },
                 ],
                 element: dynamicElement(
-                  () => import('@/routes/(main)/community/(list)/skill/_layout'),
-                  'Desktop > Discover > List > Skill > Layout',
+                  () => import('@/routes/(main)/community/(list)/_layout'),
+                  'Desktop > Discover > List > Layout',
                 ),
-                path: 'skill',
               },
+              // Detail routes (with DetailLayout)
               {
                 children: [
                   {
                     element: dynamicElement(
-                      () => import('@/routes/(main)/community/(list)/mcp'),
-                      'Desktop > Discover > List > MCP',
+                      () => import('@/routes/(main)/community/(detail)/agent'),
+                      'Desktop > Discover > Detail > Agent',
                     ),
-                    handle: {
-                      meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discoverMcp' }),
-                    },
-                    index: true,
+                    path: 'agent/:slug',
+                  },
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(detail)/group_agent'),
+                      'Desktop > Discover > Detail > Group Agent',
+                    ),
+                    path: 'group_agent/:slug',
+                  },
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(detail)/model'),
+                      'Desktop > Discover > Detail > Model',
+                    ),
+                    path: 'model/:slug',
+                  },
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(detail)/provider'),
+                      'Desktop > Discover > Detail > Provider',
+                    ),
+                    path: 'provider/:slug',
+                  },
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(detail)/skill'),
+                      'Desktop > Discover > Detail > Skill',
+                    ),
+                    path: 'skill/:slug',
+                  },
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(detail)/mcp'),
+                      'Desktop > Discover > Detail > MCP',
+                    ),
+                    path: 'mcp/:slug',
+                  },
+                  {
+                    element: dynamicElement(
+                      () => import('@/routes/(main)/community/(detail)/user'),
+                      'Desktop > Discover > Detail > User',
+                    ),
+                    path: 'user/:slug',
                   },
                 ],
                 element: dynamicElement(
-                  () => import('@/routes/(main)/community/(list)/mcp/_layout'),
-                  'Desktop > Discover > List > MCP > Layout',
+                  () => import('@/routes/(main)/community/(detail)/_layout'),
+                  'Desktop > Discover > Detail > Layout',
                 ),
-                path: 'mcp',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(list)/(home)'),
-                  'Desktop > Discover > List > Home',
-                ),
-                handle: {
-                  meta: routeMeta({ icon: ShapesIcon, titleKey: 'navigation.discover' }),
-                },
-                index: true,
               },
             ],
             element: dynamicElement(
-              () => import('@/routes/(main)/community/(list)/_layout'),
-              'Desktop > Discover > List > Layout',
+              () => import('@/routes/(main)/community/_layout'),
+              'Desktop > Discover > Layout',
             ),
-          },
-          // Detail routes (with DetailLayout)
-          {
-            children: [
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(detail)/agent'),
-                  'Desktop > Discover > Detail > Agent',
-                ),
-                path: 'agent/:slug',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(detail)/group_agent'),
-                  'Desktop > Discover > Detail > Group Agent',
-                ),
-                path: 'group_agent/:slug',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(detail)/model'),
-                  'Desktop > Discover > Detail > Model',
-                ),
-                path: 'model/:slug',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(detail)/provider'),
-                  'Desktop > Discover > Detail > Provider',
-                ),
-                path: 'provider/:slug',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(detail)/skill'),
-                  'Desktop > Discover > Detail > Skill',
-                ),
-                path: 'skill/:slug',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(detail)/mcp'),
-                  'Desktop > Discover > Detail > MCP',
-                ),
-                path: 'mcp/:slug',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/community/(detail)/user'),
-                  'Desktop > Discover > Detail > User',
-                ),
-                path: 'user/:slug',
-              },
-            ],
-            element: dynamicElement(
-              () => import('@/routes/(main)/community/(detail)/_layout'),
-              'Desktop > Discover > Detail > Layout',
-            ),
+            errorElement: <ErrorBoundary />,
           },
         ],
-        element: dynamicElement(
-          () => import('@/routes/(main)/community/_layout'),
-          'Desktop > Discover > Layout',
-        ),
-        errorElement: <ErrorBoundary />,
+        element: <AgentManagementGuard />,
         path: 'community',
       },
 

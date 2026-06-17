@@ -16,6 +16,7 @@ export const FeatureFlagsSchema = z.object({
   // profile
   api_key_manage: FeatureFlagValue.optional(),
   edit_agent: FeatureFlagValue.optional(),
+  hide_agent_management: FeatureFlagValue.optional(),
 
   ai_image: FeatureFlagValue.optional(),
   speech_to_text: FeatureFlagValue.optional(),
@@ -69,6 +70,7 @@ export const DEFAULT_FEATURE_FLAGS: IFeatureFlags = {
 
   api_key_manage: false,
   edit_agent: true,
+  hide_agent_management: false,
 
   ai_image: true,
 
@@ -97,6 +99,7 @@ export const DEFAULT_FEATURE_FLAGS: IFeatureFlags = {
 export const mapFeatureFlagsEnvToState = (config: IFeatureFlags, userId?: string) => {
   return {
     isAgentEditable: evaluateFeatureFlag(config.edit_agent, userId),
+    hideAgentManagement: evaluateFeatureFlag(config.hide_agent_management, userId),
     showProvider: evaluateFeatureFlag(config.provider_settings, userId),
 
     showOpenAIApiKey: evaluateFeatureFlag(config.openai_api_key, userId),

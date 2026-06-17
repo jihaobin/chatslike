@@ -16,6 +16,8 @@ import Recents from '@/routes/(main)/home/features/Recents';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
 import { SIDEBAR_SPACER_ID } from '@/store/global/selectors/systemStatus';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 import { isModifierClick } from '@/utils/navigation';
 
 import Agent from './Agent';
@@ -66,6 +68,7 @@ const Body = memo(() => {
   const sidebarExpandedKeys = useGlobalStore(systemStatusSelectors.sidebarExpandedKeys);
   const hiddenSections = useGlobalStore(systemStatusSelectors.hiddenSidebarSections);
   const updateSystemStatus = useGlobalStore((s) => s.updateSystemStatus);
+  const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
   const hideSection = useCallback(
     (key: string) => {
@@ -103,8 +106,13 @@ const Body = memo(() => {
 
   // Items that must always be visible regardless of hiddenSections
   const isVisible = useCallback(
-    (k: string) => k === GroupKey.Agent || k === SIDEBAR_SPACER_ID || !hiddenSections.includes(k),
-    [hiddenSections],
+    (k: string) => {
+      // When hideAgentManagement is enabled, hide the Agent section entirely
+      if (hideAgentManagement && k === GroupKey.Agent) return false;
+      // Agent section and spacer are always visible by default (unless flag is on)
+      return k === GroupKey.Agent || k === SIDEBAR_SPACER_ID || !hiddenSections.includes(k);
+    },
+    [hiddenSections, hideAgentManagement],
   );
 
   const visibleKeys = useMemo(

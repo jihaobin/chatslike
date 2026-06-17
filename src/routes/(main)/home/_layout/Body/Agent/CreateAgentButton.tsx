@@ -62,9 +62,10 @@ const CreateAgentButton = memo<CreateAgentButtonProps>(({ groupId, className }) 
   const dropdownItems = useMemo(() => {
     const heteroItems = createHeterogeneousAgentMenuItems(menuOptions);
     const platformItem = createPlatformAgentMenuItem(menuOptions);
+    const groupChatItem = createGroupChatMenuItem(menuOptions);
     return [
       createAgentMenuItem(menuOptions),
-      createGroupChatMenuItem(menuOptions),
+      ...(groupChatItem ? [groupChatItem] : []),
       ...(heteroItems.length > 0 ? [{ type: 'divider' as const }, ...heteroItems] : []),
       ...(platformItem ? [{ type: 'divider' as const }, platformItem] : []),
     ];

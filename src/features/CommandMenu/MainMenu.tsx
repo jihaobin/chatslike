@@ -16,6 +16,8 @@ import { useTranslation } from 'react-i18next';
 import { getNavigableRoutes, getRouteById } from '@/config/routes';
 import { FEEDBACK } from '@/const/url';
 import { useFeedbackModal } from '@/hooks/useFeedbackModal';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 
 import { useCommandMenuContext } from './CommandMenuContext';
 import { CommandItem } from './components';
@@ -26,6 +28,7 @@ const MainMenu = memo(() => {
   const { pathname, menuContext, setPages, pages } = useCommandMenuContext();
   const { t } = useTranslation('common');
   const { open: openFeedbackModal } = useFeedbackModal();
+  const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
   const {
     handleCreateSession,
@@ -42,23 +45,27 @@ const MainMenu = memo(() => {
       <ContextCommands />
 
       <Command.Group>
-        <CommandItem
-          icon={<Bot />}
-          unpinned={menuContext === 'agent' || menuContext === 'page'}
-          value="create new agent assistant"
-          onSelect={handleCreateSession}
-        >
-          {t('cmdk.newAgent')}
-        </CommandItem>
+        {!hideAgentManagement && (
+          <>
+            <CommandItem
+              icon={<Bot />}
+              unpinned={menuContext === 'agent' || menuContext === 'page'}
+              value="create new agent assistant"
+              onSelect={handleCreateSession}
+            >
+              {t('cmdk.newAgent')}
+            </CommandItem>
 
-        <CommandItem
-          icon={<Bot />}
-          unpinned={menuContext === 'agent' || menuContext === 'page'}
-          value="create new agent team"
-          onSelect={handleCreateAgentTeam}
-        >
-          {t('cmdk.newAgentTeam')}
-        </CommandItem>
+            <CommandItem
+              icon={<Bot />}
+              unpinned={menuContext === 'agent' || menuContext === 'page'}
+              value="create new agent team"
+              onSelect={handleCreateAgentTeam}
+            >
+              {t('cmdk.newAgentTeam')}
+            </CommandItem>
+          </>
+        )}
 
         {menuContext === 'agent' && (
           <CommandItem
