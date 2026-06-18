@@ -8,12 +8,8 @@ import Usage from '@/business/client/BusinessSettingPages/Usage';
 import { SettingsTabs } from '@/store/global/initialState';
 
 import About from '../about';
-import Advanced from '../advanced';
 import APIKey from '../apikey';
-import Appearance from '../appearance';
 import Creds from '../creds';
-import Hotkey from '../hotkey';
-import Memory from '../memory';
 import Messenger from '../messenger';
 import Profile from '../profile';
 import Provider from '../provider';
@@ -27,15 +23,11 @@ import SystemTools from '../system-tools';
 
 export const componentMap = {
   [SettingsTabs.AdminBilling]: AdminBilling,
-  [SettingsTabs.Advanced]: Advanced,
-  [SettingsTabs.Appearance]: Appearance,
   [SettingsTabs.Provider]: Provider,
   [SettingsTabs.ServiceModel]: ServiceModel,
-  [SettingsTabs.Memory]: Memory,
   [SettingsTabs.Messenger]: Messenger,
   [SettingsTabs.Notification]: Notification,
   [SettingsTabs.About]: About,
-  [SettingsTabs.Hotkey]: Hotkey,
   [SettingsTabs.Proxy]: Proxy,
   [SettingsTabs.SystemTools]: SystemTools,
   [SettingsTabs.Storage]: Storage,

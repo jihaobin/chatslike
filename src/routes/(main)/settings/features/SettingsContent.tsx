@@ -27,8 +27,10 @@ import { userGeneralSettingsSelectors } from '@/store/user/slices/settings/selec
 import { componentMap } from './componentMap';
 
 const REDIRECT_MAP: Record<string, string> = {
-  [SettingsTabs.Common]: SettingsTabs.Appearance,
-  [SettingsTabs.ChatAppearance]: SettingsTabs.Appearance,
+  [SettingsTabs.Common]: SettingsTabs.Profile,
+  [SettingsTabs.ChatAppearance]: SettingsTabs.Profile,
+  // Appearance panel removed; redirect legacy /settings/appearance bookmarks to Profile.
+  appearance: SettingsTabs.Profile,
   [SettingsTabs.Agent]: SettingsTabs.ServiceModel,
   [SettingsTabs.TTS]: SettingsTabs.ServiceModel,
   [SettingsTabs.Image]: SettingsTabs.ServiceModel,
@@ -68,11 +70,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
 
   const renderComponent = (tab: string) => {
     const allowedTabs = [
-      SettingsTabs.Advanced,
-      SettingsTabs.Appearance,
       ...(userProviderSettingsEnabled ? [SettingsTabs.Creds] : []),
-      SettingsTabs.Hotkey,
-      SettingsTabs.Memory,
       SettingsTabs.Messenger,
       SettingsTabs.Profile,
       SettingsTabs.Security,
@@ -94,7 +92,7 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
 
     if (!allowedTabs.includes(tab as SettingsTabs)) return null;
 
-    const Component = componentMap[tab as keyof typeof componentMap] || componentMap.appearance;
+    const Component = componentMap[tab as keyof typeof componentMap] || componentMap.profile;
     if (!Component) return null;
 
     const componentProps: { mobile?: boolean } = {};

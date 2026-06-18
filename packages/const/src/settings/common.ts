@@ -4,7 +4,8 @@ export const DEFAULT_COST_ESTIMATE_WARNING_THRESHOLD = 2;
 
 export const DEFAULT_COMMON_SETTINGS: UserGeneralConfig = {
   animationMode: 'agile',
-  // contextMenuMode not set default value, use env to calc
+  // Appearance panel removed: contextMenuMode is pinned to 'default' in the selector.
+  contextMenuMode: 'default',
   costEstimateWarningThreshold: DEFAULT_COST_ESTIMATE_WARNING_THRESHOLD,
   fontSize: 14,
   highlighterTheme: 'lobe-theme',
@@ -12,5 +13,6 @@ export const DEFAULT_COMMON_SETTINGS: UserGeneralConfig = {
   isLiteMode: false,
   mermaidTheme: 'lobe-theme',
   telemetry: true,
-  transitionMode: 'fadeIn',
+  // Appearance panel removed: default transition changed from 'fadeIn' to 'smooth'.
+  transitionMode: 'smooth',
 };

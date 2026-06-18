@@ -44,7 +44,6 @@
   "modeSelection.title3": "Vertel het me, dan pas ik het speciaal voor jou aan~",
   "next": "Volgende",
   "proSettings.connectors.title": "Verbind je favoriete tools",
-  "proSettings.devMode.title": "Ontwikkelaarsmodus",
   "proSettings.model.fixed": "Standaardmodel is ingesteld op {{provider}}/{{model}} in deze omgeving.",
   "proSettings.model.title": "Standaardmodel gebruikt door de agent",
   "proSettings.title": "Geavanceerde opties vooraf configureren",

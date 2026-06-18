@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { componentMap as webMap } from './componentMap';
+import { componentMap as desktopMap } from './componentMap.desktop';
+
 const { EmptyComponent } = vi.hoisted(() => ({
   EmptyComponent: () => null,
 }));
@@ -44,27 +47,11 @@ vi.mock('../about', () => ({
   default: EmptyComponent,
 }));
 
-vi.mock('../advanced', () => ({
-  default: EmptyComponent,
-}));
-
 vi.mock('../apikey', () => ({
   default: EmptyComponent,
 }));
 
-vi.mock('../appearance', () => ({
-  default: EmptyComponent,
-}));
-
 vi.mock('../creds', () => ({
-  default: EmptyComponent,
-}));
-
-vi.mock('../hotkey', () => ({
-  default: EmptyComponent,
-}));
-
-vi.mock('../memory', () => ({
   default: EmptyComponent,
 }));
 
@@ -107,9 +94,6 @@ vi.mock('../storage', () => ({
 vi.mock('../system-tools', () => ({
   default: EmptyComponent,
 }));
-
-import { componentMap as webMap } from './componentMap';
-import { componentMap as desktopMap } from './componentMap.desktop';
 
 describe('componentMap desktop sync', () => {
   it('desktop keys must match web keys', () => {

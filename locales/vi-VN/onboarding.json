@@ -44,7 +44,6 @@
   "modeSelection.title3": "Hãy cho tôi biết để tôi có thể điều chỉnh phù hợp với bạn~",
   "next": "Tiếp theo",
   "proSettings.connectors.title": "Kết nối với các công cụ yêu thích của bạn",
-  "proSettings.devMode.title": "Chế độ nhà phát triển",
   "proSettings.model.fixed": "Mô hình mặc định được đặt trước là {{provider}}/{{model}} trong môi trường này.",
   "proSettings.model.title": "Mô hình mặc định được trợ lý sử dụng",
   "proSettings.title": "Cấu hình các tùy chọn nâng cao từ trước",

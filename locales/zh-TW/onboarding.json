@@ -44,7 +44,6 @@
   "modeSelection.title3": "告訴我，為你量身打造～",
   "next": "下一步",
   "proSettings.connectors.title": "連接你常用的工具",
-  "proSettings.devMode.title": "開發者模式",
   "proSettings.model.fixed": "預設模型在此環境中已設定為 {{provider}}/{{model}}。",
   "proSettings.model.title": "Agent 使用的預設模型",
   "proSettings.title": "可以預先設定一些進階選項",

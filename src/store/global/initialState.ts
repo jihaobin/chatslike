@@ -39,12 +39,10 @@ export type WorkingSidebarTab = 'files' | 'params' | 'resources' | 'review';
 
 export enum SettingsTabs {
   About = 'about',
-  Advanced = 'advanced',
   AdminBilling = 'admin-billing',
   /** @deprecated Use ServiceModel instead */
   Agent = 'agent',
   APIKey = 'apikey',
-  Appearance = 'appearance',
   Billing = 'billing',
   /** @deprecated Use Appearance instead */
   ChatAppearance = 'chat-appearance',
@@ -52,11 +50,9 @@ export enum SettingsTabs {
   Common = 'common',
   Credits = 'credits',
   Creds = 'creds',
-  Hotkey = 'hotkey',
   /** @deprecated Use ServiceModel instead */
   Image = 'image',
   LLM = 'llm',
-  Memory = 'memory',
   Messenger = 'messenger',
   Notification = 'notification',
   // business
@@ -82,7 +78,6 @@ export enum SettingsTabs {
  */
 export enum ProfileTabs {
   APIKey = 'apikey',
-  Memory = 'memory',
   Profile = 'profile',
   Security = 'security',
   Stats = 'stats',

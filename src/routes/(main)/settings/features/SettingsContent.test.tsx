@@ -32,7 +32,6 @@ vi.mock('./componentMap', () => {
     componentMap: {
       [SettingsTabs.AdminBilling]: createComponent(SettingsTabs.AdminBilling),
       [SettingsTabs.APIKey]: createComponent(SettingsTabs.APIKey),
-      [SettingsTabs.Appearance]: createComponent(SettingsTabs.Appearance),
       [SettingsTabs.About]: createComponent(SettingsTabs.About),
       [SettingsTabs.Billing]: createComponent(SettingsTabs.Billing),
       [SettingsTabs.Creds]: createComponent(SettingsTabs.Creds),
@@ -238,7 +237,7 @@ describe('SettingsContent', () => {
     );
   });
 
-  it('allows APIKey from direct navigation in dev mode', () => {
+  it('keeps APIKey gated even when isDevMode is set, since dev mode is pinned off', () => {
     useUserStore.setState({ settings: { general: { isDevMode: true } } }, false);
 
     renderSettingsContent({
@@ -246,10 +245,7 @@ describe('SettingsContent', () => {
       featureFlags: { showApiKeyManage: false },
     });
 
-    expect(screen.getByTestId(`settings-${SettingsTabs.APIKey}`)).toHaveAttribute(
-      'data-mobile',
-      'true',
-    );
+    expect(screen.queryByTestId(`settings-${SettingsTabs.APIKey}`)).not.toBeInTheDocument();
   });
 
   it('does not render About from direct navigation when docs are hidden', () => {

@@ -44,7 +44,6 @@
   "modeSelection.title3": "말해줘요, 당신만을 위한 맞춤 설정~",
   "next": "다음 단계",
   "proSettings.connectors.title": "자주 사용하는 도구를 연결하세요",
-  "proSettings.devMode.title": "개발자 모드",
   "proSettings.model.fixed": "기본 모델은 이 환경에서 {{provider}}/{{model}}로 사전 설정되어 있습니다.",
   "proSettings.model.title": "도우미가 사용할 기본 모델",
   "proSettings.title": "고급 설정을 미리 구성할 수 있어요",

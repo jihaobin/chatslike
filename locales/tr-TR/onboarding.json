@@ -44,7 +44,6 @@
   "modeSelection.title3": "Söyleyin ki size özel hale getirebileyim~",
   "next": "İleri",
   "proSettings.connectors.title": "Favori Araçlarınızı Bağlayın",
-  "proSettings.devMode.title": "Geliştirici Modu",
   "proSettings.model.fixed": "Varsayılan model bu ortamda {{provider}}/{{model}} olarak önceden ayarlandı.",
   "proSettings.model.title": "Ajanın Kullandığı Varsayılan Model",
   "proSettings.title": "Gelişmiş Ayarları Önceden Yapılandırın",

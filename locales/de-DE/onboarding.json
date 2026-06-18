@@ -44,7 +44,6 @@
   "modeSelection.title3": "Sag’s mir, damit ich es genau auf dich abstimmen kann~",
   "next": "Weiter",
   "proSettings.connectors.title": "Verbinde deine Lieblingstools",
-  "proSettings.devMode.title": "Entwicklermodus",
   "proSettings.model.fixed": "Das Standardmodell ist in dieser Umgebung auf {{provider}}/{{model}} voreingestellt.",
   "proSettings.model.title": "Standardmodell des Agenten",
   "proSettings.title": "Erweiterte Optionen im Voraus konfigurieren",

@@ -19,7 +19,6 @@ import home from './home';
 import hotkey from './hotkey';
 import image from './image';
 import knowledgeBase from './knowledgeBase';
-import labs from './labs';
 import marketAuth from './marketAuth';
 import memory from './memory';
 import messenger from './messenger';
@@ -69,7 +68,6 @@ const resources = {
   hotkey,
   image,
   knowledgeBase,
-  labs,
   marketAuth,
   memory,
   messenger,

@@ -4,21 +4,17 @@ import { SkillsIcon } from '@lobehub/ui/icons';
 import {
   BellIcon,
   Brain,
-  BrainCircuit,
   ChartColumnBigIcon,
   Coins,
   CreditCard,
   Database,
-  EllipsisIcon,
   EthernetPort,
   Gift,
   Info,
-  KeyboardIcon,
   KeyIcon,
   KeyRound,
   Map,
   MessageCircleIcon,
-  PaletteIcon,
   Sparkles,
   TerminalSquare,
 } from 'lucide-react';
@@ -69,7 +65,6 @@ export const useCategory = () => {
   const { t } = useTranslation('setting');
   const { t: tAuth } = useTranslation('auth');
   const { t: tSubscription } = useTranslation('subscription');
-  const mobile = useServerConfigStore((s) => s.isMobile);
   const { hideDocs, showApiKeyManage, showProvider } = useServerConfigStore(featureFlagsSelectors);
   const [avatar, username] = useUserStore((s) => [
     userProfileSelectors.userAvatar(s),
@@ -117,16 +112,6 @@ export const useCategory = () => {
         icon: ChartColumnBigIcon,
         key: SettingsTabs.Stats,
         label: tAuth('tab.stats'),
-      },
-      {
-        icon: PaletteIcon,
-        key: SettingsTabs.Appearance,
-        label: t('tab.appearance'),
-      },
-      !mobile && {
-        icon: KeyboardIcon,
-        key: SettingsTabs.Hotkey,
-        label: t('tab.hotkey'),
       },
       notificationEnabled && {
         icon: BellIcon,
@@ -204,11 +189,6 @@ export const useCategory = () => {
         key: SettingsTabs.Skill,
         label: t('tab.skill'),
       },
-      {
-        icon: BrainCircuit,
-        key: SettingsTabs.Memory,
-        label: t('tab.memory'),
-      },
       userProviderSettingsEnabled && {
         icon: KeyRound,
         key: SettingsTabs.Creds,
@@ -254,11 +234,6 @@ export const useCategory = () => {
         key: SettingsTabs.APIKey,
         label: tAuth('tab.apikey'),
       },
-      {
-        icon: EllipsisIcon,
-        key: SettingsTabs.Advanced,
-        label: t('tab.advanced'),
-      },
       !hideDocs && {
         icon: Info,
         key: SettingsTabs.About,
@@ -278,7 +253,6 @@ export const useCategory = () => {
     tAuth,
     tSubscription,
     hideDocs,
-    mobile,
     nativeBillingEnabled,
     notificationEnabled,
     referralEnabled,

@@ -44,7 +44,6 @@
   "modeSelection.title3": "أخبرني، لأتمكن من تخصيصه لك~",
   "next": "التالي",
   "proSettings.connectors.title": "اربط أدواتك المفضلة",
-  "proSettings.devMode.title": "وضع المطور",
   "proSettings.model.fixed": "النموذج الافتراضي مضبوط مسبقًا على {{provider}}/{{model}} في هذه البيئة.",
   "proSettings.model.title": "النموذج الافتراضي المستخدم من قبل الوكيل",
   "proSettings.title": "قم بإعداد الخيارات المتقدمة مسبقًا",

@@ -13,20 +13,11 @@ export const componentMap = {
       loading: loading('Settings > AdminBilling'),
     },
   ),
-  [SettingsTabs.Advanced]: dynamic(() => import('../advanced'), {
-    loading: loading('Settings > Advanced'),
-  }),
-  [SettingsTabs.Appearance]: dynamic(() => import('../appearance'), {
-    loading: loading('Settings > Appearance'),
-  }),
   [SettingsTabs.Provider]: dynamic(() => import('../provider'), {
     loading: loading('Settings > Provider'),
   }),
   [SettingsTabs.ServiceModel]: dynamic(() => import('../service-model'), {
     loading: loading('Settings > ServiceModel'),
-  }),
-  [SettingsTabs.Memory]: dynamic(() => import('../memory'), {
-    loading: loading('Settings > Memory'),
   }),
   [SettingsTabs.Messenger]: dynamic(() => import('../messenger'), {
     loading: loading('Settings > Messenger'),
@@ -39,9 +30,6 @@ export const componentMap = {
   ),
   [SettingsTabs.About]: dynamic(() => import('../about'), {
     loading: loading('Settings > About'),
-  }),
-  [SettingsTabs.Hotkey]: dynamic(() => import('../hotkey'), {
-    loading: loading('Settings > Hotkey'),
   }),
   [SettingsTabs.Proxy]: dynamic(() => import('../proxy'), {
     loading: loading('Settings > Proxy'),

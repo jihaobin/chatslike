@@ -2,18 +2,15 @@ import { SkillsIcon } from '@lobehub/ui/icons';
 import {
   BellIcon,
   Brain,
-  BrainCircuit,
   ChartColumnBigIcon,
   Coins,
   CreditCard,
   Database,
-  EllipsisIcon,
   Gift,
   Info,
   KeyIcon,
   KeyRound,
   Map,
-  PaletteIcon,
   Sparkles,
   UserCircle,
 } from 'lucide-react';
@@ -90,11 +87,6 @@ export const useCategory = (): CategoryGroup[] => {
     const general: CategoryItem[] = [
       makeItem({ icon: UserCircle, key: SettingsTabs.Profile, label: t('auth:profile.title') }),
       makeItem({ icon: ChartColumnBigIcon, key: SettingsTabs.Stats, label: t('auth:tab.stats') }),
-      makeItem({
-        icon: PaletteIcon,
-        key: SettingsTabs.Appearance,
-        label: t('setting:tab.appearance'),
-      }),
       notificationEnabled &&
         makeItem({
           icon: BellIcon,
@@ -146,7 +138,6 @@ export const useCategory = (): CategoryGroup[] => {
         label: t('setting:tab.serviceModel'),
       }),
       makeItem({ icon: SkillsIcon, key: SettingsTabs.Skill, label: t('setting:tab.skill') }),
-      makeItem({ icon: BrainCircuit, key: SettingsTabs.Memory, label: t('setting:tab.memory') }),
       makeItem({ icon: KeyRound, key: SettingsTabs.Creds, label: t('setting:tab.creds') }),
       showApiKeyManage &&
         makeItem({ icon: KeyIcon, key: SettingsTabs.APIKey, label: t('auth:tab.apikey') }),
@@ -156,11 +147,6 @@ export const useCategory = (): CategoryGroup[] => {
       makeItem({ icon: Database, key: SettingsTabs.Storage, label: t('setting:tab.storage') }),
       isDevMode &&
         makeItem({ icon: KeyIcon, key: SettingsTabs.APIKey, label: t('auth:tab.apikey') }),
-      makeItem({
-        icon: EllipsisIcon,
-        key: SettingsTabs.Advanced,
-        label: t('setting:tab.advanced'),
-      }),
       !hideDocs && makeItem({ icon: Info, key: SettingsTabs.About, label: t('setting:tab.about') }),
     ].filter((item): item is CategoryItem => Boolean(item));
 

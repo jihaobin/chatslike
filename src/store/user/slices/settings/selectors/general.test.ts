@@ -18,6 +18,7 @@ describe('settingsSelectors', () => {
 
       expect(result).toEqual({
         animationMode: 'agile',
+        contextMenuMode: 'default',
         costEstimateWarningThreshold: 2,
         fontSize: 12,
         highlighterTheme: 'lobe-theme',
@@ -25,7 +26,7 @@ describe('settingsSelectors', () => {
         isLiteMode: false,
         mermaidTheme: 'lobe-theme',
         telemetry: true,
-        transitionMode: 'fadeIn',
+        transitionMode: 'smooth',
       });
     });
   });

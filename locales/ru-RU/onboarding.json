@@ -44,7 +44,6 @@
   "modeSelection.title3": "Расскажите, чтобы я мог всё настроить под вас~",
   "next": "Далее",
   "proSettings.connectors.title": "Подключите любимые инструменты",
-  "proSettings.devMode.title": "Режим разработчика",
   "proSettings.model.fixed": "Модель по умолчанию установлена на {{provider}}/{{model}} в этой среде.",
   "proSettings.model.title": "Модель по умолчанию для агента",
   "proSettings.title": "Настройте расширенные параметры заранее",

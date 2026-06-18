@@ -44,7 +44,6 @@
   "modeSelection.title3": "Кажете ми, за да го направя точно за вас~",
   "next": "Напред",
   "proSettings.connectors.title": "Свържете любимите си инструменти",
-  "proSettings.devMode.title": "Режим за разработчици",
   "proSettings.model.fixed": "Моделът по подразбиране е предварително зададен на {{provider}}/{{model}} в тази среда.",
   "proSettings.model.title": "Модел по подразбиране, използван от агента",
   "proSettings.title": "Конфигурирайте разширени опции предварително",

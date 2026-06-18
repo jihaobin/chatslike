@@ -44,7 +44,6 @@
   "modeSelection.title3": "Dimmi la tua, così posso adattarmi a te~",
   "next": "Avanti",
   "proSettings.connectors.title": "Collega i tuoi strumenti preferiti",
-  "proSettings.devMode.title": "Modalità Sviluppatore",
   "proSettings.model.fixed": "Il modello predefinito è impostato su {{provider}}/{{model}} in questo ambiente.",
   "proSettings.model.title": "Modello predefinito utilizzato dall'agente",
   "proSettings.title": "Configura in anticipo le opzioni avanzate",

@@ -44,7 +44,6 @@
   "modeSelection.title3": "Me diga, para que eu possa personalizar tudo pra você~",
   "next": "Próximo",
   "proSettings.connectors.title": "Conecte Suas Ferramentas Favoritas",
-  "proSettings.devMode.title": "Modo Desenvolvedor",
   "proSettings.model.fixed": "O modelo padrão está predefinido como {{provider}}/{{model}} neste ambiente.",
   "proSettings.model.title": "Modelo Padrão Usado pelo Agente",
   "proSettings.title": "Configure Opções Avançadas com Antecedência",

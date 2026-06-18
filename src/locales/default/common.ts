@@ -387,7 +387,6 @@ export default {
   'importPreview.totalTables': '{{count}} tables',
   'information': 'Community and News',
   'installPWA': 'Install browser app',
-  'labs': 'Labs',
   'lang.ar': 'Arabic',
   'lang.auto': 'Follow system language settings',
   'lang.bg-BG': 'Bulgarian',

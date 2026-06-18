@@ -44,7 +44,6 @@
   "modeSelection.title3": "あなたにぴったりの提案を教えてね～",
   "next": "次へ",
   "proSettings.connectors.title": "よく使うツールと連携しましょう",
-  "proSettings.devMode.title": "開発者モード",
   "proSettings.model.fixed": "デフォルトモデルはこの環境で {{provider}}/{{model}} に設定されています。",
   "proSettings.model.title": "Agent が使用するデフォルトモデル",
   "proSettings.title": "高度なオプションを事前に設定できます",

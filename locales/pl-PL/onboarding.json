@@ -44,7 +44,6 @@
   "modeSelection.title3": "Powiedz mi, żebym mógł dostosować wszystko specjalnie dla Ciebie~",
   "next": "Dalej",
   "proSettings.connectors.title": "Połącz swoje ulubione narzędzia",
-  "proSettings.devMode.title": "Tryb deweloperski",
   "proSettings.model.fixed": "Domyślny model jest ustawiony na {{provider}}/{{model}} w tym środowisku.",
   "proSettings.model.title": "Domyślny model używany przez agenta",
   "proSettings.title": "Skonfiguruj zaawansowane opcje z wyprzedzeniem",
