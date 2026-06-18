@@ -16,7 +16,6 @@ import {
   BusinessDesktopRoutesWithMainLayout,
   BusinessDesktopRoutesWithoutMainLayout,
 } from '@/business/client/BusinessDesktopRoutes';
-import { taskRouteMeta, tasksRouteMeta } from '@/features/AgentTasks/routeMeta';
 import { pageRouteMeta } from '@/features/Pages/routeMeta';
 import { agentRouteMeta } from '@/routes/(main)/agent/features/routeMeta';
 import { groupRouteMeta } from '@/routes/(main)/group/features/routeMeta';
@@ -83,14 +82,6 @@ export const desktopRoutes: RouteObject[] = [
                   'Desktop > Chat > Topics',
                 ),
                 path: 'topics',
-              },
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/agent/task/[taskId]'),
-                  'Desktop > Chat > Task Detail',
-                ),
-                handle: { meta: taskRouteMeta },
-                path: 'task/:taskId',
               },
             ],
             element: dynamicLayout(
@@ -683,41 +674,6 @@ export const desktopRoutes: RouteObject[] = [
         ),
         errorElement: <ErrorBoundary />,
         path: 'eval',
-      },
-
-      // Task workspace routes (cross-agent)
-      {
-        children: [
-          {
-            children: [
-              {
-                element: dynamicElement(() => import('@/routes/(main)/tasks'), 'Desktop > Tasks'),
-                handle: { meta: tasksRouteMeta },
-                index: true,
-              },
-            ],
-            errorElement: <ErrorBoundary resetPath="/" />,
-            path: 'tasks',
-          },
-          {
-            children: [
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/task/[taskId]'),
-                  'Desktop > Task Detail',
-                ),
-                handle: { meta: taskRouteMeta },
-                path: ':taskId',
-              },
-            ],
-            errorElement: <ErrorBoundary resetPath="/tasks" />,
-            path: 'task',
-          },
-        ],
-        element: dynamicLayout(
-          () => import('@/routes/(main)/(task-workspace)/_layout'),
-          'Desktop > Task Workspace > Layout',
-        ),
       },
 
       // Pages routes

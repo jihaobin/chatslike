@@ -157,6 +157,7 @@ describe('systemStatusSelectors', () => {
         'community',
         'resource',
         'memory',
+        'settings',
       ]);
     });
 
@@ -175,7 +176,7 @@ describe('systemStatusSelectors', () => {
       const s: GlobalState = merge(initialState, {
         status: { sidebarItems: stored },
       });
-      expect(systemStatusSelectors.sidebarItems(s)).toEqual(stored);
+      expect(systemStatusSelectors.sidebarItems(s)).toEqual([...stored, 'settings']);
     });
 
     it('should append missing known keys to the end and keep the spacer anchored', () => {
@@ -204,7 +205,6 @@ describe('systemStatusSelectors', () => {
       const items = systemStatusSelectors.sidebarItems(s);
       // accordion slot in the default list now uses the user's legacy order
       expect(items).toEqual([
-        'tasks',
         'pages',
         'agent',
         'recents',
@@ -212,6 +212,7 @@ describe('systemStatusSelectors', () => {
         'image',
         'community',
         'resource',
+        'settings',
         'memory',
       ]);
     });

@@ -1,4 +1,3 @@
-import type { TaskStatus } from '@lobechat/types';
 import { z } from 'zod';
 
 import { SESSION_CHAT_TOPIC_URL } from '@/const/url';
@@ -13,10 +12,8 @@ export interface RecentItem {
   id: string;
   metadata?: ChatTopicMetadata;
   routePath: string;
-  /** Task lifecycle status when `type === 'task'`; null for topic/document. */
-  status: TaskStatus | null;
   title: string;
-  type: 'topic' | 'document' | 'task';
+  type: 'topic' | 'document';
   updatedAt: Date;
 }
 
@@ -37,44 +34,41 @@ export const recentRouter = router({
 
       const items = await ctx.recentModel.queryRecent(limit);
 
-      return items.map((item) => {
-        let routePath: string;
+      return items
+        .filter(
+          (item): item is typeof item & { type: 'document' | 'topic' } => item.type !== 'task',
+        )
+        .map((item) => {
+          let routePath = '/';
 
-        switch (item.type) {
-          case 'topic': {
-            if (item.routeGroupId) {
-              routePath = `/group/${item.routeGroupId}?topic=${item.id}`;
-            } else if (item.routeId) {
-              routePath = SESSION_CHAT_TOPIC_URL(item.routeId, item.id);
-            } else {
-              routePath = '/';
+          switch (item.type) {
+            case 'topic': {
+              if (item.routeGroupId) {
+                routePath = `/group/${item.routeGroupId}?topic=${item.id}`;
+              } else if (item.routeId) {
+                routePath = SESSION_CHAT_TOPIC_URL(item.routeId, item.id);
+              } else {
+                routePath = '/';
+              }
+              break;
             }
-            break;
+            case 'document': {
+              routePath = `/page/${item.id}`;
+              break;
+            }
           }
-          case 'document': {
-            routePath = `/page/${item.id}`;
-            break;
-          }
-          case 'task': {
-            routePath = item.routeId
-              ? `/agent/${item.routeId}/task/${item.id}`
-              : `/task/${item.id}`;
-            break;
-          }
-        }
 
-        return {
-          agentId: item.routeId,
-          icon: item.type,
-          id: item.id,
-          metadata: item.metadata as ChatTopicMetadata | undefined,
-          routePath,
-          status: item.status,
-          title: item.title,
-          type: item.type,
-          updatedAt: item.updatedAt,
-        };
-      });
+          return {
+            agentId: item.routeId,
+            icon: item.type,
+            id: item.id,
+            metadata: item.metadata as ChatTopicMetadata | undefined,
+            routePath,
+            title: item.title,
+            type: item.type,
+            updatedAt: item.updatedAt,
+          };
+        });
     }),
 });
 

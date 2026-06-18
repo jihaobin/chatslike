@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next';
 
 import { type RecentItem } from '@/server/routers/lambda/recent';
 import { documentService } from '@/services/document';
-import { taskService } from '@/services/task';
 import { topicService } from '@/services/topic';
 import { useHomeStore } from '@/store/home';
 
@@ -31,10 +30,6 @@ export const useRecentItemDropdownMenu = (
       switch (item.type) {
         case 'document': {
           await documentService.updateDocument({ id: item.id, title: newTitle });
-          break;
-        }
-        case 'task': {
-          await taskService.update(item.id, { name: newTitle });
           break;
         }
         case 'topic': {
@@ -64,10 +59,6 @@ export const useRecentItemDropdownMenu = (
           }
           case 'document': {
             await documentService.deleteDocument(item.id);
-            break;
-          }
-          case 'task': {
-            await taskService.delete(item.id);
             break;
           }
         }

@@ -16,6 +16,6 @@ describe('createI18nNext', () => {
     await i18n.instance.loadNamespaces(['setting']);
 
     expect(i18n.instance.hasResourceBundle('en-US', 'setting')).toBe(true);
-    expect(i18n.instance.t('tab.common', { ns: 'setting' })).toBe('Appearance');
+    expect(i18n.instance.t('tab.about', { ns: 'setting' })).toBe('About');
   });
 });

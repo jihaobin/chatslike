@@ -3,20 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import HomeContent from './index';
 
-vi.mock('@/features/DailyBrief', () => ({
-  default: () => <div data-testid="daily-brief" />,
-}));
-
-vi.mock('@/store/user', () => ({
-  useUserStore: () => false,
-}));
-
-vi.mock('@/store/user/slices/auth/selectors', () => ({
-  authSelectors: {
-    isLogin: vi.fn(),
-  },
-}));
-
 vi.mock('./AgentSelect', () => ({
   default: () => <div data-testid="agent-select" />,
 }));

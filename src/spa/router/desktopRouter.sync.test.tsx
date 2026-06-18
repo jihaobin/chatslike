@@ -96,21 +96,6 @@ describe('desktopRouter config sync', () => {
     );
   });
 
-  it('task list and detail desktop routes share one workspace layout', async () => {
-    const [asyncSource, syncSource] = await readDesktopRouterSources();
-
-    expect(asyncSource).toContain("import('@/routes/(main)/(task-workspace)/_layout')");
-    expect(syncSource).toContain("from '@/routes/(main)/(task-workspace)/_layout'");
-    expect(asyncSource).toContain("import('@/routes/(main)/agent/task/[taskId]')");
-    expect(syncSource).toContain("from '@/routes/(main)/agent/task/[taskId]'");
-    expect(asyncSource).not.toContain("import('@/routes/(main)/task-workspace/_layout')");
-    expect(syncSource).not.toContain("from '@/routes/(main)/task-workspace/_layout'");
-    expect(asyncSource).not.toContain("import('@/routes/(main)/tasks/_layout')");
-    expect(asyncSource).not.toContain("import('@/routes/(main)/task/_layout')");
-    expect(syncSource).not.toContain("from '@/routes/(main)/tasks/_layout'");
-    expect(syncSource).not.toContain("from '@/routes/(main)/task/_layout'");
-  });
-
   it('production provider global route is a direct global layout branch', () => {
     const rootRoute = desktopRoutes.find((route) => route.path === '/');
     const settingsRoute = findDirectChildByPath(rootRoute, 'settings');
@@ -121,7 +106,10 @@ describe('desktopRouter config sync', () => {
     const globalRoute = providerChildren.find((route) => route.path === 'global');
     const userLayoutRoute = providerChildren.find((route) => !route.path);
 
-    expect(globalRoute, 'Global provider branch must be a direct child of /settings/provider').toBeDefined();
+    expect(
+      globalRoute,
+      'Global provider branch must be a direct child of /settings/provider',
+    ).toBeDefined();
     expect(
       userLayoutRoute?.children?.some((route) => route.path === 'global'),
       'Global branch must not be nested under the user-scoped provider layout',

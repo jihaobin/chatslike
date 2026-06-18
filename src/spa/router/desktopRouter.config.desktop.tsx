@@ -16,7 +16,6 @@ import {
   BusinessDesktopRoutesWithMainLayout,
   BusinessDesktopRoutesWithoutMainLayout,
 } from '@/business/client/BusinessDesktopRoutes';
-import { taskRouteMeta, tasksRouteMeta } from '@/features/AgentTasks/routeMeta';
 import { pageRouteMeta } from '@/features/Pages/routeMeta';
 import DesktopOnboarding from '@/routes/(desktop)/desktop-onboarding';
 // Layouts — sync import (Electron local, no network overhead)
@@ -25,7 +24,6 @@ import ImagePage from '@/routes/(main)/(create)/image';
 import DesktopImageLayout from '@/routes/(main)/(create)/image/_layout';
 import VideoPage from '@/routes/(main)/(create)/video';
 import DesktopVideoLayout from '@/routes/(main)/(create)/video/_layout';
-import TaskWorkspaceLayout from '@/routes/(main)/(task-workspace)/_layout';
 // Pages — sync import
 import AgentPage from '@/routes/(main)/agent';
 import DesktopChatLayout from '@/routes/(main)/agent/_layout';
@@ -33,7 +31,6 @@ import DesktopAgentChatLayout from '@/routes/(main)/agent/(chat)/_layout';
 import AgentChannelPage from '@/routes/(main)/agent/channel';
 import { agentRouteMeta } from '@/routes/(main)/agent/features/routeMeta';
 import AgentProfilePage from '@/routes/(main)/agent/profile';
-import AgentTaskDetailRoute from '@/routes/(main)/agent/task/[taskId]';
 import AgentTopicsPage from '@/routes/(main)/agent/topics';
 import CommunityLayout from '@/routes/(main)/community/_layout';
 import CommunityDetailLayout from '@/routes/(main)/community/(detail)/_layout';
@@ -95,8 +92,6 @@ import {
   ProviderGlobalLayout,
   ProviderLayout,
 } from '@/routes/(main)/settings/provider';
-import TaskDetailRoute from '@/routes/(main)/task/[taskId]';
-import AllTasksPage from '@/routes/(main)/tasks';
 import ShareTopicPage from '@/routes/share/t/[id]';
 import ShareTopicLayout from '@/routes/share/t/[id]/_layout';
 import { routeMeta } from '@/spa/router/routeMeta';
@@ -146,11 +141,6 @@ export const desktopRoutes: RouteObject[] = [
               {
                 element: <AgentTopicsPage />,
                 path: 'topics',
-              },
-              {
-                element: <AgentTaskDetailRoute />,
-                handle: { meta: taskRouteMeta },
-                path: 'task/:taskId',
               },
             ],
             element: <DesktopChatLayout />,
@@ -567,35 +557,6 @@ export const desktopRoutes: RouteObject[] = [
         element: <EvalLayout />,
         errorElement: <ErrorBoundary />,
         path: 'eval',
-      },
-
-      // Task workspace routes (cross-agent)
-      {
-        children: [
-          {
-            children: [
-              {
-                element: <AllTasksPage />,
-                handle: { meta: tasksRouteMeta },
-                index: true,
-              },
-            ],
-            errorElement: <ErrorBoundary resetPath="/" />,
-            path: 'tasks',
-          },
-          {
-            children: [
-              {
-                element: <TaskDetailRoute />,
-                handle: { meta: taskRouteMeta },
-                path: ':taskId',
-              },
-            ],
-            errorElement: <ErrorBoundary resetPath="/tasks" />,
-            path: 'task',
-          },
-        ],
-        element: <TaskWorkspaceLayout />,
       },
 
       // Pages routes

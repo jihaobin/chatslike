@@ -17,7 +17,6 @@ export enum SidebarTabKey {
   Pages = 'pages',
   Resource = 'resource',
   Setting = 'settings',
-  Tasks = 'tasks',
   Video = 'video',
 }
 
