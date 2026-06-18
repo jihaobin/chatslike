@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="shortcut icon" href="/favicon-32x32.ico" />
+
+    <!-- 性能优化: 预连接到外部资源，减少 DNS 查询和连接建立时间 -->
+    <link rel="preconnect" href="https://registry.npmmirror.com" crossorigin />
+    <link rel="dns-prefetch" href="https://registry.npmmirror.com" />
+    <link rel="dns-prefetch" href="https://static.cloudflareinsights.com" />
+
     <!--SEO_META-->
     <style>
       html body {
@@ -15,15 +21,17 @@
       }
     </style>
     <script>
-      (function(){
-        var O=globalThis.Worker;
-        globalThis.Worker=function(u,o){
-          var h=typeof u==='string'?u:u instanceof URL?u.href:'';
-          if(h.startsWith('http')&&!h.startsWith(location.origin)){
-            var b=new Blob(['import "'+h+'";'],{type:'application/javascript'});
-            return new O(URL.createObjectURL(b),Object.assign({},o,{type:'module'}));
-          }return new O(u,o)};
-        globalThis.Worker.prototype=O.prototype;
+      (function () {
+        var O = globalThis.Worker;
+        globalThis.Worker = function (u, o) {
+          var h = typeof u === 'string' ? u : u instanceof URL ? u.href : '';
+          if (h.startsWith('http') && !h.startsWith(location.origin)) {
+            var b = new Blob(['import "' + h + '";'], { type: 'application/javascript' });
+            return new O(URL.createObjectURL(b), Object.assign({}, o, { type: 'module' }));
+          }
+          return new O(u, o);
+        };
+        globalThis.Worker.prototype = O.prototype;
       })();
     </script>
     <script>
@@ -58,6 +66,24 @@
     </script>
     <script>
       window.__SERVER_CONFIG__ = undefined; /* SERVER_CONFIG */
+    </script>
+    <script>
+      // 异步加载 Cloudflare Beacon，避免阻塞首屏渲染
+      if (window.performance && window.performance.timing) {
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            var beacons = document.querySelectorAll('script[src*="cloudflareinsights.com"]');
+            beacons.forEach(function (beacon) {
+              if (!beacon.hasAttribute('defer') && !beacon.hasAttribute('async')) {
+                var newBeacon = document.createElement('script');
+                newBeacon.src = beacon.src;
+                newBeacon.defer = true;
+                beacon.parentNode.replaceChild(newBeacon, beacon);
+              }
+            });
+          }, 0);
+        });
+      }
     </script>
   </head>
 

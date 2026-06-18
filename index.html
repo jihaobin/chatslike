@@ -6,6 +6,12 @@
     <link rel="icon" href="/favicon.ico" />
     <link rel="shortcut icon" href="/favicon-32x32.ico" />
     <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- 性能优化: 预连接到外部资源，减少 DNS 查询和连接建立时间 -->
+    <link rel="preconnect" href="https://registry.npmmirror.com" crossorigin />
+    <link rel="dns-prefetch" href="https://registry.npmmirror.com" />
+    <link rel="dns-prefetch" href="https://static.cloudflareinsights.com" />
+
     <!--SEO_META-->
     <style>
       html body {
@@ -123,6 +129,24 @@
     </script>
     <script>
       window.__SERVER_CONFIG__ = undefined; /* SERVER_CONFIG */
+    </script>
+    <script>
+      // 异步加载 Cloudflare Beacon，避免阻塞首屏渲染
+      if (window.performance && window.performance.timing) {
+        window.addEventListener('load', function() {
+          setTimeout(function() {
+            var beacons = document.querySelectorAll('script[src*="cloudflareinsights.com"]');
+            beacons.forEach(function(beacon) {
+              if (!beacon.hasAttribute('defer') && !beacon.hasAttribute('async')) {
+                var newBeacon = document.createElement('script');
+                newBeacon.src = beacon.src;
+                newBeacon.defer = true;
+                beacon.parentNode.replaceChild(newBeacon, beacon);
+              }
+            });
+          }, 0);
+        });
+      }
     </script>
   </head>
 

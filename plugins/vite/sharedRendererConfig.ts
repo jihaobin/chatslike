@@ -163,7 +163,23 @@ export const createSharedRolldownOutput = (options: SharedRolldownOutputOptions 
   codeSplitting: {
     groups: [
       {
-        name: (moduleId: string) => sharedManualChunks(moduleId) ?? null,
+        name: (moduleId: string) => {
+          const manualChunk = sharedManualChunks(moduleId);
+          if (manualChunk) return manualChunk;
+
+          // 性能优化: 将小的路由组件合并，减少文件数量
+          // 在高延迟网络环境下，减少请求数比缓存粒度更重要
+          if (!moduleId.includes('node_modules')) {
+            if (moduleId.includes('/src/routes/')) return 'app-routes';
+            if (moduleId.includes('/src/features/')) return 'app-features';
+            if (moduleId.includes('/src/store/')) return 'app-store';
+            if (moduleId.includes('/src/services/')) return 'app-services';
+          }
+
+          return null;
+        },
+        // 最小 chunk 大小: 50KB，避免产生过多小文件
+        minSize: 50000,
       },
     ],
   },
