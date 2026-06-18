@@ -18,7 +18,7 @@ import {
   estimateImageTokenCreditsForRequest,
   getImagePricing,
 } from '../billing/pricing';
-import { assertPrechargeRisk } from '../billing/risk';
+import { assertPrechargeRisk, isCreditExemptUser } from '../billing/risk';
 
 interface ChargeParams {
   clientIp?: string | null;
@@ -203,6 +203,12 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
     JSON.stringify(params.generationParams),
   ].join(':');
   const db = await getServerDB();
+
+  // 管理员 / 超级管理员不受积分约束：跳过预扣与风控，不写入计费元数据。
+  if (await isCreditExemptUser(db, params.userId)) {
+    return {};
+  }
+
   const credits = new CreditsService(db, params.userId);
   let reservation;
 

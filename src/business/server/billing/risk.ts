@@ -1,11 +1,12 @@
 import { and, count, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 
+import { isAdminOrSuperAdminRole } from '@/const/authRoles';
 import { asyncTasks, creditAccounts, creditGrants, usageRecords, users } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
 import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
 
 import { billingEnv } from './env';
-import { BillingError, PhoneVerificationRequiredError } from './errors';
+import { BillingError } from './errors';
 
 const MAX_RUNNING_GENERATION_TASKS = 3;
 
@@ -24,7 +25,11 @@ export function assertGenerationConcurrency(params: {
   maxRunningTasks: number;
 }) {
   if (params.currentRunningTasks >= params.maxRunningTasks) {
-    throw new BillingError('GENERATION_CONCURRENCY_LIMIT_EXCEEDED', 'Generation concurrency exceeded', params);
+    throw new BillingError(
+      'GENERATION_CONCURRENCY_LIMIT_EXCEEDED',
+      'Generation concurrency exceeded',
+      params,
+    );
   }
 }
 
@@ -69,7 +74,10 @@ export async function hasPaidCreditGrant(db: LobeChatDatabase, userId: string): 
   return Boolean(grant);
 }
 
-export async function getRunningGenerationTaskCount(db: LobeChatDatabase, userId: string): Promise<number> {
+export async function getRunningGenerationTaskCount(
+  db: LobeChatDatabase,
+  userId: string,
+): Promise<number> {
   const [result] = await db
     .select({ total: count() })
     .from(asyncTasks)
@@ -84,22 +92,25 @@ export async function getRunningGenerationTaskCount(db: LobeChatDatabase, userId
   return result?.total ?? 0;
 }
 
+/**
+ * 管理员 / 超级管理员不受积分约束。
+ */
+export async function isCreditExemptUser(db: LobeChatDatabase, userId: string): Promise<boolean> {
+  const [user] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return isAdminOrSuperAdminRole(user?.role);
+}
+
 export async function assertPrechargeRisk(params: {
   checkGenerationConcurrency?: boolean;
   db: LobeChatDatabase;
   estimatedCredits: number;
   userId: string;
 }) {
-  const [user] = await params.db
-    .select({ phoneNumberVerified: users.phoneNumberVerified })
-    .from(users)
-    .where(eq(users.id, params.userId))
-    .limit(1);
-
-  if (user?.phoneNumberVerified !== true) {
-    throw new PhoneVerificationRequiredError();
-  }
-
   const [account] = await params.db
     .select({ status: creditAccounts.status })
     .from(creditAccounts)

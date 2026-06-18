@@ -7,7 +7,7 @@ import {
   estimateTextCreditsForRequest,
   getTextPricing,
 } from '@/business/server/billing/pricing';
-import { assertPrechargeRisk } from '@/business/server/billing/risk';
+import { assertPrechargeRisk, isCreditExemptUser } from '@/business/server/billing/risk';
 import { assertGlobalProviderModelAvailable } from '@/business/server/globalProviderScope/runtimeGuard';
 import { getServerDB } from '@/database/core/db-adaptor';
 
@@ -110,6 +110,9 @@ export function getBusinessModelRuntimeHooks(
       }
 
       if (!requireTextPricing) return;
+
+      // 管理员 / 超级管理员不受积分约束：跳过预扣、风控与记账。
+      if (await isCreditExemptUser(db, userId)) return;
 
       const service = new CreditsService(db, userId);
       const operationId = createOperationId(userId, provider, payload.model);

@@ -16,6 +16,7 @@ const {
   captureUsageCredits,
   createUsageRecord,
   getTextPricing,
+  isCreditExemptUser,
   mockDb,
   releaseUsageCredits,
   reserveUsageCredits,
@@ -25,6 +26,7 @@ const {
   captureUsageCredits: vi.fn(),
   createUsageRecord: vi.fn(),
   getTextPricing: vi.fn(),
+  isCreditExemptUser: vi.fn(),
   mockDb: {},
   releaseUsageCredits: vi.fn(),
   reserveUsageCredits: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock('@/business/server/billing/credits', () => ({
 
 vi.mock('@/business/server/billing/risk', () => ({
   assertPrechargeRisk,
+  isCreditExemptUser,
 }));
 
 vi.mock('@/business/server/billing/pricing', async (importOriginal) => ({
@@ -66,6 +69,8 @@ describe('getBusinessModelRuntimeHooks', () => {
   beforeEach(() => {
     assertPrechargeRisk.mockReset();
     assertPrechargeRisk.mockResolvedValue(undefined);
+    isCreditExemptUser.mockReset();
+    isCreditExemptUser.mockResolvedValue(false);
     assertGlobalProviderModelAvailable.mockReset();
     assertGlobalProviderModelAvailable.mockResolvedValue(undefined);
     captureUsageCredits.mockReset();
@@ -138,6 +143,26 @@ describe('getBusinessModelRuntimeHooks', () => {
       captureUsageCredits.mock.invocationCallOrder[0],
     );
     expect(releaseUsageCredits).not.toHaveBeenCalled();
+  });
+
+  it('skips billing entirely for credit-exempt users (admin / super-admin)', async () => {
+    isCreditExemptUser.mockResolvedValue(true);
+    const hooks = getBusinessModelRuntimeHooks('user-1', 'openai');
+
+    await hooks?.beforeChat?.(payload);
+    await hooks?.onChatFinal?.(
+      {
+        text: 'hi',
+        usage: { inputTextTokens: 1000, outputTextTokens: 500, totalTokens: 1500 },
+      } satisfies OnFinishData,
+      { payload },
+    );
+
+    expect(assertPrechargeRisk).not.toHaveBeenCalled();
+    expect(getTextPricing).not.toHaveBeenCalled();
+    expect(reserveUsageCredits).not.toHaveBeenCalled();
+    expect(createUsageRecord).not.toHaveBeenCalled();
+    expect(captureUsageCredits).not.toHaveBeenCalled();
   });
 
   it('checks global text provider and model availability before pricing in platform scope', async () => {

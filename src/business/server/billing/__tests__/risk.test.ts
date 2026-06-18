@@ -1,15 +1,9 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getTestDB } from '@/database/core/getTestDB';
-import {
-  asyncTasks,
-  creditAccounts,
-  creditGrants,
-  usageRecords,
-  users,
-} from '@/database/schemas';
+import { asyncTasks, creditAccounts, creditGrants, usageRecords, users } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
 import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
 
@@ -17,6 +11,7 @@ import {
   assertDailyCreditsLimit,
   assertPrechargeRisk,
   getDailyCreditsLimit,
+  isCreditExemptUser,
 } from '../risk';
 
 const serverDB: LobeChatDatabase = await getTestDB();
@@ -62,8 +57,6 @@ describe('billing risk', () => {
   });
 
   it('blocks precharge before freezing when trial daily usage is exceeded', async () => {
-    await serverDB.update(users).set({ phoneNumberVerified: true }).where(eq(users.id, userId));
-
     await serverDB.insert(usageRecords).values({
       actualCredits: 800_000,
       estimatedCredits: 800_000,
@@ -83,7 +76,7 @@ describe('billing risk', () => {
     ).rejects.toMatchObject({ code: 'DAILY_CREDITS_LIMIT_EXCEEDED' });
   });
 
-  it('blocks precharge before freezing when phone number is not verified', async () => {
+  it('does not require phone verification for AI interactions', async () => {
     await serverDB.insert(creditAccounts).values({
       status: 'active',
       userId,
@@ -95,27 +88,20 @@ describe('billing risk', () => {
         estimatedCredits: 100_000,
         userId,
       }),
-    ).rejects.toMatchObject({
-      code: 'PHONE_VERIFICATION_REQUIRED',
-      errorType: 'PHONE_VERIFICATION_REQUIRED',
-    });
-  });
-
-  it('allows precharge risk checks when phone number is verified', async () => {
-    await serverDB.update(users).set({ phoneNumberVerified: true }).where(eq(users.id, userId));
-
-    await expect(
-      assertPrechargeRisk({
-        db: serverDB,
-        estimatedCredits: 100_000,
-        userId,
-      }),
     ).resolves.toBeUndefined();
   });
 
-  it('blocks precharge before freezing when account is frozen', async () => {
-    await serverDB.update(users).set({ phoneNumberVerified: true }).where(eq(users.id, userId));
+  it('detects admin and super-admin as credit-exempt users', async () => {
+    await expect(isCreditExemptUser(serverDB, userId)).resolves.toBe(false);
 
+    await serverDB.update(users).set({ role: 'admin' }).where(eq(users.id, userId));
+    await expect(isCreditExemptUser(serverDB, userId)).resolves.toBe(true);
+
+    await serverDB.update(users).set({ role: 'super-admin' }).where(eq(users.id, userId));
+    await expect(isCreditExemptUser(serverDB, userId)).resolves.toBe(true);
+  });
+
+  it('blocks precharge before freezing when account is frozen', async () => {
     await serverDB.insert(creditAccounts).values({
       status: 'frozen',
       userId,
@@ -131,8 +117,6 @@ describe('billing risk', () => {
   });
 
   it('blocks image and video precharge when generation concurrency is exceeded', async () => {
-    await serverDB.update(users).set({ phoneNumberVerified: true }).where(eq(users.id, userId));
-
     await serverDB.insert(asyncTasks).values([
       { status: AsyncTaskStatus.Pending, type: AsyncTaskType.ImageGeneration, userId },
       { status: AsyncTaskStatus.Processing, type: AsyncTaskType.ImageGeneration, userId },

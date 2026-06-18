@@ -4,7 +4,7 @@ import { Flexbox } from '@lobehub/ui';
 import { memo } from 'react';
 
 import { useAiInfraStore } from '@/store/aiInfra';
-import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 import ModelList from '../../features/ModelList';
 import { type ProviderConfigProps } from '../../features/ProviderConfig';
@@ -17,8 +17,11 @@ const ProviderDetail = memo<ProviderDetailProps>(({ showConfig = true, ...card }
   const useFetchAiProviderItem = useAiInfraStore((s) => s.useFetchAiProviderItem);
   const useFetchAiProviderList = useAiInfraStore((s) => s.useFetchAiProviderList);
   const isMobile = useServerConfigStore((s) => s.isMobile);
+  const hideProviderTemplates = useServerConfigStore(featureFlagsSelectors)?.hideProviderTemplates;
 
-  useFetchAiProviderList({ enabled: isMobile });
+  // The sidebar menu normally fetches the provider list. It is hidden on mobile and when
+  // templates are hidden, so fetch here in those cases (SWR dedupes when already loaded).
+  useFetchAiProviderList({ enabled: isMobile || !!hideProviderTemplates });
   useFetchAiProviderItem(card.id);
 
   return (

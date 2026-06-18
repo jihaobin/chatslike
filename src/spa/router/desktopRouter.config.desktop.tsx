@@ -90,7 +90,9 @@ import { settingsRouteMeta } from '@/routes/(main)/settings/features/routeMeta';
 import {
   ProviderDetailPage,
   ProviderGlobalLayout,
+  ProviderGlobalRedirect,
   ProviderLayout,
+  ProviderRedirect,
 } from '@/routes/(main)/settings/provider';
 import ShareTopicPage from '@/routes/share/t/[id]';
 import ShareTopicLayout from '@/routes/share/t/[id]/_layout';
@@ -368,7 +370,7 @@ export const desktopRoutes: RouteObject[] = [
               {
                 children: [
                   {
-                    element: redirectElement('/settings/provider/all'),
+                    element: <ProviderRedirect />,
                     index: true,
                   },
                   {
@@ -387,7 +389,7 @@ export const desktopRoutes: RouteObject[] = [
               {
                 children: [
                   {
-                    element: redirectElement('/settings/provider/global/all'),
+                    element: <ProviderGlobalRedirect />,
                     index: true,
                   },
                   {

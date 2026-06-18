@@ -20,7 +20,7 @@ import {
   estimateVideoTokenCreditsForRequest,
   getVideoPricing,
 } from '../billing/pricing';
-import { assertPrechargeRisk } from '../billing/risk';
+import { assertPrechargeRisk, isCreditExemptUser } from '../billing/risk';
 
 const DEFAULT_VIDEO_DURATION_SECONDS = 5;
 
@@ -216,6 +216,12 @@ export async function chargeBeforeGenerate(params: ChargeParams): Promise<Charge
   }
   const operationId = createOperationId(params);
   const db = await getServerDB();
+
+  // 管理员 / 超级管理员不受积分约束：跳过预扣与风控，不写入计费元数据。
+  if (await isCreditExemptUser(db, params.userId)) {
+    return {};
+  }
+
   const credits = new CreditsService(db, params.userId);
   let reservation;
 

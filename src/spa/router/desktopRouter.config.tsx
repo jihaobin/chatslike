@@ -399,7 +399,11 @@ export const desktopRoutes: RouteObject[] = [
               {
                 children: [
                   {
-                    element: redirectElement('/settings/provider/all'),
+                    element: dynamicElement(
+                      () =>
+                        import('@/routes/(main)/settings/provider').then((m) => m.ProviderRedirect),
+                      'Desktop > Settings > Provider > Redirect',
+                    ),
                     index: true,
                   },
                   {
@@ -427,7 +431,13 @@ export const desktopRoutes: RouteObject[] = [
               {
                 children: [
                   {
-                    element: redirectElement('/settings/provider/global/all'),
+                    element: dynamicElement(
+                      () =>
+                        import('@/routes/(main)/settings/provider').then(
+                          (m) => m.ProviderGlobalRedirect,
+                        ),
+                      'Desktop > Settings > Provider > Global > Redirect',
+                    ),
                     index: true,
                   },
                   {

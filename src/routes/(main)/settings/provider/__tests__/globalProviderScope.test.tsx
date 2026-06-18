@@ -9,12 +9,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CommercialRuntimeConfig } from '@/business/shared/commercialRuntime';
 import { DEFAULT_FEATURE_FLAGS, mapFeatureFlagsEnvToState } from '@/config/featureFlags';
 import { useAiInfraStore } from '@/store/aiInfra';
-import { initServerConfigStore, Provider as ServerConfigProvider } from '@/store/serverConfig/store';
+import {
+  initServerConfigStore,
+  Provider as ServerConfigProvider,
+} from '@/store/serverConfig/store';
 import { useUserStore } from '@/store/user';
 
+import MobileProviderLayout from '../../../../(mobile)/settings/provider/_layout';
 import { ProviderGlobalLayout, ProviderLayout } from '..';
 import ProviderScopeBanner from '../features/ProviderScopeBanner';
-import MobileProviderLayout from '../../../../(mobile)/settings/provider/_layout';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -39,7 +42,9 @@ vi.mock('../ProviderMenu', () => ({
 }));
 
 vi.mock('../_layout/Desktop/Container', () => ({
-  default: ({ children }: { children: ReactNode }) => <div data-testid="provider-container">{children}</div>,
+  default: ({ children }: { children: ReactNode }) => (
+    <div data-testid="provider-container">{children}</div>
+  ),
 }));
 
 vi.mock('../(list)/Footer', () => ({
@@ -182,9 +187,9 @@ describe('global provider scope settings UI', () => {
 
     expect(asyncSource).toContain("path: 'global'");
     expect(asyncSource).toContain('ProviderGlobalLayout');
-    expect(asyncSource).toContain("redirectElement('/settings/provider/global/all')");
+    expect(asyncSource).toContain('ProviderGlobalRedirect');
     expect(syncSource).toContain("path: 'global'");
     expect(syncSource).toContain('<ProviderGlobalLayout />');
-    expect(syncSource).toContain("redirectElement('/settings/provider/global/all')");
+    expect(syncSource).toContain('<ProviderGlobalRedirect />');
   });
 });

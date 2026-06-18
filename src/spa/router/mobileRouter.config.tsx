@@ -198,7 +198,10 @@ export const mobileRoutes: RouteObject[] = [
           {
             children: [
               {
-                element: redirectElement('/settings/provider/all'),
+                element: dynamicElement(
+                  () => import('@/routes/(main)/settings/provider').then((m) => m.ProviderRedirect),
+                  'Mobile > Settings > Provider > Redirect',
+                ),
                 index: true,
               },
               {

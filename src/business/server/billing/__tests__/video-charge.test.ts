@@ -9,6 +9,7 @@ const {
   captureUsageCredits,
   createUsageRecord,
   getVideoPricing,
+  isCreditExemptUser,
   mockDb,
   releaseUsageCredits,
   reserveUsageCredits,
@@ -20,6 +21,7 @@ const {
     captureUsageCredits: vi.fn(),
     createUsageRecord: vi.fn(),
     getVideoPricing: vi.fn(),
+    isCreditExemptUser: vi.fn(),
     mockDb: { transaction },
     releaseUsageCredits: vi.fn(),
     reserveUsageCredits: vi.fn(),
@@ -41,6 +43,7 @@ vi.mock('@/database/core/db-adaptor', () => ({
 
 vi.mock('../risk', () => ({
   assertPrechargeRisk,
+  isCreditExemptUser,
 }));
 
 vi.mock('../pricing', async (importOriginal) => ({
@@ -52,6 +55,8 @@ describe('video generation billing', () => {
   beforeEach(() => {
     assertPrechargeRisk.mockReset();
     assertPrechargeRisk.mockResolvedValue(undefined);
+    isCreditExemptUser.mockReset();
+    isCreditExemptUser.mockResolvedValue(false);
     captureUsageCredits.mockReset();
     createUsageRecord.mockReset();
     getVideoPricing.mockReset();
@@ -182,32 +187,8 @@ describe('video generation billing', () => {
     });
   });
 
-  it('returns an error batch before provider submission when phone verification is required', async () => {
-    assertPrechargeRisk.mockRejectedValue({
-      code: 'PHONE_VERIFICATION_REQUIRED',
-      errorType: 'PHONE_VERIFICATION_REQUIRED',
-    });
-    mockDb.transaction.mockImplementation(async (callback) => {
-      const batch = { id: 'batch-phone-required' };
-      const generation = { id: 'generation-phone-required' };
-      const asyncTask = { id: 'async-phone-required' };
-      const insertedRows = [batch, generation, asyncTask];
-      let insertIndex = 0;
-
-      const insert = vi.fn(() => ({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockImplementation(() => [insertedRows[insertIndex++]]),
-        }),
-      }));
-      const update = vi.fn().mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([{ ...generation, asyncTaskId: asyncTask.id }]),
-          where: vi.fn().mockReturnThis(),
-        }),
-      });
-
-      return callback({ insert, update });
-    });
+  it('skips reservation and precharge result for credit-exempt users (admin / super-admin)', async () => {
+    isCreditExemptUser.mockResolvedValue(true);
 
     const result = await chargeBeforeGenerate({
       generationTopicId: 'topic-1',
@@ -217,14 +198,10 @@ describe('video generation billing', () => {
       userId: 'user-1',
     });
 
+    expect(assertPrechargeRisk).not.toHaveBeenCalled();
     expect(reserveUsageCredits).not.toHaveBeenCalled();
-    expect(result.errorBatch).toMatchObject({
-      data: {
-        batch: { id: 'batch-phone-required' },
-        generations: [{ asyncTaskId: 'async-phone-required', id: 'generation-phone-required' }],
-      },
-      success: true,
-    });
+    expect(result.prechargeResult).toBeUndefined();
+    expect(result.errorBatch).toBeUndefined();
   });
 
   it('captures fixed credits after video generation succeeds', async () => {

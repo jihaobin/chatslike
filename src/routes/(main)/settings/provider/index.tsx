@@ -10,7 +10,11 @@ import { userModelProviderSettingsAdapter } from '@/business/shared/adapters';
 import { isSuperAdminRole } from '@/const/authRoles';
 import { isCustomBranding } from '@/const/version';
 import { aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
-import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
+import {
+  featureFlagsSelectors,
+  serverConfigSelectors,
+  useServerConfigStore,
+} from '@/store/serverConfig';
 import { useUserStore } from '@/store/user';
 import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
 
@@ -19,6 +23,7 @@ import Footer from './(list)/Footer';
 import ProviderDetailPageComponent from './detail';
 import ProviderScopeBanner from './features/ProviderScopeBanner';
 import ProviderMenu from './ProviderMenu';
+import ProviderRedirectComponent from './ProviderRedirect';
 
 type ProviderConfigScope = 'user' | 'global';
 
@@ -68,6 +73,7 @@ ProviderScopeGate.displayName = 'ProviderScopeGate';
 // Layout component that wraps provider pages with navigation
 export const ProviderLayout = memo<{ scope?: ProviderConfigScope }>(({ scope }) => {
   const navigate = useNavigate();
+  const hideProviderTemplates = useServerConfigStore(featureFlagsSelectors)?.hideProviderTemplates;
 
   const handleProviderSelect = (providerKey: string) => {
     navigate(`/settings/provider/${scope === 'global' ? 'global/' : ''}${providerKey}`);
@@ -82,7 +88,9 @@ export const ProviderLayout = memo<{ scope?: ProviderConfigScope }>(({ scope }) 
           maxHeight: '100%',
         }}
       >
-        <ProviderMenu mobile={false} onProviderSelect={handleProviderSelect} />
+        {!hideProviderTemplates && (
+          <ProviderMenu mobile={false} onProviderSelect={handleProviderSelect} />
+        )}
         <DesktopLayoutContainer>
           <ProviderScopeBanner />
           <Outlet />
@@ -98,6 +106,16 @@ ProviderLayout.displayName = 'ProviderLayout';
 export const ProviderGlobalLayout = memo(() => <ProviderLayout scope="global" />);
 
 ProviderGlobalLayout.displayName = 'ProviderGlobalLayout';
+
+// Smart landing element for the provider index route (user scope)
+export const ProviderRedirect = memo(() => <ProviderRedirectComponent scope="user" />);
+
+ProviderRedirect.displayName = 'ProviderRedirect';
+
+// Smart landing element for the provider index route (global scope)
+export const ProviderGlobalRedirect = memo(() => <ProviderRedirectComponent scope="global" />);
+
+ProviderGlobalRedirect.displayName = 'ProviderGlobalRedirect';
 
 // Detail page component that receives providerId from route params
 export const ProviderDetailPage = memo(() => {

@@ -18,6 +18,7 @@ import { aiProviderSelectors } from '@/store/aiInfra';
 import { useAiInfraStore } from '@/store/aiInfra/store';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
+import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 import Actions from './Actions';
 import All from './All';
@@ -32,6 +33,7 @@ const ProviderList = (props: {
   const { onProviderSelect, mobile } = props;
   const { t } = useTranslation('modelProvider');
   const [open, setOpen] = useState(false);
+  const hideProviderTemplates = useServerConfigStore(featureFlagsSelectors)?.hideProviderTemplates;
 
   // Accordion states - using array of active keys
   const [expandedKeys, setExpandedKeys] = useState<string[]>(['enabled', 'custom', 'disabled']);
@@ -139,7 +141,7 @@ const ProviderList = (props: {
         </AccordionItem>
 
         {/* Custom Providers */}
-        {disabledCustomProviderList.length > 0 && (
+        {!hideProviderTemplates && disabledCustomProviderList.length > 0 && (
           <AccordionItem
             headerWrapper={(header) => <ContextMenuTrigger items={[]}>{header}</ContextMenuTrigger>}
             itemKey="custom"
@@ -160,32 +162,34 @@ const ProviderList = (props: {
         )}
 
         {/* Disabled Providers */}
-        <AccordionItem
-          itemKey="disabled"
-          paddingBlock={4}
-          paddingInline={'8px 4px'}
-          action={
-            disabledModelProviderList.length > 1 ? (
-              <Actions dropdownMenu={dropdownMenu} />
-            ) : undefined
-          }
-          headerWrapper={(header) => (
-            <ContextMenuTrigger items={disabledModelProviderList.length > 1 ? dropdownMenu : []}>
-              {header}
-            </ContextMenuTrigger>
-          )}
-          title={
-            <Text ellipsis fontSize={12} type={'secondary'} weight={500}>
-              {t('menu.list.disabled')}
-            </Text>
-          }
-        >
-          <Flexbox gap={4} paddingBlock={1}>
-            {sortedDisabledProviders.map((item) => (
-              <ProviderItem {...item} key={item.id} onClick={onProviderSelect} />
-            ))}
-          </Flexbox>
-        </AccordionItem>
+        {!hideProviderTemplates && (
+          <AccordionItem
+            itemKey="disabled"
+            paddingBlock={4}
+            paddingInline={'8px 4px'}
+            action={
+              disabledModelProviderList.length > 1 ? (
+                <Actions dropdownMenu={dropdownMenu} />
+              ) : undefined
+            }
+            headerWrapper={(header) => (
+              <ContextMenuTrigger items={disabledModelProviderList.length > 1 ? dropdownMenu : []}>
+                {header}
+              </ContextMenuTrigger>
+            )}
+            title={
+              <Text ellipsis fontSize={12} type={'secondary'} weight={500}>
+                {t('menu.list.disabled')}
+              </Text>
+            }
+          >
+            <Flexbox gap={4} paddingBlock={1}>
+              {sortedDisabledProviders.map((item) => (
+                <ProviderItem {...item} key={item.id} onClick={onProviderSelect} />
+              ))}
+            </Flexbox>
+          </AccordionItem>
+        )}
       </Accordion>
     </Flexbox>
   );

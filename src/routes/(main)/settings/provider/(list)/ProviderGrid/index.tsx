@@ -4,8 +4,10 @@ import { Flexbox, Grid, Tag, Text } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Navigate } from 'react-router-dom';
 
 import { aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
+import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 import Card from './Card';
 
@@ -27,6 +29,14 @@ const List = memo((props: ListProps) => {
     isEqual,
   );
   const [initAiProviderList] = useAiInfraStore((s) => [s.initAiProviderList]);
+  const useFetchAiProviderList = useAiInfraStore((s) => s.useFetchAiProviderList);
+  const isGlobalScope = useAiInfraStore(aiProviderSelectors.isGlobalProviderConfigScope);
+  const hideProviderTemplates = useServerConfigStore(featureFlagsSelectors)?.hideProviderTemplates;
+
+  // When templates are hidden the provider sidebar menu (the usual fetch trigger) is
+  // not rendered, so the grid must fetch the list itself. SWR dedupes by key, so this
+  // is a no-op when the menu is present (flag off).
+  useFetchAiProviderList({ enabled: !!hideProviderTemplates });
 
   if (!initAiProviderList)
     return (
@@ -51,6 +61,14 @@ const List = memo((props: ListProps) => {
       </Flexbox>
     );
 
+  // With templates hidden, this grid is only a fallback for the empty state. Many entry
+  // points still link straight to `/all`, so land them on the first enabled provider here
+  // (the smart redirect at the index route can't cover those hard-coded links).
+  if (hideProviderTemplates && enabledList.length > 0) {
+    const prefix = `/settings/provider/${isGlobalScope ? 'global/' : ''}`;
+    return <Navigate replace to={`${prefix}${enabledList[0].id}`} />;
+  }
+
   return (
     <>
       <Flexbox gap={24}>
@@ -66,7 +84,7 @@ const List = memo((props: ListProps) => {
           ))}
         </Grid>
       </Flexbox>
-      {disabledCustomList.length > 0 && (
+      {!hideProviderTemplates && disabledCustomList.length > 0 && (
         <Flexbox gap={24}>
           <Flexbox horizontal align={'center'} gap={8}>
             <Text strong style={{ fontSize: 18 }}>
@@ -81,19 +99,21 @@ const List = memo((props: ListProps) => {
           </Grid>
         </Flexbox>
       )}
-      <Flexbox gap={24}>
-        <Flexbox horizontal align={'center'} gap={8}>
-          <Text strong style={{ fontSize: 18 }}>
-            {t('list.title.disabled')}
-          </Text>
-          <Tag>{disabledList.length}</Tag>
+      {!hideProviderTemplates && (
+        <Flexbox gap={24}>
+          <Flexbox horizontal align={'center'} gap={8}>
+            <Text strong style={{ fontSize: 18 }}>
+              {t('list.title.disabled')}
+            </Text>
+            <Tag>{disabledList.length}</Tag>
+          </Flexbox>
+          <Grid gap={16} rows={3}>
+            {disabledList.map((item) => (
+              <Card {...item} key={item.id} onProviderSelect={onProviderSelect} />
+            ))}
+          </Grid>
         </Flexbox>
-        <Grid gap={16} rows={3}>
-          {disabledList.map((item) => (
-            <Card {...item} key={item.id} onProviderSelect={onProviderSelect} />
-          ))}
-        </Grid>
-      </Flexbox>
+      )}
     </>
   );
 });
