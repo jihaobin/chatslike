@@ -60,20 +60,16 @@ jobs:
             echo "value=linux/amd64" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Free runner disk space and add swap
+      - name: Free runner disk space
         run: |
-          echo "Disk before cleanup:"
-          df -h
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
           sudo docker system prune -af || true
-          echo "Disk after cleanup:"
           df -h
-          echo "Adding swap:"
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          free -h
+
+      - name: Add swap space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 8
 
       - name: Set up QEMU
         if: steps.platform.outputs.value == 'linux/arm64'
