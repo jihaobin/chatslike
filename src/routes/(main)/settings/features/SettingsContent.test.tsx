@@ -30,7 +30,6 @@ vi.mock('./componentMap', () => {
 
   return {
     componentMap: {
-      [SettingsTabs.AdminBilling]: createComponent(SettingsTabs.AdminBilling),
       [SettingsTabs.APIKey]: createComponent(SettingsTabs.APIKey),
       [SettingsTabs.About]: createComponent(SettingsTabs.About),
       [SettingsTabs.Billing]: createComponent(SettingsTabs.Billing),
@@ -124,26 +123,6 @@ describe('SettingsContent', () => {
     });
 
     expect(screen.getByTestId(`settings-${SettingsTabs.Plans}`)).toHaveAttribute(
-      'data-mobile',
-      'true',
-    );
-  });
-
-  it('requires native billing and super-admin for direct Admin Billing access', () => {
-    const commercial = createCommercialConfig({ nativeBilling: true });
-
-    const { unmount } = renderSettingsContent({ activeTab: SettingsTabs.AdminBilling, commercial });
-
-    expect(screen.queryByTestId(`settings-${SettingsTabs.AdminBilling}`)).not.toBeInTheDocument();
-    unmount();
-
-    act(() => {
-      useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
-    });
-
-    renderSettingsContent({ activeTab: SettingsTabs.AdminBilling, commercial });
-
-    expect(screen.getByTestId(`settings-${SettingsTabs.AdminBilling}`)).toHaveAttribute(
       'data-mobile',
       'true',
     );

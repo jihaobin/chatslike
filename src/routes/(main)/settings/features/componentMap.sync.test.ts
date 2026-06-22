@@ -15,10 +15,6 @@ vi.mock('@/libs/next/dynamic', () => ({
   default: () => EmptyComponent,
 }));
 
-vi.mock('@/business/client/BusinessSettingPages/AdminBilling', () => ({
-  default: EmptyComponent,
-}));
-
 vi.mock('@/business/client/BusinessSettingPages/Billing', () => ({
   default: EmptyComponent,
 }));

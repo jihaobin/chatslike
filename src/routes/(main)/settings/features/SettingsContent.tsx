@@ -85,7 +85,6 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
       ...(nativeBillingEnabled
         ? [SettingsTabs.Plans, SettingsTabs.Usage, SettingsTabs.Credits, SettingsTabs.Billing]
         : []),
-      ...(nativeBillingEnabled && isSuperAdmin ? [SettingsTabs.AdminBilling] : []),
       ...(referralEnabled ? [SettingsTabs.Referral] : []),
       ...(notificationEnabled ? [SettingsTabs.Notification] : []),
     ];
@@ -109,7 +108,6 @@ const SettingsContent = ({ mobile, activeTab }: SettingsContentProps) => {
         ...(nativeBillingEnabled
           ? [SettingsTabs.Plans, SettingsTabs.Usage, SettingsTabs.Credits, SettingsTabs.Billing]
           : []),
-        ...(nativeBillingEnabled && isSuperAdmin ? [SettingsTabs.AdminBilling] : []),
         ...(referralEnabled ? [SettingsTabs.Referral] : []),
       ].includes(tab as SettingsTabs)
     ) {

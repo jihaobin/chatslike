@@ -154,12 +154,6 @@ export const useCategory = () => {
           key: SettingsTabs.Referral,
           label: tSubscription('tab.referral'),
         },
-        nativeBillingEnabled &&
-          isSuperAdmin && {
-            icon: KeyIcon,
-            key: SettingsTabs.AdminBilling,
-            label: tSubscription('tab.adminBilling'),
-          },
       ].filter(Boolean) as CategoryItem[];
 
       groups.push({

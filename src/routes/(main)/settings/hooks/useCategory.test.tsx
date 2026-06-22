@@ -182,28 +182,6 @@ describe('settings useCategory', () => {
     });
   });
 
-  it('shows Admin Billing only for super-admin users', () => {
-    act(() => {
-      useUserStore.setState({ user: { id: 'admin-user', role: 'admin' } });
-    });
-
-    const nativeBillingConfig = createCommercialConfig({ nativeBilling: true });
-
-    expect(getItemKeys(nativeBillingConfig)).not.toContain(SettingsTabs.AdminBilling);
-
-    act(() => {
-      useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } }, false);
-    });
-
-    expect(getItemKeys(nativeBillingConfig)).toContain(SettingsTabs.AdminBilling);
-
-    act(() => {
-      useUserStore.setState({ user: { id: 'normal-user' } }, false);
-    });
-
-    expect(getItemKeys(nativeBillingConfig)).not.toContain(SettingsTabs.AdminBilling);
-  });
-
   it('shows native billing tabs when native billing is enabled', () => {
     const keys = getItemKeys(createCommercialConfig({ nativeBilling: true }));
 
@@ -233,16 +211,6 @@ describe('settings useCategory', () => {
 
     expect(getItemKeys(createCommercialConfig({ lobeHubCloudIntegration: true }))).toContain(
       SettingsTabs.Referral,
-    );
-  });
-
-  it('requires native billing capability for Admin Billing', () => {
-    act(() => {
-      useUserStore.setState({ user: { id: 'super-admin-user', role: 'super-admin' } });
-    });
-
-    expect(getItemKeys(createCommercialConfig({ lobeHubCloudIntegration: true }))).not.toContain(
-      SettingsTabs.AdminBilling,
     );
   });
 });

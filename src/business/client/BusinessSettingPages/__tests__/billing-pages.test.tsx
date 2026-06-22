@@ -1173,48 +1173,4 @@ describe('Business billing pages', () => {
     expect(createSubscriptionOrder).not.toHaveBeenCalled();
     expect(await screen.findByText('upgrade-order-1')).toBeInTheDocument();
   }, 30_000);
-
-  it('renders admin user account status and credit aggregates', async () => {
-    useAdminBillingUsers.mockReturnValue({
-      data: {
-        items: [
-          {
-            accountStatus: 'risk',
-            availableCredits: 100_000,
-            createdAt: new Date('2026-06-01T00:00:00.000Z'),
-            email: 'target@example.com',
-            frozenCredits: 20_000,
-            id: 'target-user',
-            lifetimeConsumedCredits: 30_000,
-            lifetimeGrantedCredits: 150_000,
-            phone: '+8613800000000',
-            role: null,
-          },
-        ],
-      },
-      isLoading: false,
-    });
-    const { default: AdminBilling } = await import('../AdminBilling');
-
-    render(<AdminBilling />);
-
-    expect(screen.getByText('Account Status')).toBeInTheDocument();
-    expect(screen.getByText('Available Credits')).toBeInTheDocument();
-    expect(screen.getByText('Frozen Credits')).toBeInTheDocument();
-    expect(screen.getByText('risk')).toBeInTheDocument();
-    expect(screen.getByText('100,000')).toBeInTheDocument();
-    expect(screen.getByText('20,000')).toBeInTheDocument();
-    expect(screen.getByText('Granted: 150,000')).toBeInTheDocument();
-    expect(screen.getByText('Consumed: 30,000')).toBeInTheDocument();
-  }, 30_000);
-
-  it('exposes the New API platform catalog from admin billing', async () => {
-    const { default: AdminBilling } = await import('../AdminBilling');
-
-    render(<AdminBilling />);
-    fireEvent.click(screen.getByRole('button', { name: 'Platform Models' }));
-
-    expect(await screen.findByTestId('platform-catalog')).toBeInTheDocument();
-    expect(screen.getByText('New API 模型目录')).toBeInTheDocument();
-  }, 30_000);
 });

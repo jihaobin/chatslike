@@ -1,6 +1,6 @@
 import type { BillingOrderStatus } from '@/database/schemas';
-import { lambdaClient } from '@/libs/trpc/client';
 import { mutate } from '@/libs/swr';
+import { lambdaClient } from '@/libs/trpc/client';
 
 export const BILLING_BALANCE_KEY = 'billing.balance';
 export const BILLING_GRANT_PACKAGES_KEY = 'billing.grantPackages';
@@ -38,17 +38,6 @@ interface CreateSubscriptionOrderParams {
 interface CreateUpgradeOrderParams {
   channel: 'alipay' | 'wechat';
   targetPlanId: 'starter' | 'premium' | 'ultimate';
-}
-
-interface AdminBillingCreditMutationParams {
-  amountCredits: number;
-  reason: string;
-  targetUserId: string;
-}
-
-interface AdminBillingAccountMutationParams {
-  reason: string;
-  targetUserId: string;
 }
 
 export interface PlatformCatalogFilters {
@@ -100,31 +89,10 @@ class BillingService {
   adminCreateModelPricingVersion = async (params: CreateModelPricingVersionParams) =>
     lambdaClient.platformCatalog.createModelPricingVersion.mutate(params);
 
-  adminDeductCredits = async (params: AdminBillingCreditMutationParams) =>
-    lambdaClient.adminBilling.deductCredits.mutate(params);
-
   cancelOrder = async (orderId: string) => lambdaClient.topUp.cancelOrder.mutate({ orderId });
-
-  adminFreezeAccount = async (params: AdminBillingAccountMutationParams) =>
-    lambdaClient.adminBilling.freezeAccount.mutate(params);
 
   adminGetNewApiProviderStatus = async () =>
     lambdaClient.platformCatalog.getNewApiProviderStatus.query();
-
-  adminGrantCredits = async (params: AdminBillingCreditMutationParams) =>
-    lambdaClient.adminBilling.grantCredits.mutate(params);
-
-  adminListAuditLogs = async (params?: BillingListParams) =>
-    lambdaClient.adminBilling.listAuditLogs.query(params);
-
-  adminListLedger = async (params?: BillingListParams) =>
-    lambdaClient.adminBilling.listLedger.query(params);
-
-  adminListOrders = async (params?: BillingListParams) =>
-    lambdaClient.adminBilling.listOrders.query(params);
-
-  adminListUsers = async (params?: BillingListParams) =>
-    lambdaClient.adminBilling.listUsers.query(params);
 
   adminListModelPricing = async (params: ModelPricingListParams) =>
     lambdaClient.platformCatalog.listModelPricing.query(params);
@@ -134,9 +102,6 @@ class BillingService {
 
   adminTogglePlatformModelEnabled = async (params: TogglePlatformModelParams) =>
     lambdaClient.platformCatalog.togglePlatformModelEnabled.mutate(params);
-
-  adminUnfreezeAccount = async (params: AdminBillingAccountMutationParams) =>
-    lambdaClient.adminBilling.unfreezeAccount.mutate(params);
 
   adminUpdatePlatformModel = async (params: UpdatePlatformModelParams) =>
     lambdaClient.platformCatalog.updatePlatformModel.mutate(params);

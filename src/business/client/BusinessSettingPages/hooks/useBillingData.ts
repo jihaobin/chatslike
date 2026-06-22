@@ -72,26 +72,6 @@ export const useBillingUsageRecords = () =>
     billingService.listUsageRecords({ pageSize: BILLING_PAGE_SIZE }),
   );
 
-export const useAdminBillingAuditLogs = () =>
-  useSWR(['billing.admin.auditLogs', BILLING_PAGE_SIZE], () =>
-    billingService.adminListAuditLogs({ pageSize: BILLING_PAGE_SIZE }),
-  );
-
-export const useAdminBillingLedger = () =>
-  useSWR(['billing.admin.ledger', BILLING_PAGE_SIZE], () =>
-    billingService.adminListLedger({ pageSize: BILLING_PAGE_SIZE }),
-  );
-
-export const useAdminBillingOrders = () =>
-  useSWR(['billing.admin.orders', BILLING_PAGE_SIZE], () =>
-    billingService.adminListOrders({ pageSize: BILLING_PAGE_SIZE }),
-  );
-
-export const useAdminBillingUsers = () =>
-  useSWR(['billing.admin.users', BILLING_PAGE_SIZE], () =>
-    billingService.adminListUsers({ pageSize: BILLING_PAGE_SIZE }),
-  );
-
 export const usePlatformCatalogStatus = () =>
   useSWR('billing.admin.platformCatalog.status', () =>
     billingService.adminGetNewApiProviderStatus(),
