@@ -674,7 +674,6 @@
   "switchToMonthly.title": "Passer à la facturation mensuelle",
   "switchToYearly.desc": "Après le changement, la facturation annuelle prendra effet immédiatement après paiement de la différence. La date de début reste inchangée.",
   "switchToYearly.title": "Passer à la facturation annuelle",
-  "tab.adminBilling": "Facturation Admin",
   "tab.billing": "Gestion de la facturation",
   "tab.credits": "Gestion des crédits",
   "tab.plans": "Plans d'abonnement",

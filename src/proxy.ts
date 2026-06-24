@@ -35,6 +35,9 @@ export const config = {
     '/me(.*)',
     '/share(.*)',
 
+    '/admin',
+    '/admin(.*)',
+
     '/onboarding',
     '/onboarding(.*)',
 

@@ -1,5 +1,3 @@
-/* eslint-disable sort-keys-fix/sort-keys-fix  */
-
 /**
  * RBAC Permission Actions Definition
  * Defines all executable permission action types in the system
@@ -145,6 +143,19 @@ export const PERMISSION_ACTIONS = {
 
   TOPIC_UPDATE: 'topic:update',
 
+  // ==================== Admin Management ====================
+  ADMIN_DASHBOARD_READ: 'admin:dashboard_read',
+
+  ADMIN_USER_READ: 'admin:user_read',
+
+  ADMIN_USER_WRITE: 'admin:user_write',
+
+  ADMIN_ORDER_READ: 'admin:order_read',
+
+  ADMIN_USAGE_READ: 'admin:usage_read',
+
+  ADMIN_AUDIT_READ: 'admin:audit_read',
+
   // ==================== User Management ====================
   USER_CREATE: 'user:create',
 
@@ -173,8 +184,8 @@ export const getAllowedScopesForAction = (
   const resource = value.split(':')[0];
   const action = value.split(':')[1];
 
-  // RBAC resources: ALL only (system-level resource)
-  if (resource === 'rbac') return ['ALL'];
+  // RBAC and admin resources: ALL only (system-level resources)
+  if (resource === 'rbac' || resource === 'admin') return ['ALL'];
 
   // user resource nuance: create/delete without OWNER; read/update allow OWNER
   if (resource === 'user') {

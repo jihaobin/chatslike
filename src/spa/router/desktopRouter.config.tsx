@@ -471,6 +471,51 @@ export const desktopRoutes: RouteObject[] = [
             },
             path: 'provider',
           },
+          // Admin routes (under settings)
+          {
+            children: [
+              {
+                element: dynamicElement(
+                  () => import('@/routes/(main)/settings/admin'),
+                  'Desktop > Settings > Admin > Dashboard',
+                ),
+                index: true,
+              },
+              {
+                element: dynamicElement(
+                  () => import('@/routes/(main)/settings/admin/users'),
+                  'Desktop > Settings > Admin > Users',
+                ),
+                path: 'users',
+              },
+              {
+                element: dynamicElement(
+                  () => import('@/routes/(main)/settings/admin/orders'),
+                  'Desktop > Settings > Admin > Orders',
+                ),
+                path: 'orders',
+              },
+              {
+                element: dynamicElement(
+                  () => import('@/routes/(main)/settings/admin/usage'),
+                  'Desktop > Settings > Admin > Usage',
+                ),
+                path: 'usage',
+              },
+              {
+                element: dynamicElement(
+                  () => import('@/routes/(main)/settings/admin/audit'),
+                  'Desktop > Settings > Admin > Audit',
+                ),
+                path: 'audit',
+              },
+            ],
+            element: dynamicLayout(
+              () => import('@/routes/(main)/settings/admin/_layout'),
+              'Desktop > Settings > Admin > Layout',
+            ),
+            path: 'admin',
+          },
           // Other settings tabs
           {
             element: dynamicElement(

@@ -674,7 +674,6 @@
   "switchToMonthly.title": "Aylık Faturalamaya Geç",
   "switchToYearly.desc": "Geçişten sonra, fark ödemesi yapıldıktan sonra yıllık faturalama hemen devreye girer. Başlangıç tarihi önceki plandan devralınır.",
   "switchToYearly.title": "Yıllık Faturalamaya Geç",
-  "tab.adminBilling": "Yönetici Faturalandırma",
   "tab.billing": "Fatura Yönetimi",
   "tab.credits": "Kredi Yönetimi",
   "tab.plans": "Abonelik Planları",

@@ -1,3 +1,21 @@
+table admin_operation_logs {
+  id text [pk, not null]
+  operator_id text [not null]
+  target_user_id text [not null]
+  action text [not null]
+  before_value jsonb
+  after_value jsonb
+  note text
+  created_at "timestamp with time zone" [not null, default: `now()`]
+
+  indexes {
+    operator_id [name: 'admin_op_logs_operator_idx']
+    target_user_id [name: 'admin_op_logs_target_idx']
+    action [name: 'admin_op_logs_action_idx']
+    created_at [name: 'admin_op_logs_created_idx']
+  }
+}
+
 table agents {
   id text [pk, not null]
   slug varchar(100)
@@ -698,6 +716,7 @@ table model_pricing {
   provider text [not null]
   model text [not null]
   modality varchar(32) [not null]
+  price_key text [not null, default: 'default']
   input_credits_per_million_tokens bigint
   output_credits_per_million_tokens bigint
   fixed_credits_per_unit bigint
@@ -713,7 +732,7 @@ table model_pricing {
   updated_at "timestamp with time zone" [not null, default: `now()`]
 
   indexes {
-    (provider, model, modality) [name: 'model_pricing_provider_model_modality_unique', unique]
+    (provider, model, modality, price_key) [name: 'model_pricing_provider_model_modality_price_key_unique', unique]
     status [name: 'model_pricing_status_idx']
   }
 }

@@ -749,6 +749,13 @@
       "when": 1779951385246,
       "tag": "0106_add_credit_grants_starts_at",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1782175163812,
+      "tag": "0107_zippy_supernaut",
+      "breakpoints": true
     }
   ],
   "version": "6"

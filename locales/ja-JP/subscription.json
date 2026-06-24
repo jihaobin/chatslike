@@ -674,7 +674,6 @@
   "switchToMonthly.title": "月額請求に切り替え",
   "switchToYearly.desc": "切り替え後、差額を支払うことで即時に年額請求が適用されます。開始日は前のプランを引き継ぎます。",
   "switchToYearly.title": "年額請求に切り替え",
-  "tab.adminBilling": "管理請求",
   "tab.billing": "請求管理",
   "tab.credits": "クレジット管理",
   "tab.plans": "サブスクリプションプラン",

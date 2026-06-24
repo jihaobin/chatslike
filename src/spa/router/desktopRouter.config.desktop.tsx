@@ -86,6 +86,12 @@ import ResourceLibraryLayout from '@/routes/(main)/resource/library/_layout';
 import ResourceLibrarySlugPage from '@/routes/(main)/resource/library/[slug]';
 import SettingsTabPage from '@/routes/(main)/settings';
 import SettingsLayout from '@/routes/(main)/settings/_layout';
+import AdminDashboardPage from '@/routes/(main)/settings/admin';
+import AdminSettingsLayout from '@/routes/(main)/settings/admin/_layout';
+import AdminAuditPage from '@/routes/(main)/settings/admin/audit';
+import AdminOrdersPage from '@/routes/(main)/settings/admin/orders';
+import AdminUsagePage from '@/routes/(main)/settings/admin/usage';
+import AdminUsersPage from '@/routes/(main)/settings/admin/users';
 import { settingsRouteMeta } from '@/routes/(main)/settings/features/routeMeta';
 import {
   ProviderDetailPage,
@@ -412,6 +418,18 @@ export const desktopRoutes: RouteObject[] = [
               meta: routeMeta({ icon: Settings, titleKey: 'navigation.provider' }),
             },
             path: 'provider',
+          },
+          // Admin routes (under settings)
+          {
+            children: [
+              { element: <AdminDashboardPage />, index: true },
+              { element: <AdminUsersPage />, path: 'users' },
+              { element: <AdminOrdersPage />, path: 'orders' },
+              { element: <AdminUsagePage />, path: 'usage' },
+              { element: <AdminAuditPage />, path: 'audit' },
+            ],
+            element: <AdminSettingsLayout />,
+            path: 'admin',
           },
           // Other settings tabs
           {

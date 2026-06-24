@@ -674,7 +674,6 @@
   "switchToMonthly.title": "Switch to Monthly Billing",
   "switchToYearly.desc": "After switching, yearly billing will take effect immediately after paying the difference. Start date inherits from previous plan.",
   "switchToYearly.title": "Switch to Yearly Billing",
-  "tab.adminBilling": "Admin Billing",
   "tab.billing": "Billing",
   "tab.credits": "Credits",
   "tab.plans": "Plans",

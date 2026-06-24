@@ -10,6 +10,7 @@ import { taskTemplateRouter } from '@/business/server/lambda-routers/taskTemplat
 import { topUpRouter } from '@/business/server/lambda-routers/topUp';
 import { publicProcedure, router } from '@/libs/trpc/lambda';
 
+import { adminRouter } from '../admin';
 import { agentRouter } from './agent';
 import { agentBotProviderRouter } from './agentBotProvider';
 import { agentDocumentRouter } from './agentDocument';
@@ -71,6 +72,7 @@ import { videoRouter } from './video';
 import { webBrowsingRouter } from './webBrowsing';
 
 export const lambdaRouter = router({
+  admin: adminRouter,
   agent: agentRouter,
   agentBotProvider: agentBotProviderRouter,
   agentNotify: agentNotifyRouter,

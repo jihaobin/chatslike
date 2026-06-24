@@ -2,6 +2,7 @@ import { isDesktop } from '@lobechat/const';
 import { Avatar } from '@lobehub/ui';
 import { SkillsIcon } from '@lobehub/ui/icons';
 import {
+  BarChart3,
   BellIcon,
   Brain,
   ChartColumnBigIcon,
@@ -9,14 +10,18 @@ import {
   CreditCard,
   Database,
   EthernetPort,
+  FileText,
   Gift,
   Info,
   KeyIcon,
   KeyRound,
+  LayoutDashboard,
   Map,
   MessageCircleIcon,
+  ShoppingCart,
   Sparkles,
   TerminalSquare,
+  Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,6 +47,7 @@ import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
 import { userGeneralSettingsSelectors } from '@/store/user/slices/settings/selectors';
 
 export enum SettingsGroupKey {
+  Admin = 'admin',
   Agent = 'agent',
   General = 'general',
   Subscription = 'subscription',
@@ -49,8 +55,9 @@ export enum SettingsGroupKey {
 }
 
 export interface CategoryItem {
+  exact?: boolean;
   icon: any;
-  key: SettingsTabs;
+  key: string;
   label: string;
   url?: string;
 }
@@ -65,6 +72,7 @@ export const useCategory = () => {
   const { t } = useTranslation('setting');
   const { t: tAuth } = useTranslation('auth');
   const { t: tSubscription } = useTranslation('subscription');
+  const { t: tAdmin } = useTranslation('admin');
   const { hideDocs, showApiKeyManage, showProvider } = useServerConfigStore(featureFlagsSelectors);
   const [avatar, username] = useUserStore((s) => [
     userProfileSelectors.userAvatar(s),
@@ -241,11 +249,55 @@ export const useCategory = () => {
       title: t('group.system'),
     });
 
+    // Admin group (super admin only)
+    if (isSuperAdmin) {
+      const adminItems: CategoryItem[] = [
+        {
+          exact: true,
+          icon: LayoutDashboard,
+          key: 'admin',
+          label: tAdmin('nav.dashboard'),
+          url: '/settings/admin',
+        },
+        {
+          icon: Users,
+          key: 'admin-users',
+          label: tAdmin('nav.users'),
+          url: '/settings/admin/users',
+        },
+        {
+          icon: ShoppingCart,
+          key: 'admin-orders',
+          label: tAdmin('nav.orders'),
+          url: '/settings/admin/orders',
+        },
+        {
+          icon: BarChart3,
+          key: 'admin-usage',
+          label: tAdmin('nav.usage'),
+          url: '/settings/admin/usage',
+        },
+        {
+          icon: FileText,
+          key: 'admin-audit',
+          label: tAdmin('nav.audit'),
+          url: '/settings/admin/audit',
+        },
+      ];
+
+      groups.push({
+        items: adminItems,
+        key: SettingsGroupKey.Admin,
+        title: t('group.admin'),
+      });
+    }
+
     return groups;
   }, [
     t,
     tAuth,
     tSubscription,
+    tAdmin,
     hideDocs,
     nativeBillingEnabled,
     notificationEnabled,

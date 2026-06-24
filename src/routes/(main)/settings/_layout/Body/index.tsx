@@ -25,7 +25,7 @@ const Body = memo(() => {
     return SettingsTabs.Profile;
   }, [location.pathname]);
 
-  const getTabUrl = (tab: SettingsTabs) => {
+  const getTabUrl = (tab: string) => {
     return tab === SettingsTabs.Provider ? '/settings/provider/all' : `/settings/${tab}`;
   };
 
@@ -38,6 +38,7 @@ const Body = memo(() => {
           SettingsGroupKey.Subscription,
           SettingsGroupKey.Agent,
           SettingsGroupKey.System,
+          SettingsGroupKey.Admin,
         ]}
       >
         {categoryGroups.map((group) => (
@@ -55,6 +56,11 @@ const Body = memo(() => {
             <Flexbox gap={1} paddingBlock={1}>
               {group.items.map((item) => {
                 const url = item.url ?? getTabUrl(item.key);
+                const isActive = item.url
+                  ? item.exact
+                    ? location.pathname === item.url
+                    : location.pathname === item.url || location.pathname.startsWith(item.url + '/')
+                  : activeTab === item.key;
                 return (
                   <Link
                     key={item.key}
@@ -65,7 +71,7 @@ const Body = memo(() => {
                       navigate(url);
                     }}
                   >
-                    <NavItem active={activeTab === item.key} icon={item.icon} title={item.label} />
+                    <NavItem active={isActive} icon={item.icon} title={item.label} />
                   </Link>
                 );
               })}

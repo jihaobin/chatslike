@@ -674,7 +674,6 @@
   "switchToMonthly.title": "切换为月付",
   "switchToYearly.desc": "切换后，支付差价后立即生效年付计费，起始日期继承原计划。",
   "switchToYearly.title": "切换为年付",
-  "tab.adminBilling": "管理员计费",
   "tab.billing": "账单",
   "tab.credits": "积分",
   "tab.plans": "套餐",
