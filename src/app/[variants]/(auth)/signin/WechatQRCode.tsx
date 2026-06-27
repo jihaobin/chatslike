@@ -19,8 +19,8 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     display: grid;
     place-items: center;
 
-    width: 200px;
-    height: 200px;
+    width: 300px;
+    height: 400px;
     border: 1px solid ${cssVar.colorBorderSecondary};
     border-radius: 12px;
 
@@ -75,6 +75,7 @@ const getWechatOauthConfig = async (callbackURL: string) => {
   const url = new URL(authUrl);
 
   return {
+    appid: url.searchParams.get('appid') ?? '',
     redirectUri: url.searchParams.get('redirect_uri') ?? '',
     state: url.searchParams.get('state') ?? '',
   };
@@ -86,23 +87,22 @@ export const WechatQRCode = () => {
   const [scriptReady, setScriptReady] = useState(false);
   const initializedContainerRef = useRef<string | undefined>(undefined);
 
-  const appId = process.env.NEXT_PUBLIC_WECHAT_APP_ID ?? '';
   const qrContainerId = useMemo(() => `wechat-qrcode-${qrVersion}`, [qrVersion]);
 
   const initializeWechatLogin = useCallback(
     async (isDisposed: () => boolean) => {
-      if (!appId || !window.WxLogin) return;
+      if (!window.WxLogin) return;
 
       const container = document.querySelector<HTMLElement>(`#${qrContainerId}`);
       if (!container) return;
 
       container.innerHTML = '';
-      const { redirectUri, state } = await getWechatOauthConfig(window.location.href);
+      const { appid, redirectUri, state } = await getWechatOauthConfig(window.location.href);
 
       if (isDisposed() || !window.WxLogin) return;
 
       new window.WxLogin({
-        appid: appId,
+        appid: appid || process.env.NEXT_PUBLIC_WECHAT_APP_ID || '',
         id: qrContainerId,
         redirect_uri: encodeURIComponent(redirectUri),
         scope: 'snsapi_login',
@@ -111,12 +111,10 @@ export const WechatQRCode = () => {
         style: 'black',
       });
     },
-    [appId, qrContainerId],
+    [qrContainerId],
   );
 
   useEffect(() => {
-    if (!appId) return;
-
     let disposed = false;
     const existingScript = document.querySelector<HTMLScriptElement>(
       `script[src="${WECHAT_LOGIN_SCRIPT_URL}"]`,
@@ -159,7 +157,7 @@ export const WechatQRCode = () => {
         managedWechatScriptUsers = 0;
       }
     };
-  }, [appId]);
+  }, []);
 
   useEffect(() => {
     if (!scriptReady || initializedContainerRef.current === qrContainerId) return;
@@ -175,24 +173,16 @@ export const WechatQRCode = () => {
   }, [initializeWechatLogin, qrContainerId, scriptReady]);
 
   const handleRefresh = useCallback(() => {
-    if (!appId) return;
-
     setQrVersion((version) => version + 1);
-  }, [appId]);
+  }, []);
 
   return (
     <Flexbox align={'center'} gap={16} paddingBlock={12}>
       <div className={styles.qrFrame}>
-        {appId ? (
-          <div className={styles.qrInner} id={qrContainerId} />
-        ) : (
-          <Text align={'center'} type={'secondary'}>
-            {t('betterAuth.signin.wechatStep.instruction')}
-          </Text>
-        )}
+        <div className={styles.qrInner} id={qrContainerId} />
       </div>
       <Text type={'secondary'}>{t('betterAuth.signin.wechatStep.expiry')}</Text>
-      <Button disabled={!appId} icon={RefreshCw} shape={'round'} onClick={handleRefresh}>
+      <Button icon={RefreshCw} shape={'round'} onClick={handleRefresh}>
         {t('betterAuth.signin.wechatStep.refresh')}
       </Button>
     </Flexbox>

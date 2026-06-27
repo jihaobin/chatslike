@@ -131,20 +131,29 @@ describe('WechatQRCode', () => {
     ).toBe(script);
   });
 
-  it('does not initialize WxLogin when the app id is missing', () => {
+  it('initializes WxLogin from the Better Auth OAuth appid when the public app id is missing', async () => {
     delete process.env.NEXT_PUBLIC_WECHAT_APP_ID;
 
     render(<WechatQRCode />);
 
-    expect(wxLoginMock).not.toHaveBeenCalled();
-    expect(
-      document.querySelector(
-        'script[src="https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js"]',
-      ),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText('betterAuth.signin.wechatStep.instruction')).toBeInTheDocument();
+    const script = document.querySelector<HTMLScriptElement>(
+      'script[src="https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js"]',
+    );
+    expect(script).toBeInTheDocument();
+
+    window.WxLogin = wxLoginMock as unknown as Window['WxLogin'];
+    script?.dispatchEvent(new Event('load'));
+
+    await waitFor(() => {
+      expect(wxLoginMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appid: 'wx-test-app-id',
+          state: 'better-auth-state',
+        }),
+      );
+    });
     expect(
       screen.getByRole('button', { name: 'betterAuth.signin.wechatStep.refresh' }),
-    ).toBeDisabled();
+    ).not.toBeDisabled();
   });
 });
