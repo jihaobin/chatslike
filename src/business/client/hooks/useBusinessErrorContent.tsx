@@ -185,7 +185,7 @@ function PhoneVerificationRequiredContent({
       <Text as={'h3'} className={styles.title}>
         {t('profile.phone')}
       </Text>
-      <Text className={styles.desc}>{t('profile.phoneTrialHint')}</Text>
+      <Text className={styles.desc}>{t('profile.phoneVerificationRequiredDesc')}</Text>
       <Flexbox className={styles.metrics}>
         <Button block className={styles.action} type={'primary'} onClick={actions.onVerifyPhone}>
           {t('profile.phoneVerifyAction')}

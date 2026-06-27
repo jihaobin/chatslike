@@ -16,7 +16,7 @@ import { validateEmail } from 'better-auth-harmony/email';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 import { businessEmailValidator } from '@/business/server/better-auth';
-import { onBusinessUserPhoneVerified } from '@/business/server/user';
+import { grantTrialCreditsOnRegistration } from '@/business/server/billing/trial';
 import { SUPER_ADMIN_ROLE } from '@/const/authRoles';
 import { appEnv } from '@/envs/app';
 import { authEnv } from '@/envs/auth';
@@ -225,18 +225,11 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
               createdAt: user.createdAt,
               // TODO: if add phone plugin, we should fill phone here
             });
-          },
-        },
-        update: {
-          after: async (user) => {
-            const phoneNumber = user.phone;
 
-            if (user.phoneNumberVerified === true && typeof phoneNumber === 'string') {
-              await onBusinessUserPhoneVerified({
-                db: serverDB,
-                phoneNumber,
-                userId: user.id,
-              });
+            try {
+              await grantTrialCreditsOnRegistration(serverDB, { userId: user.id });
+            } catch (error) {
+              console.error('grant trial credits on registration failed:', error);
             }
           },
         },

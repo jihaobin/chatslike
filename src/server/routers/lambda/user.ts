@@ -26,14 +26,13 @@ import { z } from 'zod';
 import {
   getReferralStatus,
   getSubscriptionPlan,
-  onBusinessUserPhoneVerified,
   onUserActivityForBusiness,
 } from '@/business/server/user';
 import { userModelProviderSettingsAdapter } from '@/business/shared/adapters';
 import { MessageModel } from '@/database/models/message';
 import { SessionModel } from '@/database/models/session';
 import { UserModel } from '@/database/models/user';
-import type { LobeChatDatabase, Transaction } from '@/database/type';
+import type { LobeChatDatabase } from '@/database/type';
 import { getRedisConfig } from '@/envs/redis';
 import { initializeRedisWithPrefix } from '@/libs/redis';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
@@ -141,26 +140,6 @@ const createPhoneVerificationService = async () => {
     redis,
     secret,
     smsProvider: createAliyunSmsProvider(),
-  });
-};
-
-const grantTrialForVerifiedPhone = async ({
-  db,
-  phoneNumber,
-  userId,
-}: {
-  db: LobeChatDatabase | Transaction;
-  phoneNumber?: string;
-  userId: string;
-}) => {
-  if (!phoneNumber) {
-    throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'PHONE_NOT_VERIFIED' });
-  }
-
-  return onBusinessUserPhoneVerified({
-    db,
-    phoneNumber,
-    userId,
   });
 };
 
@@ -349,21 +328,14 @@ export const userRouter = router({
         phoneNumber: input.phoneNumber,
       });
 
-      let trial: Awaited<ReturnType<typeof onBusinessUserPhoneVerified>>;
       try {
-        trial = await ctx.serverDB.transaction(async (trx) => {
+        await ctx.serverDB.transaction(async (trx) => {
           const trxDb = trx as unknown as LobeChatDatabase;
           const trxUserModel = new UserModel(trxDb, ctx.userId);
 
           await trxUserModel.updateUser({
             phone: normalizedPhoneNumber,
             phoneNumberVerified: true,
-          });
-
-          return grantTrialForVerifiedPhone({
-            db: trx,
-            phoneNumber: normalizedPhoneNumber,
-            userId: ctx.userId,
           });
         });
       } catch (error) {
@@ -377,29 +349,8 @@ export const userRouter = router({
       return {
         phone: normalizedPhoneNumber,
         phoneNumberVerified: true,
-        trial,
       };
     }),
-
-  retryVerifiedPhoneTrialGrant: userProcedure.mutation(async ({ ctx }) => {
-    const state = await ctx.userModel.getUserState(KeyVaultsGateKeeper.getUserKeyVaults);
-
-    if (state.phoneNumberVerified !== true || !state.phone) {
-      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'PHONE_NOT_VERIFIED' });
-    }
-
-    const trial = await grantTrialForVerifiedPhone({
-      db: ctx.serverDB,
-      phoneNumber: state.phone,
-      userId: ctx.userId,
-    });
-
-    return {
-      phone: state.phone,
-      phoneNumberVerified: true,
-      trial,
-    };
-  }),
 
   getOrCreateOnboardingState: userProcedure.query(async ({ ctx }) => {
     const onboardingService = new OnboardingService(ctx.serverDB, ctx.userId);

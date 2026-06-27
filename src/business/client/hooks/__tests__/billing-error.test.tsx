@@ -22,7 +22,7 @@ vi.mock('react-i18next', () => ({
         'limitation.limited.referralTip': 'Invite friends, both get {{reward}}M',
         'limitation.limited.topup': 'Top-Up Credits',
         'limitation.limited.upgradeToPlan': 'Upgrade to {{plan}}',
-        'profile.phoneTrialHint': 'Verify your phone to claim trial credits.',
+        'profile.phoneVerificationRequiredDesc': 'Verify your phone number to continue.',
         'profile.phoneVerifyAction': 'Verify Phone',
       };
 
@@ -109,7 +109,7 @@ describe('billing error content', () => {
 
     render(renderPhoneVerificationRequiredContent({ onVerifyPhone }));
 
-    expect(screen.getByText('Verify your phone to claim trial credits.')).toBeInTheDocument();
+    expect(screen.getByText('Verify your phone number to continue.')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Verify Phone'));
 
     expect(onVerifyPhone).toHaveBeenCalledTimes(1);

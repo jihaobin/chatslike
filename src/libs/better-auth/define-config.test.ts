@@ -18,7 +18,8 @@ const mocks = vi.hoisted(() => ({
     genericOAuthProviders: [] as GenericOAuthConfig[],
     socialProviders: {},
   })),
-  onBusinessUserPhoneVerified: vi.fn(),
+  grantTrialCreditsOnRegistration: vi.fn(),
+  initUser: vi.fn(),
 }));
 
 vi.mock('@better-auth/expo', () => ({
@@ -84,8 +85,8 @@ vi.mock('@/business/server/better-auth', () => ({
   businessEmailValidator: vi.fn(),
 }));
 
-vi.mock('@/business/server/user', () => ({
-  onBusinessUserPhoneVerified: mocks.onBusinessUserPhoneVerified,
+vi.mock('@/business/server/billing/trial', () => ({
+  grantTrialCreditsOnRegistration: mocks.grantTrialCreditsOnRegistration,
 }));
 
 vi.mock('@/envs/app', () => ({
@@ -132,7 +133,9 @@ vi.mock('@/server/services/sms', () => ({
 }));
 
 vi.mock('@/server/services/user', () => ({
-  UserService: vi.fn(),
+  UserService: vi.fn(() => ({
+    initUser: mocks.initUser,
+  })),
 }));
 
 describe('defineConfig', () => {
@@ -179,34 +182,72 @@ describe('defineConfig', () => {
     );
   });
 
-  it('should grant trial credits after phone verification succeeds', async () => {
+  it('should initialize user and grant trial credits after user creation', async () => {
     const { defineConfig } = await import('./define-config');
 
     const options = defineConfig({ plugins: [] }) as unknown as BetterAuthOptions;
-    const afterUpdate = options.databaseHooks?.user?.update?.after;
+    const afterCreate = options.databaseHooks?.user?.create?.after;
 
-    expect(afterUpdate).toBeDefined();
+    expect(afterCreate).toBeDefined();
 
-    await afterUpdate?.(
-      {
-        createdAt: new Date('2026-05-29T00:00:00Z'),
-        email: 'phone@example.com',
-        emailVerified: true,
-        id: 'user-phone-verified',
-        image: null,
-        name: 'Phone User',
-        phone: '+8613800000000',
-        phoneNumberVerified: true,
-        updatedAt: new Date('2026-05-29T00:00:00Z'),
-      },
-      {} as never,
-    );
-
-    expect(mocks.onBusinessUserPhoneVerified).toHaveBeenCalledWith({
-      db: {},
-      phoneNumber: '+8613800000000',
-      userId: 'user-phone-verified',
+    await afterCreate?.({
+      createdAt: new Date('2026-05-29T00:00:00Z'),
+      email: 'new@example.com',
+      emailVerified: true,
+      id: 'user-created',
+      image: null,
+      name: 'New User',
+      updatedAt: new Date('2026-05-29T00:00:00Z'),
+      username: 'new-user',
     });
+
+    expect(mocks.initUser).toHaveBeenCalledWith({
+      createdAt: new Date('2026-05-29T00:00:00Z'),
+      email: 'new@example.com',
+      id: 'user-created',
+      username: 'new-user',
+    });
+
+    expect(mocks.grantTrialCreditsOnRegistration).toHaveBeenCalledWith(
+      {},
+      {
+        userId: 'user-created',
+      },
+    );
+  });
+
+  it('should keep user creation hook successful when registration trial grant fails', async () => {
+    const error = new Error('trial grant unavailable');
+    mocks.grantTrialCreditsOnRegistration.mockRejectedValueOnce(error);
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { defineConfig } = await import('./define-config');
+
+    const options = defineConfig({ plugins: [] }) as unknown as BetterAuthOptions;
+    const afterCreate = options.databaseHooks?.user?.create?.after;
+
+    await expect(
+      afterCreate?.({
+        createdAt: new Date('2026-05-29T00:00:00Z'),
+        email: 'new@example.com',
+        emailVerified: true,
+        id: 'user-created',
+        image: null,
+        name: 'New User',
+        updatedAt: new Date('2026-05-29T00:00:00Z'),
+        username: 'new-user',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(mocks.initUser).toHaveBeenCalledWith({
+      createdAt: new Date('2026-05-29T00:00:00Z'),
+      email: 'new@example.com',
+      id: 'user-created',
+      username: 'new-user',
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'grant trial credits on registration failed:',
+      error,
+    );
   });
 
   it('should register phone OTP backed by Aliyun SMS', async () => {

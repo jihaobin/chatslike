@@ -18,13 +18,7 @@ import { type UserSettings } from '@/types/user/settings';
 export interface VerifyPhoneForTrialResult {
   phone: string;
   phoneNumberVerified: boolean;
-  trial: {
-    credits: number;
-    granted: boolean;
-  };
 }
-
-export type RetryVerifiedPhoneTrialGrantResult = VerifyPhoneForTrialResult;
 
 export class UserService {
   getUserRegistrationDuration = async (): Promise<{
@@ -130,10 +124,6 @@ export class UserService {
     maskedPhone: string;
   }> => {
     return lambdaClient.user.sendPhoneVerificationCode.mutate(phoneNumber);
-  };
-
-  retryVerifiedPhoneTrialGrant = async (): Promise<RetryVerifiedPhoneTrialGrantResult> => {
-    return lambdaClient.user.retryVerifiedPhoneTrialGrant.mutate();
   };
 
   verifyPhoneForTrial = async (input: {

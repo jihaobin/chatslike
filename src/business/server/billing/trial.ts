@@ -6,32 +6,11 @@ import type { LobeChatDatabase, Transaction } from '@/database/type';
 import { TRIAL_CREDITS } from './constants';
 import { CreditsService } from './credits';
 
-const normalizeTrialPhoneNumber = (phoneNumber: string) => {
-  const compactPhoneNumber = phoneNumber.replaceAll(/[\s\-()]/g, '');
-
-  if (compactPhoneNumber.startsWith('+')) {
-    return `+${compactPhoneNumber.slice(1).replaceAll(/\D/g, '')}`;
-  }
-
-  const digits = compactPhoneNumber.replaceAll(/\D/g, '');
-
-  if (/^1\d{10}$/.test(digits)) {
-    return `+86${digits}`;
-  }
-
-  if (/^861\d{10}$/.test(digits)) {
-    return `+${digits}`;
-  }
-
-  return digits || compactPhoneNumber;
-};
-
-export async function grantTrialCreditsAfterPhoneVerified(
+export async function grantTrialCreditsOnRegistration(
   db: LobeChatDatabase | Transaction,
-  params: { phoneNumber: string; userId: string },
+  params: { userId: string },
 ): Promise<{ credits: number; granted: boolean }> {
-  const normalizedPhoneNumber = normalizeTrialPhoneNumber(params.phoneNumber);
-  const operationId = `trial:phone:${normalizedPhoneNumber}`;
+  const operationId = `trial:user:${params.userId}`;
   const existing = await db
     .select({ id: creditGrants.id })
     .from(creditGrants)
@@ -41,7 +20,7 @@ export async function grantTrialCreditsAfterPhoneVerified(
   if (existing[0]) return { credits: TRIAL_CREDITS, granted: false };
 
   const service = new CreditsService(db, params.userId);
-  await service.grantTrialCredits({ operationId, phoneNumber: normalizedPhoneNumber });
+  await service.grantTrialCredits({ operationId });
 
   return { credits: TRIAL_CREDITS, granted: true };
 }

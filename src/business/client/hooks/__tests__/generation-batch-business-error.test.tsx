@@ -21,7 +21,7 @@ vi.mock('react-i18next', () => ({
         'limitation.limited.topup': 'Top-Up Credits',
         'limitation.limited.upgradeToPlan': 'Upgrade to {{plan}}',
         'profile.phone': 'Phone',
-        'profile.phoneTrialHint': 'Verify your phone to claim trial credits.',
+        'profile.phoneVerificationRequiredDesc': 'Verify your phone number to continue.',
         'profile.phoneVerifyAction': 'Verify Phone',
       };
 
@@ -116,7 +116,7 @@ describe('generation batch business error hooks', () => {
       />,
     );
 
-    expect(screen.getByText('Verify your phone to claim trial credits.')).toBeInTheDocument();
+    expect(screen.getByText('Verify your phone number to continue.')).toBeInTheDocument();
     expect(screen.getByText('Verify Phone')).toBeInTheDocument();
     expect(screen.queryByText('fallback')).not.toBeInTheDocument();
   });

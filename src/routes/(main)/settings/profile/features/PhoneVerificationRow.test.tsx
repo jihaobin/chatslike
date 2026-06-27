@@ -8,7 +8,6 @@ import zhCNAuth from '../../../../../../locales/zh-CN/auth.json';
 import PhoneVerificationRow from './PhoneVerificationRow';
 
 const sendPhoneVerificationCode = vi.fn();
-const retryVerifiedPhoneTrialGrant = vi.fn();
 const verifyPhoneForTrial = vi.fn();
 let phoneNumberVerified = false;
 
@@ -21,7 +20,6 @@ vi.mock('@/store/user', () => ({
     selector({
       phone: '',
       phoneNumberVerified,
-      retryVerifiedPhoneTrialGrant,
       sendPhoneVerificationCode,
       verifyPhoneForTrial,
     }),
@@ -39,7 +37,6 @@ vi.mock('react-i18next', () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === 'profile.phoneCodeSent') return `sent ${params?.phone}`;
       if (key === 'profile.phoneResendCountdown') return `resend ${params?.seconds}`;
-      if (key === 'profile.phoneTrialGranted') return `granted ${params?.credits}`;
       return key;
     },
   }),
@@ -49,12 +46,14 @@ describe('PhoneVerificationRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     phoneNumberVerified = false;
-    retryVerifiedPhoneTrialGrant.mockResolvedValue({ trial: { credits: 500_000, granted: true } });
     sendPhoneVerificationCode.mockResolvedValue({
       cooldownSeconds: 60,
       maskedPhone: '+86138****0000',
     });
-    verifyPhoneForTrial.mockResolvedValue({ trial: { credits: 500_000, granted: true } });
+    verifyPhoneForTrial.mockResolvedValue({
+      phone: '+8613800000000',
+      phoneNumberVerified: true,
+    });
   });
 
   it('should send code first, then verify phone with code', async () => {
@@ -83,8 +82,7 @@ describe('PhoneVerificationRow', () => {
     });
   });
 
-  it('should not say trial credits were issued when the grant was already claimed', async () => {
-    verifyPhoneForTrial.mockResolvedValue({ trial: { credits: 500_000, granted: false } });
+  it('should say phone verification succeeded without trial credit copy', async () => {
     render(<PhoneVerificationRow />);
 
     fireEvent.change(screen.getByPlaceholderText('profile.phonePlaceholder'), {
@@ -102,45 +100,25 @@ describe('PhoneVerificationRow', () => {
     fireEvent.click(screen.getByText('profile.phoneVerifyCodeAction'));
 
     await waitFor(() => {
-      expect(message.success).toHaveBeenCalledWith('profile.phoneVerifiedTrialAlreadyClaimed');
+      expect(message.success).toHaveBeenCalledWith('profile.phoneVerified');
     });
     expect(message.success).not.toHaveBeenCalledWith('profile.phoneTrialGranted');
+    expect(message.success).not.toHaveBeenCalledWith('profile.phoneVerifiedTrialAlreadyClaimed');
   });
 
-  it('should include non-grant trial verification copy in runtime locale resources', () => {
-    const expectedEnUS =
-      'Phone verified. Trial Credits were already claimed for this phone number.';
-    const expectedZhCN = '手机已验证。该手机号已领取过试用积分，本次不会重复发放。';
+  it('should include phone verification success copy in runtime locale resources', () => {
+    const expectedEnUS = 'Phone verified.';
+    const expectedZhCN = '手机已验证。';
 
-    expect(enUSAuth['profile.phoneVerifiedTrialAlreadyClaimed']).toBe(expectedEnUS);
-    expect(zhCNAuth['profile.phoneVerifiedTrialAlreadyClaimed']).toBe(expectedZhCN);
-    expect(zhCNAuth['profile.phoneVerifiedTrialAlreadyClaimed']).not.toContain('已发放');
+    expect(enUSAuth['profile.phoneVerified']).toBe(expectedEnUS);
+    expect(zhCNAuth['profile.phoneVerified']).toBe(expectedZhCN);
   });
 
-  it('should retry trial grant for an already verified phone', async () => {
+  it('should not expose trial grant retry for an already verified phone', () => {
     phoneNumberVerified = true;
-    retryVerifiedPhoneTrialGrant.mockResolvedValue({ trial: { credits: 600_000, granted: true } });
     render(<PhoneVerificationRow />);
 
-    fireEvent.click(screen.getByText('profile.phoneRetryTrialGrantAction'));
-
-    await waitFor(() => {
-      expect(retryVerifiedPhoneTrialGrant).toHaveBeenCalled();
-    });
-    expect(message.success).toHaveBeenCalledWith('granted 600,000');
-  });
-
-  it('should not say credits were issued when retry finds the trial grant already claimed', async () => {
-    phoneNumberVerified = true;
-    retryVerifiedPhoneTrialGrant.mockResolvedValue({ trial: { credits: 500_000, granted: false } });
-    render(<PhoneVerificationRow />);
-
-    fireEvent.click(screen.getByText('profile.phoneRetryTrialGrantAction'));
-
-    await waitFor(() => {
-      expect(message.success).toHaveBeenCalledWith('profile.phoneVerifiedTrialAlreadyClaimed');
-    });
-    expect(message.success).not.toHaveBeenCalledWith('profile.phoneTrialGranted');
+    expect(screen.queryByText('profile.phoneRetryTrialGrantAction')).not.toBeInTheDocument();
   });
 
   it('should show a clear message when the phone number is already bound', async () => {

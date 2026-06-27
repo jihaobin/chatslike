@@ -5,7 +5,7 @@ import { getTestDB } from '@/database/core/getTestDB';
 import { creditAccounts, creditGrants, creditLedgerEntries, users } from '@/database/schemas';
 import type { LobeChatDatabase } from '@/database/type';
 
-import { grantTrialCreditsAfterPhoneVerified } from '../trial';
+import { grantTrialCreditsOnRegistration } from '../trial';
 
 const serverDB: LobeChatDatabase = await getTestDB();
 const userId = 'trial-user';
@@ -22,70 +22,41 @@ afterEach(async () => {
   await serverDB.delete(users);
 });
 
-describe('grantTrialCreditsAfterPhoneVerified', () => {
-  it('grants 500000 credits once for a verified phone', async () => {
-    const first = await grantTrialCreditsAfterPhoneVerified(serverDB, {
-      phoneNumber: '+8613800000000',
-      userId,
-    });
-    const second = await grantTrialCreditsAfterPhoneVerified(serverDB, {
-      phoneNumber: '+8613800000000',
-      userId,
-    });
+describe('grantTrialCreditsOnRegistration', () => {
+  it('grants 500000 credits once for a registered user', async () => {
+    const first = await grantTrialCreditsOnRegistration(serverDB, { userId });
+    const second = await grantTrialCreditsOnRegistration(serverDB, { userId });
 
-    expect(first.granted).toBe(true);
-    expect(second.granted).toBe(false);
+    expect(first).toEqual({ credits: 500_000, granted: true });
+    expect(second).toEqual({ credits: 500_000, granted: false });
 
     const rows = await serverDB.select().from(creditGrants);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
+      operationId: `trial:user:${userId}`,
       remainingCredits: 500_000,
       source: 'trial',
       totalCredits: 500_000,
       userId,
     });
-    expect(rows[0].expiresAt).toBeInstanceOf(Date);
+    expect(rows[0].metadata).not.toHaveProperty('phoneNumber');
   });
 
-  it('does not grant trial credits twice for the same phone across users', async () => {
-    const otherUserId = 'trial-user-other';
+  it('grants trial credits independently for different users', async () => {
+    const otherUserId = 'trial-registration-other';
     await serverDB.insert(users).values([{ id: otherUserId }]);
 
-    const first = await grantTrialCreditsAfterPhoneVerified(serverDB, {
-      phoneNumber: '+8613800000000',
-      userId,
-    });
-    const second = await grantTrialCreditsAfterPhoneVerified(serverDB, {
-      phoneNumber: '+8613800000000',
-      userId: otherUserId,
-    });
+    const first = await grantTrialCreditsOnRegistration(serverDB, { userId });
+    const second = await grantTrialCreditsOnRegistration(serverDB, { userId: otherUserId });
 
     expect(first.granted).toBe(true);
-    expect(second.granted).toBe(false);
+    expect(second.granted).toBe(true);
 
     const rows = await serverDB.select().from(creditGrants);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].userId).toBe(userId);
-  });
-
-  it('does not grant trial credits twice when the same phone uses different formats', async () => {
-    const otherUserId = 'trial-user-formatted';
-    await serverDB.insert(users).values([{ id: otherUserId }]);
-
-    const first = await grantTrialCreditsAfterPhoneVerified(serverDB, {
-      phoneNumber: '+8613800000000',
-      userId,
-    });
-    const second = await grantTrialCreditsAfterPhoneVerified(serverDB, {
-      phoneNumber: '138 0000-0000',
-      userId: otherUserId,
-    });
-
-    expect(first.granted).toBe(true);
-    expect(second.granted).toBe(false);
-
-    const rows = await serverDB.select().from(creditGrants);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].operationId).toBe('trial:phone:+8613800000000');
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.operationId).sort()).toEqual([
+      `trial:user:${otherUserId}`,
+      `trial:user:${userId}`,
+    ]);
   });
 });
