@@ -8,8 +8,12 @@ import { useSignUp } from './useSignUp';
 const mockPush = vi.hoisted(() => vi.fn());
 const mockSearchParamsGet = vi.hoisted(() => vi.fn().mockReturnValue(null));
 const mockMessageError = vi.hoisted(() => vi.fn());
+const mockMessageSuccess = vi.hoisted(() => vi.fn());
 const mockSignUpEmail = vi.hoisted(() => vi.fn());
 const mockGetCaptchaTokenOnError = vi.hoisted(() => vi.fn());
+const mockAuthServerConfigState = vi.hoisted(() => ({
+  serverConfig: { enableEmailVerification: false },
+}));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -17,7 +21,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/components/AntdStaticMethods', () => ({
-  message: { error: mockMessageError, success: vi.fn() },
+  message: { error: mockMessageError, success: mockMessageSuccess },
 }));
 
 vi.mock('@/libs/better-auth/auth-client', () => ({
@@ -38,25 +42,20 @@ vi.mock('@/business/client/hooks/useBusinessSignup', () => ({
   }),
 }));
 
+vi.mock('../../_layout/AuthServerConfigProvider', () => ({
+  useAuthServerConfigStore: (selector: (state: typeof mockAuthServerConfigState) => unknown) =>
+    selector(mockAuthServerConfigState),
+}));
+
 // motion/react-m exports `form` as a motion HTML element — mock the whole module
 vi.mock('motion/react-m', () => ({ form: {} }));
-
-let mockEnableEmailVerification = false;
-vi.mock('../../_layout/AuthServerConfigProvider', () => ({
-  useAuthServerConfigStore: (selector: (s: any) => any) =>
-    selector({
-      serverConfig: {
-        enableEmailVerification: mockEnableEmailVerification,
-      },
-    }),
-}));
 
 describe('useSignUp', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParamsGet.mockReturnValue(null);
     mockGetCaptchaTokenOnError.mockResolvedValue(undefined);
-    mockEnableEmailVerification = false;
+    mockAuthServerConfigState.serverConfig.enableEmailVerification = false;
   });
 
   afterEach(() => {
@@ -127,8 +126,10 @@ describe('useSignUp', () => {
       expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });
 
-    it('should redirect to verify-email when email verification is enabled', async () => {
-      mockEnableEmailVerification = true;
+    it('should not redirect to the removed email verification page', async () => {
+      mockSearchParamsGet.mockImplementation((key: string) =>
+        key === 'callbackUrl' ? '/dashboard' : null,
+      );
       mockSignUpEmail.mockResolvedValue({ error: null });
 
       const { result } = renderHook(() => useSignUp());
@@ -137,9 +138,26 @@ describe('useSignUp', () => {
         await result.current.onSubmit(validValues);
       });
 
-      expect(mockPush).toHaveBeenCalledWith(
-        expect.stringContaining('/verify-email?email=new%40example.com'),
+      expect(mockPush).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it('should send users to sign in with a success message when email verification is required', async () => {
+      mockAuthServerConfigState.serverConfig.enableEmailVerification = true;
+      mockSearchParamsGet.mockImplementation((key: string) =>
+        key === 'callbackUrl' ? '/dashboard' : null,
       );
+      mockSignUpEmail.mockResolvedValue({ error: null });
+
+      const { result } = renderHook(() => useSignUp());
+
+      await act(async () => {
+        await result.current.onSubmit(validValues);
+      });
+
+      expect(mockMessageSuccess).toHaveBeenCalledWith('betterAuth.signup.success');
+      expect(mockPush).toHaveBeenCalledWith('/signin');
+      expect(mockPush).not.toHaveBeenCalledWith('/dashboard');
+      expect(mockPush).not.toHaveBeenCalledWith('/verify-email');
     });
 
     it('should derive username from email prefix', async () => {

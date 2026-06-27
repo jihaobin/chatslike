@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   authEnv: {
     AUTH_DISABLE_EMAIL_PASSWORD: false,
     AUTH_EMAIL_VERIFICATION: true,
-    AUTH_ENABLE_MAGIC_LINK: false,
     AUTH_SECRET: 'test-secret',
     AUTH_SSO_PROVIDERS: '',
     WECHAT_CLIENT_ID: 'wechat-client-id' as string | undefined,
@@ -64,7 +63,6 @@ vi.mock('better-auth/plugins', () => ({
   admin: vi.fn(() => ({ id: 'admin' })),
   emailOTP: vi.fn(() => ({ id: 'email-otp' })),
   genericOAuth: vi.fn(() => ({ id: 'generic-oauth' })),
-  magicLink: vi.fn(() => ({ id: 'magic-link' })),
   phoneNumber: vi.fn(() => ({ id: 'phone-number' })),
 }));
 
@@ -101,7 +99,6 @@ vi.mock('@/envs/auth', () => ({
 
 vi.mock('@/libs/better-auth/email-templates', () => ({
   getChangeEmailVerificationTemplate: vi.fn(() => ({})),
-  getMagicLinkEmailTemplate: vi.fn(() => ({})),
   getResetPasswordEmailTemplate: vi.fn(() => ({})),
   getVerificationEmailTemplate: vi.fn(() => ({})),
   getVerificationOTPEmailTemplate: vi.fn(() => ({})),
@@ -187,19 +184,23 @@ describe('defineConfig', () => {
 
     const options = defineConfig({ plugins: [] }) as unknown as BetterAuthOptions;
     const afterCreate = options.databaseHooks?.user?.create?.after;
+    const afterCreateContext = {} as Parameters<NonNullable<typeof afterCreate>>[1];
 
     expect(afterCreate).toBeDefined();
 
-    await afterCreate?.({
-      createdAt: new Date('2026-05-29T00:00:00Z'),
-      email: 'new@example.com',
-      emailVerified: true,
-      id: 'user-created',
-      image: null,
-      name: 'New User',
-      updatedAt: new Date('2026-05-29T00:00:00Z'),
-      username: 'new-user',
-    });
+    await afterCreate?.(
+      {
+        createdAt: new Date('2026-05-29T00:00:00Z'),
+        email: 'new@example.com',
+        emailVerified: true,
+        id: 'user-created',
+        image: null,
+        name: 'New User',
+        updatedAt: new Date('2026-05-29T00:00:00Z'),
+        username: 'new-user',
+      },
+      afterCreateContext,
+    );
 
     expect(mocks.initUser).toHaveBeenCalledWith({
       createdAt: new Date('2026-05-29T00:00:00Z'),
@@ -224,18 +225,22 @@ describe('defineConfig', () => {
 
     const options = defineConfig({ plugins: [] }) as unknown as BetterAuthOptions;
     const afterCreate = options.databaseHooks?.user?.create?.after;
+    const afterCreateContext = {} as Parameters<NonNullable<typeof afterCreate>>[1];
 
     await expect(
-      afterCreate?.({
-        createdAt: new Date('2026-05-29T00:00:00Z'),
-        email: 'new@example.com',
-        emailVerified: true,
-        id: 'user-created',
-        image: null,
-        name: 'New User',
-        updatedAt: new Date('2026-05-29T00:00:00Z'),
-        username: 'new-user',
-      }),
+      afterCreate?.(
+        {
+          createdAt: new Date('2026-05-29T00:00:00Z'),
+          email: 'new@example.com',
+          emailVerified: true,
+          id: 'user-created',
+          image: null,
+          name: 'New User',
+          updatedAt: new Date('2026-05-29T00:00:00Z'),
+          username: 'new-user',
+        },
+        afterCreateContext,
+      ),
     ).resolves.toBeUndefined();
 
     expect(mocks.initUser).toHaveBeenCalledWith({
@@ -274,6 +279,10 @@ describe('defineConfig', () => {
     }
 
     const [options] = lastPhoneNumberCall;
+    if (!options) {
+      throw new Error('phoneNumber plugin options were not provided');
+    }
+
     await options.sendOTP({ code: '123456', phoneNumber: '+8613800000000' });
 
     expect(mocks.createAliyunSmsProvider).toHaveBeenCalled();

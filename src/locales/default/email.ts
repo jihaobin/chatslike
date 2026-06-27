@@ -50,16 +50,6 @@ export default {
   'resetPassword.textBody': 'Reset your password by clicking this link: {{url}}',
   'resetPassword.title': 'Reset Your Password',
 
-  // Magic link sign-in
-  'magicLink.button': 'Sign In',
-  'magicLink.expiration': 'This link will expire in {{duration}}.',
-  'magicLink.htmlTitle': 'Sign in to {{brand}}',
-  'magicLink.ignore': "If you didn't request this email, you can safely ignore it.",
-  'magicLink.subject': 'Your {{brand}} sign-in link',
-  'magicLink.subtitle': 'Click the link below to sign in to your account.',
-  'magicLink.textBody': 'Use this link to sign in: {{url}}\n\nThis link expires in {{duration}}.',
-  'magicLink.title': 'Sign in to {{brand}}',
-
   // Change email confirmation
   'changeEmail.body':
     'We received a request to change your {{brand}} account email to this address. Please confirm by clicking the button below.',

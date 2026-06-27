@@ -7,7 +7,7 @@ import { translation } from '@/server/translation';
  * Better Auth passes different things as the second callback argument:
  * - `sendVerificationEmail` / `sendResetPassword` receive a raw `Request`
  *   (has `headers: Headers`).
- * - `emailOTP` / `magicLink` plugins receive a `GenericEndpointContext`
+ * - `emailOTP` plugin receives a `GenericEndpointContext`
  *   (has an optional nested `request` and/or `headers`).
  *
  * All fields are optional so both forms are assignable here.

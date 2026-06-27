@@ -185,7 +185,6 @@ export function defineConfig() {
     '/signin',
     '/signup',
     '/auth-error',
-    '/verify-email',
     '/reset-password',
     // oauth
     // Make only the consent view public (GET page), not other oauth paths

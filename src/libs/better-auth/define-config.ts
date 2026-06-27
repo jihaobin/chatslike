@@ -8,7 +8,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { verifyPassword as defaultVerifyPassword } from 'better-auth/crypto';
 import { type BetterAuthOptions } from 'better-auth/minimal';
 import { betterAuth } from 'better-auth/minimal';
-import { admin, emailOTP, genericOAuth, magicLink, phoneNumber } from 'better-auth/plugins';
+import { admin, emailOTP, genericOAuth, phoneNumber } from 'better-auth/plugins';
 import { defaultRoles } from 'better-auth/plugins/admin/access';
 import { type BetterAuthPlugin } from 'better-auth/types';
 import { emailHarmony } from 'better-auth-harmony';
@@ -22,7 +22,6 @@ import { appEnv } from '@/envs/app';
 import { authEnv } from '@/envs/auth';
 import {
   getChangeEmailVerificationTemplate,
-  getMagicLinkEmailTemplate,
   getResetPasswordEmailTemplate,
   getVerificationEmailTemplate,
   getVerificationOTPEmailTemplate,
@@ -81,10 +80,8 @@ const getPasskeyOrigins = (): string[] | undefined => {
     return undefined;
   }
 };
-const MAGIC_LINK_EXPIRES_IN = 900;
 // OTP expiration time (in seconds) - 5 minutes for mobile OTP verification
 const OTP_EXPIRES_IN = 300;
-const enableMagicLink = authEnv.AUTH_ENABLE_MAGIC_LINK;
 const enabledSSOProviders = parseSSOProviders(authEnv.AUTH_SSO_PROVIDERS);
 
 const { socialProviders, genericOAuthProviders } = initBetterAuthSSOProviders();
@@ -209,7 +206,7 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
      */
     experimental: { joins: true },
     /**
-     * Run user bootstrap for every newly created account (email, magic link, OAuth/social, etc.).
+     * Run user bootstrap for every newly created account (email/password, OAuth/social, etc.).
      * Using Better Auth database hooks ensures we catch social flows that bypass /sign-up/* routes.
      * Ref: https://www.better-auth.com/docs/reference/options#databasehooks
      */
@@ -340,28 +337,6 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
         ? [
             genericOAuth({
               config: genericOAuthProviders,
-            }),
-          ]
-        : []),
-      ...(enableMagicLink
-        ? [
-            magicLink({
-              expiresIn: MAGIC_LINK_EXPIRES_IN,
-              sendMagicLink: async ({ email, url }, request) => {
-                const { t, lang } = await getEmailTranslation(request);
-                const template = getMagicLinkEmailTemplate({
-                  expiresInSeconds: MAGIC_LINK_EXPIRES_IN,
-                  lang,
-                  t,
-                  url,
-                });
-
-                const emailService = new EmailService();
-                await emailService.sendMail({
-                  to: email,
-                  ...template,
-                });
-              },
             }),
           ]
         : []),

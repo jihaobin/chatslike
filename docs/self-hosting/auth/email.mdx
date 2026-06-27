@@ -2,18 +2,17 @@
 title: Email Service Configuration
 description: >-
   Configure LobeHub email service for email verification, password reset, and
-  magic link login.
+  change-email confirmation.
 tags:
   - Email Service
   - SMTP
   - Resend
   - Email Verification
-  - Magic Link
 ---
 
 # Email Service Configuration
 
-Email service is used for email verification, password reset, and magic link delivery. LobeHub supports two email service providers.
+Email service is used for email verification, password reset, and change-email confirmation. LobeHub supports two email service providers.
 
 ## Nodemailer (SMTP)
 
@@ -58,14 +57,6 @@ Enable email verification to ensure users own the email addresses they register 
 <Callout type={'info'}>
   Email verification requires a working email service (SMTP or Resend) configured above. When enabled, users must verify their email address before they can sign in.
 </Callout>
-
-## Magic Link (Passwordless) Login
-
-Enable magic-link login (depends on a working email provider above, off by default):
-
-| Environment Variable     | Type     | Description                                                         |
-| ------------------------ | -------- | ------------------------------------------------------------------- |
-| `AUTH_ENABLE_MAGIC_LINK` | Optional | Set to `1` to enable passwordless magic-link login (off by default) |
 
 <Callout type={'tip'}>
   Go to [Environment Variables](/docs/self-hosting/environment-variables/auth#better-auth) for detailed information on all Better Auth variables.

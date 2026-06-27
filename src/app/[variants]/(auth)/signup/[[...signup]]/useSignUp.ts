@@ -35,7 +35,7 @@ export const useSignUp = () => {
   const { getCaptchaTokenOnError, getFetchOptions, preSocialSignupCheck, businessElement } =
     useBusinessSignup(form);
   const enableEmailVerification = useAuthServerConfigStore(
-    (s) => s.serverConfig.enableEmailVerification || false,
+    (state) => state.serverConfig.enableEmailVerification,
   );
 
   const handleSignUp = async (values: SignUpFormValues) => {
@@ -95,12 +95,12 @@ export const useSignUp = () => {
       }
 
       if (enableEmailVerification) {
-        router.push(
-          `/verify-email?email=${encodeURIComponent(values.email)}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
-        );
-      } else {
-        router.push(callbackUrl);
+        message.success(t('betterAuth.signup.success'));
+        router.push('/signin');
+        return;
       }
+
+      router.push(callbackUrl);
     } catch {
       message.error(t('betterAuth.signup.error'));
     } finally {

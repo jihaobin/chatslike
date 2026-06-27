@@ -16,13 +16,12 @@ LobeHub supports the configuration of external authentication services using Bet
 
 ## Better Auth
 
-[Better Auth](https://www.better-auth.com) is a modern, framework-agnostic authentication library designed to provide comprehensive, secure, and flexible authentication solutions. It supports various authentication methods including email/password, magic links, and multiple OAuth/SSO providers.
+[Better Auth](https://www.better-auth.com) is a modern, framework-agnostic authentication library designed to provide comprehensive, secure, and flexible authentication solutions. LobeHub uses it for email/password authentication and multiple OAuth/SSO providers.
 
 ### Key Features
 
-- **Email/Password Authentication**: Built-in support for traditional email and password login with secure password hashing
+- **Email/Password Account Features**: Built-in support for email signup, password hashing, password reset, and admin-managed password accounts
 - **Email Verification**: Optional email verification flow with customizable email templates
-- **Magic Link Login**: Passwordless authentication via email magic links
 - **OAuth/SSO Support**: Integration with popular identity providers including Google, GitHub, Microsoft, AWS Cognito, and more
 - **Generic OIDC/OAuth**: Support for any OpenID Connect or OAuth 2.0 compliant provider
 
@@ -107,9 +106,9 @@ When configuring OAuth providers, use the following callback URL format:
 
 ## Email/Password Options
 
-**Disable email/password login (SSO-only mode):**
+**Disable email/password account features (SSO-only mode):**
 
-Set `AUTH_DISABLE_EMAIL_PASSWORD=1` to hide the email input on the login page and redirect the signup page to login. Users can only sign in via configured SSO providers. Ensure at least one SSO provider is configured before enabling this.
+Set `AUTH_DISABLE_EMAIL_PASSWORD=1` to disable email/password signup and password-based account flows. The current sign-in page uses phone OTP and WeChat tabs; SSO providers remain available when configured. Ensure at least one non-password sign-in method is configured before enabling this.
 
 **Restrict registration to specific emails or domains:**
 
@@ -156,7 +155,7 @@ AUTH_GITHUB_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ## Email Service Configuration
 
-Email service is required for email verification, password reset, and magic link delivery.
+Email service is required for email verification, password reset, and change-email confirmation.
 
 **SMTP configuration:**
 
@@ -200,28 +199,27 @@ Set the `AUTH_SSO_PROVIDERS` environment variable with a comma-separated list, e
 
 ### What if Casdoor users only have username without email?
 
-The current authentication system requires email. Please configure a valid email address for users in Casdoor. Using a real, valid email is strongly recommended, otherwise features like password reset and magic link login will not work.
+The current authentication system requires email. Please configure a valid email address for users in Casdoor. Using a real, valid email is strongly recommended, otherwise features like password reset and email verification will not work.
 
 ### Can I use fake or random email addresses?
 
 **Strongly not recommended.** You should always use valid, real email addresses. Using fake emails will cause the following issues:
 
 - Password reset functionality will not work
-- Magic link login will not work
 - Email verification will fail
 - You may lose access to your account if you forget your password
 
 This applies to all authentication methods, including SSO providers like Casdoor. Always ensure users have valid email addresses configured.
 
-### How do I enable SSO-only mode (disable email/password login)?
+### How do I enable SSO-only mode (disable email/password account features)?
 
-Set `AUTH_DISABLE_EMAIL_PASSWORD=1` to disable email/password authentication. When enabled:
+Set `AUTH_DISABLE_EMAIL_PASSWORD=1` to disable email/password signup and password-based account flows. When enabled:
 
-- The email input will be hidden on the login page, only SSO buttons are displayed
+- The current sign-in page continues to expose phone OTP and WeChat sign-in
 - The signup page will redirect to the login page
-- Users can only log in via configured SSO providers
+- Users can also sign in via configured SSO providers
 
-Make sure you have at least one SSO provider configured via `AUTH_SSO_PROVIDERS` before enabling this option.
+Make sure you have at least one non-password sign-in method configured before enabling this option.
 
 ### How do I restrict registration to specific emails or domains?
 

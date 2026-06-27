@@ -14,7 +14,6 @@ vi.mock('better-auth/client/plugins', () => ({
   adminClient: vi.fn(() => ({ id: 'admin-client' })),
   genericOAuthClient: vi.fn(() => ({ id: 'generic-oauth-client' })),
   inferAdditionalFields: vi.fn(() => ({ id: 'infer-additional-fields' })),
-  magicLinkClient: vi.fn(() => ({ id: 'magic-link-client' })),
   phoneNumberClient: mocks.phoneNumberClient,
 }));
 

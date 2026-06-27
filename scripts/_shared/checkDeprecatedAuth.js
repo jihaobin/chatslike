@@ -40,11 +40,11 @@ const DEPRECATED_CHECKS = [
   {
     formatVar: (envVar) => {
       const mapping = {
-        ENABLE_MAGIC_LINK: 'AUTH_ENABLE_MAGIC_LINK',
         NEXT_PUBLIC_AUTH_EMAIL_VERIFICATION: 'AUTH_EMAIL_VERIFICATION',
-        NEXT_PUBLIC_ENABLE_MAGIC_LINK: 'AUTH_ENABLE_MAGIC_LINK',
       };
-      return `${envVar} → Please use ${mapping[envVar]} instead`;
+      if (mapping[envVar]) return `${envVar} → Please use ${mapping[envVar]} instead`;
+
+      return `${envVar} → Please remove this variable; passwordless email login is no longer supported`;
     },
     getVars: () =>
       [

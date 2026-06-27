@@ -94,7 +94,6 @@ export interface GlobalServerConfig {
   enableEmailVerification?: boolean;
   enableKlavis?: boolean;
   enableLobehubSkill?: boolean;
-  enableMagicLink?: boolean;
   enableMarketTrustedClient?: boolean;
   enableUploadFileToServer?: boolean;
   enableVisualUnderstanding?: boolean;
