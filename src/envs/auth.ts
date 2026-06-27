@@ -78,11 +78,10 @@ declare global {
 
       AUTH_WECHAT_ID?: string;
       AUTH_WECHAT_SECRET?: string;
-
       AUTH_ZITADEL_ID?: string;
       AUTH_ZITADEL_ISSUER?: string;
-      AUTH_ZITADEL_SECRET?: string;
 
+      AUTH_ZITADEL_SECRET?: string;
       /**
        * Internal JWT expiration time for lambda → async calls.
        * Format: number followed by unit (s=seconds, m=minutes, h=hours)
@@ -91,7 +90,6 @@ declare global {
        * @default '30s'
        */
       INTERNAL_JWT_EXPIRATION?: string;
-
       // ===== JWKS Key ===== //
       /**
        * Generic JWKS key for signing/verifying JWTs.
@@ -100,6 +98,11 @@ declare global {
        * Can be generated using `node scripts/generate-oidc-jwk.mjs`.
        */
       JWKS_KEY?: string;
+      NEXT_PUBLIC_WECHAT_APP_ID?: string;
+
+      WECHAT_CLIENT_ID?: string;
+
+      WECHAT_CLIENT_SECRET?: string;
     }
   }
 }
@@ -107,7 +110,9 @@ declare global {
 export const getAuthConfig = () => {
   return createEnv({
     clientPrefix: 'NEXT_PUBLIC_',
-    client: {},
+    client: {
+      NEXT_PUBLIC_WECHAT_APP_ID: z.string().optional(),
+    },
     server: {
       AUTH_SECRET: z.string().optional(),
       AUTH_SSO_PROVIDERS: z.string().optional().default(''),
@@ -180,6 +185,8 @@ export const getAuthConfig = () => {
 
       AUTH_WECHAT_ID: z.string().optional(),
       AUTH_WECHAT_SECRET: z.string().optional(),
+      WECHAT_CLIENT_ID: z.string().optional(),
+      WECHAT_CLIENT_SECRET: z.string().optional(),
 
       AUTH_ZITADEL_ID: z.string().optional(),
       AUTH_ZITADEL_SECRET: z.string().optional(),
@@ -273,6 +280,8 @@ export const getAuthConfig = () => {
 
       AUTH_WECHAT_ID: process.env.AUTH_WECHAT_ID,
       AUTH_WECHAT_SECRET: process.env.AUTH_WECHAT_SECRET,
+      WECHAT_CLIENT_ID: process.env.WECHAT_CLIENT_ID,
+      WECHAT_CLIENT_SECRET: process.env.WECHAT_CLIENT_SECRET,
 
       AUTH_ZITADEL_ID: process.env.AUTH_ZITADEL_ID,
       AUTH_ZITADEL_SECRET: process.env.AUTH_ZITADEL_SECRET,
@@ -289,6 +298,7 @@ export const getAuthConfig = () => {
 
       // Internal JWT expiration time
       INTERNAL_JWT_EXPIRATION: process.env.INTERNAL_JWT_EXPIRATION,
+      NEXT_PUBLIC_WECHAT_APP_ID: process.env.NEXT_PUBLIC_WECHAT_APP_ID,
     },
   });
 };

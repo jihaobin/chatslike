@@ -22,12 +22,12 @@ const parseWechatScopes = (scope: string | undefined) =>
   scope ? scope.split(' ').filter(Boolean) : [];
 
 const provider: GenericProviderDefinition<{
-  AUTH_WECHAT_ID: string;
-  AUTH_WECHAT_SECRET: string;
+  WECHAT_CLIENT_ID: string;
+  WECHAT_CLIENT_SECRET: string;
 }> = {
   build: (env) => {
-    const clientId = env.AUTH_WECHAT_ID;
-    const clientSecret = env.AUTH_WECHAT_SECRET;
+    const clientId = env.WECHAT_CLIENT_ID;
+    const clientSecret = env.WECHAT_CLIENT_SECRET;
 
     return {
       authorizationUrl: WECHAT_AUTHORIZATION_URL,
@@ -129,10 +129,13 @@ const provider: GenericProviderDefinition<{
   },
 
   checkEnvs: () => {
-    return !!(authEnv.AUTH_WECHAT_ID && authEnv.AUTH_WECHAT_SECRET)
+    const clientId = authEnv.WECHAT_CLIENT_ID || authEnv.AUTH_WECHAT_ID;
+    const clientSecret = authEnv.WECHAT_CLIENT_SECRET || authEnv.AUTH_WECHAT_SECRET;
+
+    return !!(clientId && clientSecret)
       ? {
-          AUTH_WECHAT_ID: authEnv.AUTH_WECHAT_ID,
-          AUTH_WECHAT_SECRET: authEnv.AUTH_WECHAT_SECRET,
+          WECHAT_CLIENT_ID: clientId,
+          WECHAT_CLIENT_SECRET: clientSecret,
         }
       : false;
   },

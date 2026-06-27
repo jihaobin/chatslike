@@ -3,6 +3,7 @@ import {
   genericOAuthClient,
   inferAdditionalFields,
   magicLinkClient,
+  phoneNumberClient,
 } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 
@@ -23,6 +24,7 @@ function getClient() {
         inferAdditionalFields<typeof auth>(),
         genericOAuthClient(),
         magicLinkClient(),
+        phoneNumberClient(),
       ],
     });
   }
@@ -48,6 +50,7 @@ export const linkSocial = lazyProp('linkSocial');
 export const oauth2 = lazyProp('oauth2');
 export const accountInfo = lazyProp('accountInfo');
 export const listAccounts = lazyProp('listAccounts');
+export const phoneNumber = lazyProp('phoneNumber');
 export const requestPasswordReset = lazyProp('requestPasswordReset');
 export const resetPassword = lazyProp('resetPassword');
 export const sendVerificationEmail = lazyProp('sendVerificationEmail');

@@ -8,7 +8,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { verifyPassword as defaultVerifyPassword } from 'better-auth/crypto';
 import { type BetterAuthOptions } from 'better-auth/minimal';
 import { betterAuth } from 'better-auth/minimal';
-import { admin, emailOTP, genericOAuth, magicLink } from 'better-auth/plugins';
+import { admin, emailOTP, genericOAuth, magicLink, phoneNumber } from 'better-auth/plugins';
 import { defaultRoles } from 'better-auth/plugins/admin/access';
 import { type BetterAuthPlugin } from 'better-auth/types';
 import { emailHarmony } from 'better-auth-harmony';
@@ -33,6 +33,7 @@ import { initBetterAuthSSOProviders } from '@/libs/better-auth/sso';
 import { createSecondaryStorage, getTrustedOrigins } from '@/libs/better-auth/utils/config';
 import { parseSSOProviders } from '@/libs/better-auth/utils/server';
 import { EmailService } from '@/server/services/email';
+import { createAliyunSmsProvider } from '@/server/services/sms';
 import { UserService } from '@/server/services/user';
 
 // Configure HTTP proxy for OAuth provider requests in development (e.g., Google token exchange)
@@ -321,6 +322,15 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
             to: email,
             ...template,
           });
+        },
+      }),
+      phoneNumber({
+        expiresIn: OTP_EXPIRES_IN,
+        otpLength: 6,
+        sendOTP: async ({ code, phoneNumber }) => {
+          const sms = createAliyunSmsProvider();
+
+          await sms.sendVerificationCode({ code, phoneNumber });
         },
       }),
       passkey({
