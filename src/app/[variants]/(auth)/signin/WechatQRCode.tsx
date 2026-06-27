@@ -6,8 +6,9 @@ import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { signIn } from '@/libs/better-auth/auth-client';
+
 const WECHAT_LOGIN_SCRIPT_URL = 'https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js';
-const WECHAT_CALLBACK_PATH = '/api/auth/callback/wechat';
 
 let managedWechatScript: HTMLScriptElement | null = null;
 let managedWechatScriptUsers = 0;
@@ -55,18 +56,29 @@ declare global {
   }
 }
 
-const createFallbackState = () => {
-  const crypto = globalThis.crypto;
+const getWechatOauthConfig = async (callbackURL: string) => {
+  const result = await signIn.oauth2({
+    callbackURL,
+    disableRedirect: true,
+    providerId: 'wechat',
+  });
 
-  if (crypto?.getRandomValues) {
-    const values = crypto.getRandomValues(new Uint8Array(16));
-    return Array.from(values, (value) => value.toString(16).padStart(2, '0')).join('');
+  if (result.error) {
+    throw new Error(result.error.message || 'Failed to initialize WeChat OAuth');
   }
 
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-};
+  const authUrl = result.data?.url;
+  if (!authUrl) {
+    throw new Error('Missing WeChat OAuth authorization URL');
+  }
 
-const createWechatState = () => globalThis.crypto?.randomUUID?.() ?? createFallbackState();
+  const url = new URL(authUrl);
+
+  return {
+    redirectUri: url.searchParams.get('redirect_uri') ?? '',
+    state: url.searchParams.get('state') ?? '',
+  };
+};
 
 export const WechatQRCode = () => {
   const { t } = useTranslation('auth');
@@ -77,24 +89,30 @@ export const WechatQRCode = () => {
   const appId = process.env.NEXT_PUBLIC_WECHAT_APP_ID ?? '';
   const qrContainerId = useMemo(() => `wechat-qrcode-${qrVersion}`, [qrVersion]);
 
-  const initializeWechatLogin = useCallback(() => {
-    if (!appId || !window.WxLogin) return;
+  const initializeWechatLogin = useCallback(
+    async (isDisposed: () => boolean) => {
+      if (!appId || !window.WxLogin) return;
 
-    const container = document.querySelector<HTMLElement>(`#${qrContainerId}`);
-    if (!container) return;
+      const container = document.querySelector<HTMLElement>(`#${qrContainerId}`);
+      if (!container) return;
 
-    container.innerHTML = '';
+      container.innerHTML = '';
+      const { redirectUri, state } = await getWechatOauthConfig(window.location.href);
 
-    new window.WxLogin({
-      appid: appId,
-      id: qrContainerId,
-      redirect_uri: encodeURIComponent(`${window.location.origin}${WECHAT_CALLBACK_PATH}`),
-      scope: 'snsapi_login',
-      self_redirect: true,
-      state: createWechatState(),
-      style: 'black',
-    });
-  }, [appId, qrContainerId]);
+      if (isDisposed() || !window.WxLogin) return;
+
+      new window.WxLogin({
+        appid: appId,
+        id: qrContainerId,
+        redirect_uri: encodeURIComponent(redirectUri),
+        scope: 'snsapi_login',
+        self_redirect: true,
+        state,
+        style: 'black',
+      });
+    },
+    [appId, qrContainerId],
+  );
 
   useEffect(() => {
     if (!appId) return;
@@ -146,8 +164,14 @@ export const WechatQRCode = () => {
   useEffect(() => {
     if (!scriptReady || initializedContainerRef.current === qrContainerId) return;
 
-    initializeWechatLogin();
+    let disposed = false;
+
+    void initializeWechatLogin(() => disposed);
     initializedContainerRef.current = qrContainerId;
+
+    return () => {
+      disposed = true;
+    };
   }, [initializeWechatLogin, qrContainerId, scriptReady]);
 
   const handleRefresh = useCallback(() => {

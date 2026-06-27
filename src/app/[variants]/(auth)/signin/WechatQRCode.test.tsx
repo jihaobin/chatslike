@@ -5,7 +5,16 @@ import { WechatQRCode } from './WechatQRCode';
 
 const wxLoginMock = vi.fn();
 const originalWechatAppId = process.env.NEXT_PUBLIC_WECHAT_APP_ID;
-const originalCryptoDescriptor = Object.getOwnPropertyDescriptor(window, 'crypto');
+
+const mocks = vi.hoisted(() => ({
+  oauth2: vi.fn(),
+}));
+
+vi.mock('@/libs/better-auth/auth-client', () => ({
+  signIn: {
+    oauth2: mocks.oauth2,
+  },
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -27,9 +36,10 @@ describe('WechatQRCode', () => {
     clearWechatScripts();
     process.env.NEXT_PUBLIC_WECHAT_APP_ID = 'wx-test-app-id';
     delete window.WxLogin;
-    Object.defineProperty(window, 'crypto', {
-      configurable: true,
-      value: { randomUUID: vi.fn(() => 'test-state') },
+    mocks.oauth2.mockResolvedValue({
+      data: {
+        url: 'https://open.weixin.qq.com/connect/qrconnect?appid=wx-test-app-id&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fapi%2Fauth%2Foauth2%2Fcallback%2Fwechat&response_type=code&scope=snsapi_login&state=better-auth-state',
+      },
     });
     window.history.replaceState({}, '', 'http://localhost:3000/signin');
   });
@@ -43,15 +53,9 @@ describe('WechatQRCode', () => {
     } else {
       process.env.NEXT_PUBLIC_WECHAT_APP_ID = originalWechatAppId;
     }
-
-    if (originalCryptoDescriptor) {
-      Object.defineProperty(window, 'crypto', originalCryptoDescriptor);
-    } else {
-      delete (window as Partial<Window>).crypto;
-    }
   });
 
-  it('loads the official script and initializes WxLogin with the WeChat OAuth callback', async () => {
+  it('loads the official script and initializes WxLogin with the Better Auth WeChat OAuth callback', async () => {
     render(<WechatQRCode />);
 
     const script = document.querySelector<HTMLScriptElement>(
@@ -63,25 +67,36 @@ describe('WechatQRCode', () => {
     script?.dispatchEvent(new Event('load'));
 
     await waitFor(() => {
+      expect(mocks.oauth2).toHaveBeenCalledWith({
+        callbackURL: 'http://localhost:3000/signin',
+        disableRedirect: true,
+        providerId: 'wechat',
+      });
       expect(wxLoginMock).toHaveBeenCalledWith(
         expect.objectContaining({
           appid: 'wx-test-app-id',
-          redirect_uri: encodeURIComponent('http://localhost:3000/api/auth/callback/wechat'),
+          redirect_uri: encodeURIComponent('http://localhost:3000/api/auth/oauth2/callback/wechat'),
           scope: 'snsapi_login',
           self_redirect: true,
-          state: 'test-state',
+          state: 'better-auth-state',
           style: 'black',
         }),
       );
     });
   });
 
-  it('refreshes the QR code with a new container and state', async () => {
-    const randomUUID = vi.fn().mockReturnValueOnce('state-1').mockReturnValueOnce('state-2');
-    Object.defineProperty(window, 'crypto', {
-      configurable: true,
-      value: { randomUUID },
-    });
+  it('refreshes the QR code with a new container and Better Auth state', async () => {
+    mocks.oauth2
+      .mockResolvedValueOnce({
+        data: {
+          url: 'https://open.weixin.qq.com/connect/qrconnect?appid=wx-test-app-id&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fapi%2Fauth%2Foauth2%2Fcallback%2Fwechat&state=state-1',
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          url: 'https://open.weixin.qq.com/connect/qrconnect?appid=wx-test-app-id&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fapi%2Fauth%2Foauth2%2Fcallback%2Fwechat&state=state-2',
+        },
+      });
 
     render(<WechatQRCode />);
 

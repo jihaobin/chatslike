@@ -317,10 +317,22 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
       phoneNumber({
         expiresIn: OTP_EXPIRES_IN,
         otpLength: 6,
+        schema: {
+          user: {
+            fields: {
+              phoneNumber: 'phone',
+              phoneNumberVerified: 'phoneNumberVerified',
+            },
+          },
+        },
         sendOTP: async ({ code, phoneNumber }) => {
           const sms = createAliyunSmsProvider();
 
           await sms.sendVerificationCode({ code, phoneNumber });
+        },
+        signUpOnVerification: {
+          getTempEmail: (phone) => `phone-${phone.replaceAll(/\D/g, '') || 'user'}@phone.invalid`,
+          getTempName: (phone) => phone,
         },
       }),
       passkey({
