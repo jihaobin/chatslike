@@ -8,7 +8,9 @@ import { Navigate } from 'react-router-dom';
 
 import { aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
 import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
+import { AiProviderSourceEnum } from '@/types/aiProvider';
 
+import AddNew from '../../ProviderMenu/AddNew';
 import Card from './Card';
 
 const loadingArr = Array.from({ length: 12 })
@@ -61,12 +63,15 @@ const List = memo((props: ListProps) => {
       </Flexbox>
     );
 
-  // With templates hidden, this grid is only a fallback for the empty state. Many entry
-  // points still link straight to `/all`, so land them on the first enabled provider here
-  // (the smart redirect at the index route can't cover those hard-coded links).
-  if (hideProviderTemplates && enabledList.length > 0) {
+  // With templates hidden, redirect to the first relevant enabled provider.
+  // In global scope, only redirect when there are enabled *custom* providers —
+  // otherwise show the grid so admins can add their first custom provider.
+  const redirectList = isGlobalScope
+    ? enabledList.filter((item) => item.source === AiProviderSourceEnum.Custom)
+    : enabledList;
+  if (hideProviderTemplates && redirectList.length > 0) {
     const prefix = `/settings/provider/${isGlobalScope ? 'global/' : ''}`;
-    return <Navigate replace to={`${prefix}${enabledList[0].id}`} />;
+    return <Navigate replace to={`${prefix}${redirectList[0].id}`} />;
   }
 
   return (
@@ -77,6 +82,7 @@ const List = memo((props: ListProps) => {
             {t('list.title.enabled')}
           </Text>
           <Tag>{enabledList.length}</Tag>
+          {isGlobalScope && hideProviderTemplates && <AddNew />}
         </Flexbox>
         <Grid gap={16} rows={3}>
           {enabledList.map((item) => (
@@ -84,7 +90,7 @@ const List = memo((props: ListProps) => {
           ))}
         </Grid>
       </Flexbox>
-      {!hideProviderTemplates && disabledCustomList.length > 0 && (
+      {(!hideProviderTemplates || isGlobalScope) && disabledCustomList.length > 0 && (
         <Flexbox gap={24}>
           <Flexbox horizontal align={'center'} gap={8}>
             <Text strong style={{ fontSize: 18 }}>

@@ -18,7 +18,7 @@ const Layout: FC<LayoutProps> = ({ children }) => {
   const isDarkMode = useIsDark();
   const theme = useTheme(); // Keep for colorBgContainerSecondary (not in cssVar)
   const { pathname } = useLocation();
-  const isHomeRoute = pathname === '/';
+  const isHomeRoute = pathname === '/home';
   const [hasActivated, setHasActivated] = useState(isHomeRoute);
   const content = children ?? <Outlet />;
 

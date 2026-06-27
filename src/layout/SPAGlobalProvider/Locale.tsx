@@ -52,6 +52,15 @@ const Locale = memo<LocaleLayoutProps>(({ children, defaultLang, antdLocale }) =
       if (resolvedLang) await updateDayjs(resolvedLang);
     });
 
+  // Load antd locale on mount if it wasn't pre-loaded (e.g. in SPA/dev mode)
+  useEffect(() => {
+    if (!locale) {
+      const lang = i18n.instance.language || defaultLang;
+      if (lang) getAntdLocale(lang).then(setLocale);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const handleLang = async (lng: string) => {
       setLang(lng);

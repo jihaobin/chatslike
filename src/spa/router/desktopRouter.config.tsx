@@ -22,7 +22,13 @@ import { groupRouteMeta } from '@/routes/(main)/group/features/routeMeta';
 import AgentManagementGuard from '@/routes/(main)/guards/AgentManagementGuard';
 import { settingsRouteMeta } from '@/routes/(main)/settings/features/routeMeta';
 import { routeMeta } from '@/spa/router/routeMeta';
-import { dynamicElement, dynamicLayout, ErrorBoundary, redirectElement } from '@/utils/router';
+import {
+  dynamicElement,
+  dynamicLayout,
+  ErrorBoundary,
+  redirectElement,
+  redirectElementWithSplat,
+} from '@/utils/router';
 
 const agentChatElement = dynamicElement(() => import('@/routes/(main)/agent'), 'Desktop > Chat');
 
@@ -34,7 +40,7 @@ export const desktopRoutes: RouteObject[] = [
       {
         children: [
           {
-            element: redirectElement('/'),
+            element: redirectElement('/home'),
             index: true,
           },
           {
@@ -101,7 +107,7 @@ export const desktopRoutes: RouteObject[] = [
           {
             children: [
               {
-                element: redirectElement('/'),
+                element: redirectElement('/home'),
                 index: true,
               },
               {
@@ -390,7 +396,7 @@ export const desktopRoutes: RouteObject[] = [
       {
         children: [
           {
-            element: redirectElement('/settings/profile'),
+            element: redirectElement('/home/settings/profile'),
             index: true,
           },
           // Provider routes with nested structure
@@ -758,26 +764,66 @@ export const desktopRoutes: RouteObject[] = [
         path: 'page',
       },
 
-      // Default route - home page (handled by persistent layout)
-      {
-        handle: {
-          meta: routeMeta({ icon: Home, titleKey: 'navigation.home' }),
-        },
-        index: true,
-      },
       // Catch-all route
       {
-        element: redirectElement('/'),
+        element: redirectElement('/home'),
         path: '*',
       },
     ],
     element: dynamicLayout(() => import('@/routes/(main)/_layout'), 'Desktop > Main > Layout'),
     errorElement: <ErrorBoundary />,
-    path: '/',
+    handle: {
+      meta: routeMeta({ icon: Home, titleKey: 'navigation.home' }),
+    },
+    path: '/home',
   },
   // Onboarding route (outside main layout)
 
   ...BusinessDesktopRoutesWithoutMainLayout,
+
+  // Explore portal (default landing, outside main layout — full-screen)
+  {
+    children: [
+      {
+        element: dynamicElement(() => import('@/routes/explore'), 'Desktop > Explore'),
+        index: true,
+      },
+    ],
+    errorElement: <ErrorBoundary />,
+    path: '/',
+  },
+
+  {
+    children: [
+      {
+        element: dynamicElement(() => import('@/routes/explore'), 'Desktop > Explore'),
+        index: true,
+      },
+    ],
+    errorElement: <ErrorBoundary />,
+    path: '/explore',
+  },
+
+  { element: redirectElement('/home/agent'), path: '/agent' },
+  { element: redirectElementWithSplat('/home/agent'), path: '/agent/*' },
+  { element: redirectElement('/home/group'), path: '/group' },
+  { element: redirectElementWithSplat('/home/group'), path: '/group/*' },
+  { element: redirectElement('/home/community'), path: '/community' },
+  { element: redirectElementWithSplat('/home/community'), path: '/community/*' },
+  { element: redirectElement('/home/resource'), path: '/resource' },
+  { element: redirectElementWithSplat('/home/resource'), path: '/resource/*' },
+  { element: redirectElement('/home/settings'), path: '/settings' },
+  { element: redirectElementWithSplat('/home/settings'), path: '/settings/*' },
+  { element: redirectElement('/home/memory'), path: '/memory' },
+  { element: redirectElementWithSplat('/home/memory'), path: '/memory/*' },
+  { element: redirectElement('/home/video'), path: '/video' },
+  { element: redirectElementWithSplat('/home/video'), path: '/video/*' },
+  { element: redirectElement('/home/image'), path: '/image' },
+  { element: redirectElementWithSplat('/home/image'), path: '/image/*' },
+  { element: redirectElement('/home/eval'), path: '/eval' },
+  { element: redirectElementWithSplat('/home/eval'), path: '/eval/*' },
+  { element: redirectElement('/home/page'), path: '/page' },
+  { element: redirectElementWithSplat('/home/page'), path: '/page/*' },
 
   // Share topic route (outside main layout)
   {

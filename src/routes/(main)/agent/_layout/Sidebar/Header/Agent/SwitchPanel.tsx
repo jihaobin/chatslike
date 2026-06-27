@@ -31,7 +31,7 @@ const SwitchPanel = memo<PropsWithChildren>(({ children }) => {
               overflowY: 'auto',
             }}
           >
-            <AgentListContent onMoreClick={() => navigate('/')} />
+            <AgentListContent onMoreClick={() => navigate('/home')} />
           </Flexbox>
         </AgentModalProvider>
       </Suspense>

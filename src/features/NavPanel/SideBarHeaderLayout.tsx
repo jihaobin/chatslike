@@ -56,7 +56,7 @@ const SideBarHeaderLayout = memo<SideBarHeaderLayoutProps>(
   ({
     left,
     right,
-    backTo = '/',
+    backTo = '/home',
     showBack = true,
     breadcrumb = [],
     showTogglePanelButton = true,
@@ -88,7 +88,7 @@ const SideBarHeaderLayout = memo<SideBarHeaderLayoutProps>(
           separator={<Icon icon={ChevronRightIcon} />}
           items={[
             {
-              href: '/',
+              href: '/home',
               title: <Icon icon={HomeIcon} />,
             },
             ...breadcrumb,

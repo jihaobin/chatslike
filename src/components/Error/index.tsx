@@ -19,11 +19,11 @@ export type ErrorType = Error & { digest?: string };
 
 interface ErrorCaptureProps {
   error: ErrorType;
-  /** Where "back home" navigates; defaults to `/`. */
+  /** Where "back home" navigates; defaults to the workspace root. */
   resetPath?: string;
 }
 
-const ErrorCapture = ({ error, resetPath = '/' }: ErrorCaptureProps) => {
+const ErrorCapture = ({ error, resetPath = '/home' }: ErrorCaptureProps) => {
   const { t } = useTranslation('error');
   const hasStack = !!error?.stack;
   const defaultExpandedKeys: Key[] = typeof __CI__ !== 'undefined' && __CI__ ? ['stack'] : [];

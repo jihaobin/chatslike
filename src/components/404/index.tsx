@@ -8,11 +8,12 @@ import { useTranslation } from 'react-i18next';
 import { MAX_WIDTH } from '@/const/layoutTokens';
 
 const NotFound = memo<{
+  backHomePath?: string;
   desc?: string;
   extra?: ReactNode;
   status?: number | string;
   title?: string;
-}>(({ extra, status = 404, title, desc }) => {
+}>(({ extra, status = 404, title, desc, backHomePath = '/home' }) => {
   const { t } = useTranslation('error');
   return (
     <Flexbox align={'center'} justify={'center'} style={{ minHeight: '100%', width: '100%' }}>
@@ -38,7 +39,7 @@ const NotFound = memo<{
         <div style={{ marginTop: '0.5em' }}>{t('notFound.check')}</div>
       </div>
       {extra || (
-        <Button type={'primary'} onClick={() => (window.location.href = '/')}>
+        <Button type={'primary'} onClick={() => (window.location.href = backHomePath)}>
           {t('notFound.backHome')}
         </Button>
       )}

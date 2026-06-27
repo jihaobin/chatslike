@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "操作人邮箱",
   "audit.search.targetEmail": "目标用户邮箱",
   "common.action.exportCsv": "导出 CSV",
+  "common.datePicker.endDate": "结束日期",
+  "common.datePicker.startDate": "开始日期",
   "common.table.total": "共 {{total}} 条",
   "dashboard.stats.abnormalOrders": "异常订单",
   "dashboard.stats.credits": "本月消耗积分",

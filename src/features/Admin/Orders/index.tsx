@@ -91,7 +91,7 @@ const AdminOrders = () => {
 
   const columns = [
     { dataIndex: 'id', ellipsis: true, title: 'ID', width: 160 },
-    { dataIndex: 'userEmail', ellipsis: true, title: t('orders.column.userEmail') },
+    { dataIndex: 'userEmail', ellipsis: true, title: t('orders.column.userEmail'), width: 200 },
     {
       render: (_: unknown, r: { orderType: string }) =>
         t(`orders.orderType.${r.orderType}` as any, { defaultValue: r.orderType }),
@@ -159,6 +159,7 @@ const AdminOrders = () => {
           onChange={(v) => setFilters({ orderType: v })}
         />
         <DatePicker.RangePicker
+          placeholder={[t('common.datePicker.startDate'), t('common.datePicker.endDate')]}
           value={
             filters.dateFrom && filters.dateTo
               ? [dayjs(filters.dateFrom), dayjs(filters.dateTo)]
@@ -184,7 +185,7 @@ const AdminOrders = () => {
         size="small"
         pagination={{
           current: page,
-          onChange: (p) => setFilters({ page: p }),
+          onChange: (p, ps) => setFilters({ page: p, pageSize: ps }),
           pageSize,
           showSizeChanger: true,
           showTotal: (total) => t('common.table.total', { total }),

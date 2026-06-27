@@ -24,7 +24,7 @@ export const useOrderFilters = () => {
   const page = Number(params.get('page') ?? '1');
   const pageSize = Number(params.get('pageSize') ?? '20');
 
-  const setFilters = (next: Partial<OrderFilters & { page?: number }>) => {
+  const setFilters = (next: Partial<OrderFilters & { page?: number; pageSize?: number }>) => {
     setParams((prev) => {
       const p = new URLSearchParams(prev);
       let resetPage = false;
@@ -34,6 +34,7 @@ export const useOrderFilters = () => {
           resetPage = true;
         }
       }
+      if ('pageSize' in next) p.set('pageSize', String(next.pageSize));
       if ('page' in next) p.set('page', String(next.page));
       else if (resetPage) p.set('page', '1');
       return p;

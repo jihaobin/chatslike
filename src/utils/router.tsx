@@ -8,7 +8,9 @@ import {
   createBrowserRouter,
   Navigate,
   Outlet,
+  useLocation,
   useNavigate,
+  useParams,
   useRouteError,
 } from 'react-router-dom';
 
@@ -92,12 +94,17 @@ export function dynamicLayout<P = NonNullable<unknown>>(
 }
 
 export interface ErrorBoundaryProps {
-  /** Base path for "back home" on the error screen (defaults to `/`). */
+  /** Base path for "back home" on the error screen. */
   resetPath?: string;
 }
 
 export const ErrorBoundary = ({ resetPath }: ErrorBoundaryProps) => {
   const error = useRouteError() as Error;
+  const { pathname } = useLocation();
+  const defaultResetPath =
+    pathname === '/' || pathname.startsWith('/explore') || pathname.startsWith('/share')
+      ? '/'
+      : '/home';
 
   if (typeof window !== 'undefined' && isChunkLoadError(error)) {
     notifyChunkError();
@@ -105,7 +112,7 @@ export const ErrorBoundary = ({ resetPath }: ErrorBoundaryProps) => {
 
   return (
     <ThemeProvider theme={{ cssVar: { key: 'lobe-vars' } }}>
-      <ErrorCapture error={error} resetPath={resetPath} />
+      <ErrorCapture error={error} resetPath={resetPath ?? defaultResetPath} />
     </ThemeProvider>
   );
 };
@@ -172,4 +179,17 @@ export function createAppRouter(routes: RouteObject[], options?: CreateAppRouter
  */
 export function redirectElement(to: string): ReactElement {
   return <Navigate replace to={to} />;
+}
+
+function RedirectWithSplat({ to }: { to: string }) {
+  const { '*': splat } = useParams();
+  const { hash, search } = useLocation();
+
+  const next = splat ? `${to}/${splat}` : to;
+
+  return <Navigate replace to={`${next}${search}${hash}`} />;
+}
+
+export function redirectElementWithSplat(to: string): ReactElement {
+  return <RedirectWithSplat to={to} />;
 }

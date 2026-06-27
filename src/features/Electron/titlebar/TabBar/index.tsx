@@ -49,7 +49,7 @@ const TabBar = () => {
       const target = newTabs.find((tab) => tab.id === newActiveId);
       if (target) navigate(target.url);
     } else {
-      navigate('/');
+      navigate('/home');
     }
   }, [navigate]);
 
@@ -65,7 +65,7 @@ const TabBar = () => {
         }
 
         if (!nextActiveId) {
-          navigate('/');
+          navigate('/home');
         }
       });
     },

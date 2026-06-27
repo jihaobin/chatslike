@@ -235,7 +235,11 @@ const categorizeError = (
     };
   }
 
-  if (error.message?.includes('timeout') || error.name === 'TimeoutError') {
+  if (
+    error.message?.includes('timeout') ||
+    error.name === 'TimeoutError' ||
+    error?.status === 504
+  ) {
     return {
       errorMessage: AsyncTaskErrorType.Timeout,
       errorType: AsyncTaskErrorType.Timeout,

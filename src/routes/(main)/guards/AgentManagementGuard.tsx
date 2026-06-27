@@ -12,7 +12,7 @@ const AgentManagementGuard = memo(() => {
   const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
 
   if (hideAgentManagement) {
-    return <Navigate replace to="/" />;
+    return <Navigate replace to="/home" />;
   }
 
   return <Outlet />;

@@ -50,7 +50,7 @@ export const useNavLayout = (): NavLayout => {
           icon: HomeIcon,
           key: SidebarTabKey.Home,
           title: t('tab.home'),
-          url: '/',
+          url: '/home',
         },
         {
           icon: getRouteById('page')!.icon,

@@ -77,7 +77,11 @@ const AdminUsers = () => {
 
   const columns = [
     { dataIndex: 'id', ellipsis: true, title: 'ID', width: 120 },
-    { dataIndex: 'username', title: t('users.column.username') },
+    {
+      render: (_: unknown, r: { fullName: string | null; username: string | null }) =>
+        r.fullName || r.username || '-',
+      title: t('users.column.username'),
+    },
     { dataIndex: 'email', title: t('users.column.email') },
     {
       dataIndex: 'currentPlan',
@@ -170,7 +174,7 @@ const AdminUsers = () => {
         size="small"
         pagination={{
           current: page,
-          onChange: (p) => setFilters({ page: p }),
+          onChange: (p, ps) => setFilters({ page: p, pageSize: ps }),
           pageSize,
           showSizeChanger: true,
           showTotal: (total) => t('common.table.total', { total }),

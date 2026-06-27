@@ -25,7 +25,7 @@ export const useUserFilters = () => {
   const page = Number(params.get('page') ?? '1');
   const pageSize = Number(params.get('pageSize') ?? '20');
 
-  const setFilters = (next: Partial<UserFilters & { page?: number }>) => {
+  const setFilters = (next: Partial<UserFilters & { page?: number; pageSize?: number }>) => {
     setParams((prev) => {
       const p = new URLSearchParams(prev);
       if ('search' in next) {
@@ -42,6 +42,7 @@ export const useUserFilters = () => {
           p.set('page', '1');
         }
       }
+      if ('pageSize' in next) p.set('pageSize', String(next.pageSize));
       if ('page' in next) p.set('page', String(next.page));
       return p;
     });

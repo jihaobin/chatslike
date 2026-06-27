@@ -100,10 +100,11 @@ import {
   ProviderLayout,
   ProviderRedirect,
 } from '@/routes/(main)/settings/provider';
+import ExplorePage from '@/routes/explore';
 import ShareTopicPage from '@/routes/share/t/[id]';
 import ShareTopicLayout from '@/routes/share/t/[id]/_layout';
 import { routeMeta } from '@/spa/router/routeMeta';
-import { ErrorBoundary, redirectElement } from '@/utils/router';
+import { ErrorBoundary, redirectElement, redirectElementWithSplat } from '@/utils/router';
 
 // Desktop router configuration — all sync imports for Electron local build
 export const desktopRoutes: RouteObject[] = [
@@ -113,7 +114,7 @@ export const desktopRoutes: RouteObject[] = [
       {
         children: [
           {
-            element: redirectElement('/'),
+            element: redirectElement('/home'),
             index: true,
           },
           {
@@ -165,7 +166,7 @@ export const desktopRoutes: RouteObject[] = [
           {
             children: [
               {
-                element: redirectElement('/'),
+                element: redirectElement('/home'),
                 index: true,
               },
               {
@@ -367,7 +368,7 @@ export const desktopRoutes: RouteObject[] = [
       {
         children: [
           {
-            element: redirectElement('/settings/profile'),
+            element: redirectElement('/home/settings/profile'),
             index: true,
           },
           // Provider routes with nested structure
@@ -600,25 +601,55 @@ export const desktopRoutes: RouteObject[] = [
         path: 'page',
       },
 
-      // Default route - home page (handled by persistent layout)
-      {
-        handle: {
-          meta: routeMeta({ icon: Home, titleKey: 'navigation.home' }),
-        },
-        index: true,
-      },
       // Catch-all route
       {
-        element: redirectElement('/'),
+        element: redirectElement('/home'),
         path: '*',
       },
     ],
     element: <DesktopMainLayout />,
     errorElement: <ErrorBoundary />,
-    path: '/',
+    handle: {
+      meta: routeMeta({ icon: Home, titleKey: 'navigation.home' }),
+    },
+    path: '/home',
   },
 
   ...BusinessDesktopRoutesWithoutMainLayout,
+
+  // Explore portal (default landing, outside main layout — full-screen)
+  {
+    children: [{ element: <ExplorePage />, index: true }],
+    errorElement: <ErrorBoundary />,
+    path: '/',
+  },
+
+  {
+    children: [{ element: <ExplorePage />, index: true }],
+    errorElement: <ErrorBoundary />,
+    path: '/explore',
+  },
+
+  { element: redirectElement('/home/agent'), path: '/agent' },
+  { element: redirectElementWithSplat('/home/agent'), path: '/agent/*' },
+  { element: redirectElement('/home/group'), path: '/group' },
+  { element: redirectElementWithSplat('/home/group'), path: '/group/*' },
+  { element: redirectElement('/home/community'), path: '/community' },
+  { element: redirectElementWithSplat('/home/community'), path: '/community/*' },
+  { element: redirectElement('/home/resource'), path: '/resource' },
+  { element: redirectElementWithSplat('/home/resource'), path: '/resource/*' },
+  { element: redirectElement('/home/settings'), path: '/settings' },
+  { element: redirectElementWithSplat('/home/settings'), path: '/settings/*' },
+  { element: redirectElement('/home/memory'), path: '/memory' },
+  { element: redirectElementWithSplat('/home/memory'), path: '/memory/*' },
+  { element: redirectElement('/home/video'), path: '/video' },
+  { element: redirectElementWithSplat('/home/video'), path: '/video/*' },
+  { element: redirectElement('/home/image'), path: '/image' },
+  { element: redirectElementWithSplat('/home/image'), path: '/image/*' },
+  { element: redirectElement('/home/eval'), path: '/eval' },
+  { element: redirectElementWithSplat('/home/eval'), path: '/eval/*' },
+  { element: redirectElement('/home/page'), path: '/page' },
+  { element: redirectElementWithSplat('/home/page'), path: '/page/*' },
 
   // Share topic route (outside main layout)
   {

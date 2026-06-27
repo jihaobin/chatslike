@@ -1,6 +1,8 @@
 export default {
   // common
   'common.action.exportCsv': 'Export CSV',
+  'common.datePicker.endDate': 'End Date',
+  'common.datePicker.startDate': 'Start Date',
   'common.table.total': 'Total {{total}} items',
 
   // dashboard

@@ -9,7 +9,7 @@ const AdminGuard = ({ children }: { children: ReactNode }) => {
   const { data, isLoading, isError } = lambdaQuery.admin.checkAccess.useQuery();
 
   if (isLoading || isError) return null;
-  if (!data?.hasAccess) return <Navigate replace to="/" />;
+  if (!data?.hasAccess) return <Navigate replace to="/home" />;
 
   return <>{children}</>;
 };

@@ -30,13 +30,13 @@ const BackLink = ({ children }: { children: ReactNode }) => {
     (e: MouseEvent) => {
       if (isModifierClick(e)) return;
       e.preventDefault();
-      navigate('/');
+      navigate('/home');
     },
     [navigate],
   );
 
   return (
-    <Link to="/" onClick={handleClick}>
+    <Link to="/home" onClick={handleClick}>
       {children}
     </Link>
   );

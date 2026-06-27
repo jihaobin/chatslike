@@ -59,6 +59,7 @@ export const usersRouter = router({
             string | null
           >`(SELECT plan_id FROM billing_orders WHERE user_id = users.id AND status = 'activated' AND order_type IN ('subscription_new','subscription_renew','subscription_upgrade') ORDER BY activated_at DESC NULLS LAST LIMIT 1)`,
           email: users.email,
+          fullName: users.fullName,
           id: users.id,
           subscriptionCredits: sql<number>`COALESCE((SELECT SUM(remaining_credits) FROM credit_grants WHERE user_id = users.id AND source = 'subscription' AND status = 'active'), 0)::float8`,
           topUpCredits: sql<number>`COALESCE((SELECT SUM(remaining_credits) FROM credit_grants WHERE user_id = users.id AND source = 'top_up' AND status = 'active'), 0)::float8`,

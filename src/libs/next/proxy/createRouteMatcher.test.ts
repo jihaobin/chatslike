@@ -50,6 +50,15 @@ describe('createRouteMatcher', () => {
       expect(matcher(createMockRequest('/shared'))).toBe(true);
     });
 
+    it('should match /explore(.*) pattern for the public explore portal', () => {
+      const matcher = createRouteMatcher(['/explore(.*)']);
+
+      expect(matcher(createMockRequest('/explore'))).toBe(true);
+      expect(matcher(createMockRequest('/explore/'))).toBe(true);
+      expect(matcher(createMockRequest('/explore/pricing'))).toBe(true);
+      expect(matcher(createMockRequest('/explorer'))).toBe(true);
+    });
+
     it('should match /trpc(.*) pattern', () => {
       const matcher = createRouteMatcher(['/trpc(.*)']);
 

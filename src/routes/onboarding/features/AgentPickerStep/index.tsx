@@ -109,8 +109,8 @@ const AgentPickerStep = memo<AgentPickerStepProps>(({ onBack }) => {
         step: 'agentpicker',
         stepIndex: 4,
       });
-      trackOnboardingCompleted({ flow: completionFlow, targetUrl: '/' });
-      navigate('/');
+      trackOnboardingCompleted({ flow: completionFlow, targetUrl: '/home' });
+      navigate('/home');
     },
     [completionFlow, finishOnboarding, isAgentSkipEntry, navigate],
   );

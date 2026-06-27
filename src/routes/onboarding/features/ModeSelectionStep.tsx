@@ -99,7 +99,7 @@ const ModeSelectionStep = memo<ModeSelectionStepProps>(({ onBack, onNext }) => {
     finishOnboarding();
 
     if (!isDev) {
-      navigate('/');
+      navigate('/home');
     }
   };
 

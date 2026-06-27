@@ -15,6 +15,7 @@ import electron from './electron';
 import email from './email';
 import error from './error';
 import eval_ from './eval';
+import explore from './explore';
 import file from './file';
 import home from './home';
 import hotkey from './hotkey';
@@ -64,6 +65,7 @@ const resources = {
   email,
   error,
   'eval': eval_,
+  explore,
   file,
   home,
   hotkey,

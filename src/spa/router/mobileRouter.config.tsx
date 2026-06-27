@@ -21,7 +21,7 @@ export const mobileRoutes: RouteObject[] = [
       {
         children: [
           {
-            element: redirectElement('/'),
+            element: redirectElement('/home'),
             index: true,
           },
           {
@@ -311,11 +311,18 @@ export const mobileRoutes: RouteObject[] = [
           () => import('@/routes/(mobile)/(home)/_layout'),
           'Mobile > Home > Layout',
         ),
+        path: '/home',
+      },
+
+      // Default landing page
+      {
+        element: dynamicElement(() => import('@/routes/explore'), 'Mobile > Explore'),
+        index: true,
       },
 
       // Catch-all route
       {
-        element: redirectElement('/'),
+        element: redirectElement('/home'),
         path: '*',
       },
     ],

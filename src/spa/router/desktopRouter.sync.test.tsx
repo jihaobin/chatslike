@@ -97,8 +97,8 @@ describe('desktopRouter config sync', () => {
   });
 
   it('production provider global route is a direct global layout branch', () => {
-    const rootRoute = desktopRoutes.find((route) => route.path === '/');
-    const settingsRoute = findDirectChildByPath(rootRoute, 'settings');
+    const workspaceRoute = desktopRoutes.find((route) => route.path === '/home');
+    const settingsRoute = findDirectChildByPath(workspaceRoute, 'settings');
     const providerRoute = findDirectChildByPath(settingsRoute, 'provider');
     expect(providerRoute, 'Provider route must exist in production route objects').toBeDefined();
 
@@ -115,13 +115,24 @@ describe('desktopRouter config sync', () => {
       'Global branch must not be nested under the user-scoped provider layout',
     ).toBe(false);
 
-    const matches = matchRoutes(desktopRoutes, '/settings/provider/global/openai');
+    const matches = matchRoutes(desktopRoutes, '/home/settings/provider/global/openai');
     expect(matches?.map(({ route }) => route.path ?? '(pathless)')).toEqual([
-      '/',
+      '/home',
       'settings',
       'provider',
       'global',
       ':providerId',
     ]);
+  });
+
+  it('keeps the public landing page outside the desktop workspace route', () => {
+    const rootMatches = matchRoutes(desktopRoutes, '/');
+    const workspaceMatches = matchRoutes(desktopRoutes, '/home');
+
+    expect(rootMatches?.map(({ route }) => route.path ?? '(pathless)')).toEqual([
+      '/',
+      '(pathless)',
+    ]);
+    expect(workspaceMatches?.map(({ route }) => route.path ?? '(pathless)')).toEqual(['/home']);
   });
 });

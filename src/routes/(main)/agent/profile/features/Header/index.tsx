@@ -134,7 +134,7 @@ const Header = memo(() => {
       onOk: async () => {
         await removeAgent(activeAgentId);
         message.success(t('confirmRemoveSessionSuccess', { ns: 'chat' }));
-        navigate('/');
+        navigate('/home');
       },
       title: t('confirmRemoveSessionItemAlert', { ns: 'chat' }),
     });
