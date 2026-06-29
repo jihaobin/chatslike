@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "操作員電子郵件",
   "audit.search.targetEmail": "目標使用者電子郵件",
   "common.action.exportCsv": "匯出 CSV",
+  "common.datePicker.endDate": "結束日期",
+  "common.datePicker.startDate": "開始日期",
   "common.table.total": "總共 {{total}} 筆",
   "dashboard.stats.abnormalOrders": "異常訂單",
   "dashboard.stats.credits": "本月已使用點數",

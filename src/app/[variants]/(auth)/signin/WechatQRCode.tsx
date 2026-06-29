@@ -56,9 +56,9 @@ declare global {
   }
 }
 
-const getWechatOauthConfig = async (callbackURL: string) => {
+const getWechatOauthConfig = async () => {
   const result = await signIn.oauth2({
-    callbackURL,
+    callbackURL: `${window.location.origin}/home`,
     disableRedirect: true,
     providerId: 'wechat',
   });
@@ -75,7 +75,7 @@ const getWechatOauthConfig = async (callbackURL: string) => {
   const url = new URL(authUrl);
 
   return {
-    appid: url.searchParams.get('appid') ?? '',
+    appid: url.searchParams.get('appid') ?? process.env.NEXT_PUBLIC_WECHAT_APP_ID ?? '',
     redirectUri: url.searchParams.get('redirect_uri') ?? '',
     state: url.searchParams.get('state') ?? '',
   };
@@ -97,16 +97,16 @@ export const WechatQRCode = () => {
       if (!container) return;
 
       container.innerHTML = '';
-      const { appid, redirectUri, state } = await getWechatOauthConfig(window.location.href);
+      const { appid, redirectUri, state } = await getWechatOauthConfig();
 
       if (isDisposed() || !window.WxLogin) return;
 
       new window.WxLogin({
-        appid: appid || process.env.NEXT_PUBLIC_WECHAT_APP_ID || '',
+        appid,
         id: qrContainerId,
         redirect_uri: encodeURIComponent(redirectUri),
         scope: 'snsapi_login',
-        self_redirect: true,
+        self_redirect: false,
         state,
         style: 'black',
       });

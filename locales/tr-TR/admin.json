@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "Operatör e-postası",
   "audit.search.targetEmail": "Hedef kullanıcı e-postası",
   "common.action.exportCsv": "CSV Dışa Aktar",
+  "common.datePicker.endDate": "Bitiş Tarihi",
+  "common.datePicker.startDate": "Başlangıç Tarihi",
   "common.table.total": "Toplam {{total}} öğe",
   "dashboard.stats.abnormalOrders": "Anormal Siparişler",
   "dashboard.stats.credits": "Bu Ay Tüketilen Krediler",

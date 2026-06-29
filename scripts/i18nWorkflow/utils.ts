@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 import prettier from '@prettier/sync';
 import { consola } from 'consola';
@@ -7,7 +7,65 @@ import { colors } from 'consola/utils';
 
 import i18nConfig from './i18nConfig';
 
-const prettierOptions = prettier.resolveConfig(resolve(__dirname, '../../.prettierrc.js'));
+const prettierOptions = prettier.resolveConfig(path.resolve(__dirname, '../../.prettierrc.js'));
+const fileWriteRetryableErrors = new Set([
+  'EACCES',
+  'EBUSY',
+  'EMFILE',
+  'ENFILE',
+  'EPERM',
+  'UNKNOWN',
+]);
+const fileWriteMaxAttempts = 3;
+
+const sleepSync = (ms: number) => {
+  if (ms <= 0) return;
+
+  const sharedBuffer = new SharedArrayBuffer(4);
+  const sharedArray = new Int32Array(sharedBuffer);
+  Atomics.wait(sharedArray, 0, 0, ms);
+};
+
+const isRetryableFileSystemError = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+
+  const code = Reflect.get(error, 'code');
+  return typeof code === 'string' && fileWriteRetryableErrors.has(code);
+};
+
+const writeTextFileSafely = (filePath: string, content: string) => {
+  const tempFilePath = path.resolve(
+    path.dirname(filePath),
+    `${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
+  );
+
+  for (let attempt = 0; attempt < fileWriteMaxAttempts; attempt += 1) {
+    try {
+      writeFileSync(tempFilePath, content, 'utf8');
+
+      try {
+        rmSync(filePath, { force: true });
+      } catch {
+        // Ignore destination cleanup failures and rely on rename/retry.
+      }
+
+      renameSync(tempFilePath, filePath);
+      return;
+    } catch (error) {
+      try {
+        rmSync(tempFilePath, { force: true });
+      } catch {
+        // Ignore temp cleanup failures and retry or rethrow below.
+      }
+
+      if (!isRetryableFileSystemError(error) || attempt === fileWriteMaxAttempts - 1) {
+        throw error;
+      }
+
+      sleepSync(25 * 2 ** attempt);
+    }
+  }
+};
 
 export const readJSON = (filePath: string) => {
   const data = readFileSync(filePath, 'utf8');
@@ -16,7 +74,7 @@ export const readJSON = (filePath: string) => {
 
 export const writeJSON = (filePath: string, data: any) => {
   const jsonStr = JSON.stringify(data, null, 2);
-  writeFileSync(filePath, jsonStr, 'utf8');
+  writeTextFileSafely(filePath, jsonStr);
 };
 
 export const writeJSONWithPrettier = (filePath: string, data: any) => {
@@ -25,7 +83,7 @@ export const writeJSONWithPrettier = (filePath: string, data: any) => {
     ...prettierOptions,
     parser: 'json',
   });
-  writeFileSync(filePath, formatted, 'utf8');
+  writeTextFileSafely(filePath, formatted);
 };
 
 export const genResourcesContent = (locales: string[]) => {
@@ -52,7 +110,7 @@ export type Locales = keyof Resources;
 export const genNamespaceList = (files: string[], locale: string) => {
   return files.map((file) => ({
     name: file.replace('.json', ''),
-    path: resolve(i18nConfig.output, locale, file),
+    path: path.resolve(i18nConfig.output, locale, file),
   }));
 };
 

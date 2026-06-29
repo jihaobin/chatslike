@@ -509,6 +509,26 @@ describe('UserModel', () => {
       });
     });
 
+    describe('findByPhone', () => {
+      it('should find user by normalized phone number', async () => {
+        await serverDB
+          .update(users)
+          .set({ phone: '+8613800000000', phoneNumberVerified: true })
+          .where(eq(users.id, otherUserId));
+
+        const user = await UserModel.findByPhone(serverDB, '+8613800000000');
+
+        expect(user).toBeDefined();
+        expect(user?.id).toBe(otherUserId);
+      });
+
+      it('should return undefined for non-existent phone number', async () => {
+        const user = await UserModel.findByPhone(serverDB, '+8613900000000');
+
+        expect(user).toBeUndefined();
+      });
+    });
+
     describe('getUserApiKeys', () => {
       it('should return decrypted API keys', async () => {
         await serverDB.insert(userSettings).values({

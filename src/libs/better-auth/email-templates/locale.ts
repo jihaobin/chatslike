@@ -4,11 +4,8 @@ import { translation } from '@/server/translation';
 /**
  * Loose shape accepted by the locale helpers.
  *
- * Better Auth passes different things as the second callback argument:
- * - `sendVerificationEmail` / `sendResetPassword` receive a raw `Request`
- *   (has `headers: Headers`).
- * - `emailOTP` plugin receives a `GenericEndpointContext`
- *   (has an optional nested `request` and/or `headers`).
+ * Better Auth's email OTP plugin receives a `GenericEndpointContext`
+ * with an optional nested `request` and/or `headers`.
  *
  * All fields are optional so both forms are assignable here.
  */

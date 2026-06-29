@@ -15,11 +15,9 @@ import { useUserStore } from '@/store/user';
 import { authSelectors, userProfileSelectors } from '@/store/user/selectors';
 
 import AvatarRow from './features/AvatarRow';
-import EmailRow from './features/EmailRow';
 import FullNameRow from './features/FullNameRow';
 import InterestsRow from './features/InterestsRow';
 import KlavisAuthorizationList from './features/KlavisAuthorizationList';
-import PasswordRow from './features/PasswordRow';
 import PhoneVerificationRow from './features/PhoneVerificationRow';
 import ProfileRow from './features/ProfileRow';
 import SSOProvidersList from './features/SSOProvidersList';
@@ -43,7 +41,6 @@ const ProfileSetting = () => {
   const isLoadedAuthProviders = useUserStore(authSelectors.isLoadedAuthProviders);
   const fetchAuthProviders = useUserStore((s) => s.fetchAuthProviders);
   const enableKlavis = useServerConfigStore(serverConfigSelectors.enableKlavis);
-  const disableEmailPassword = useServerConfigStore(serverConfigSelectors.disableEmailPassword);
   const [servers, isServersInit, useFetchUserKlavisServers] = useToolStore((s) => [
     s.servers,
     s.isServersInit,
@@ -92,20 +89,6 @@ const ProfileSetting = () => {
           <Divider style={{ margin: 0 }} />
 
           <InterestsRow />
-
-          {!isDesktop && isLogin && !disableEmailPassword && (
-            <>
-              <Divider style={{ margin: 0 }} />
-              <PasswordRow />
-            </>
-          )}
-
-          {isLogin && userProfile?.email && (
-            <>
-              <Divider style={{ margin: 0 }} />
-              <EmailRow />
-            </>
-          )}
 
           {isLogin && (
             <>

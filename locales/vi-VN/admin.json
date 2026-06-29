@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "Email người vận hành",
   "audit.search.targetEmail": "Email người dùng mục tiêu",
   "common.action.exportCsv": "Xuất CSV",
+  "common.datePicker.endDate": "Ngày kết thúc",
+  "common.datePicker.startDate": "Ngày bắt đầu",
   "common.table.total": "Tổng số {{total}} mục",
   "dashboard.stats.abnormalOrders": "Đơn hàng bất thường",
   "dashboard.stats.credits": "Tín dụng tiêu thụ tháng này",

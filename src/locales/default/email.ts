@@ -12,19 +12,6 @@ export default {
   'duration.second': '{{count}} second',
   'duration.seconds': '{{count}} seconds',
 
-  // Sign-up email verification
-  'verification.body':
-    'Thanks for creating an account with {{brand}}. To access your account, please verify your email address by clicking the button below.',
-  'verification.button': 'Verify Email Address',
-  'verification.expiration': 'This link will expire in {{duration}}.',
-  'verification.htmlTitle': 'Verify your email',
-  'verification.ignore': "If you didn't create an account, you can safely ignore this email.",
-  'verification.subject': 'Verify Your Email - {{brand}}',
-  'verification.subtitle': "Let's get you signed in.",
-  'verification.textBody':
-    'Please verify your email by clicking this link: {{url}}\n\nThis link will expire in {{duration}}.',
-  'verification.title': 'Verify your email address',
-
   // OTP email verification (mobile)
   'otp.body':
     'Thanks for creating an account with {{brand}}. To verify your email address, please use the verification code below:',
@@ -37,30 +24,4 @@ export default {
   'otp.textBody':
     "Your verification code is: {{otp}}\n\nThis code will expire in {{duration}}.\n\nIf you didn't request this code, you can safely ignore this email.",
   'otp.title': 'Verify your email address',
-
-  // Password reset
-  'resetPassword.body':
-    'You recently requested to reset your password for your {{brand}} account. Click the button below to proceed.',
-  'resetPassword.button': 'Reset Password',
-  'resetPassword.htmlTitle': 'Reset your password',
-  'resetPassword.security':
-    '🔒 If you did not request a password reset, please ignore this email or contact support if you have concerns.',
-  'resetPassword.subject': 'Reset Your Password - {{brand}}',
-  'resetPassword.subtitle': "No worries, we'll help you get back on track.",
-  'resetPassword.textBody': 'Reset your password by clicking this link: {{url}}',
-  'resetPassword.title': 'Reset Your Password',
-
-  // Change email confirmation
-  'changeEmail.body':
-    'We received a request to change your {{brand}} account email to this address. Please confirm by clicking the button below.',
-  'changeEmail.button': 'Confirm New Email',
-  'changeEmail.expiration': 'This link will expire in {{duration}}.',
-  'changeEmail.htmlTitle': 'Confirm your new email',
-  'changeEmail.ignore':
-    "If you didn't request this change, you can safely ignore this email. Your current email will remain unchanged.",
-  'changeEmail.subject': 'Confirm Your New Email - {{brand}}',
-  'changeEmail.subtitle': 'You requested to change your email.',
-  'changeEmail.textBody':
-    "You requested to change your {{brand}} account email. Please confirm by clicking this link: {{url}}\n\nThis link will expire in {{duration}}.\n\nIf you didn't request this change, you can safely ignore this email.",
-  'changeEmail.title': 'Confirm your new email address',
 };

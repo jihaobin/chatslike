@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "운영자 이메일",
   "audit.search.targetEmail": "대상 사용자 이메일",
   "common.action.exportCsv": "CSV 내보내기",
+  "common.datePicker.endDate": "종료일",
+  "common.datePicker.startDate": "시작 날짜",
   "common.table.total": "총 {{total}}개",
   "dashboard.stats.abnormalOrders": "비정상 주문",
   "dashboard.stats.credits": "이번 달 소모된 크레딧",

@@ -8,4 +8,9 @@ describe('nextjsOnlyRoutes', () => {
 
     expect(nextjsOnlyRoutes).not.toContain(removedRoute);
   });
+
+  it('does not include removed email login routes', () => {
+    expect(nextjsOnlyRoutes).not.toContain('/signup');
+    expect(nextjsOnlyRoutes).not.toContain('/reset-password');
+  });
 });

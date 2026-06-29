@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "Имейл на оператора",
   "audit.search.targetEmail": "Имейл на целевия потребител",
   "common.action.exportCsv": "Експорт на CSV",
+  "common.datePicker.endDate": "Крайна дата",
+  "common.datePicker.startDate": "Начална дата",
   "common.table.total": "Общо {{total}} елемента",
   "dashboard.stats.abnormalOrders": "Необичайни поръчки",
   "dashboard.stats.credits": "Консумирани кредити този месец",

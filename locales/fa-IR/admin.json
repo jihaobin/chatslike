@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "ایمیل اپراتور",
   "audit.search.targetEmail": "ایمیل کاربر هدف",
   "common.action.exportCsv": "خروجی CSV",
+  "common.datePicker.endDate": "تاریخ پایان",
+  "common.datePicker.startDate": "تاریخ شروع",
   "common.table.total": "مجموع {{total}} آیتم",
   "dashboard.stats.abnormalOrders": "سفارش‌های غیرعادی",
   "dashboard.stats.credits": "اعتبار مصرف شده در این ماه",

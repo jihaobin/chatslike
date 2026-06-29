@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "Email оператора",
   "audit.search.targetEmail": "Email целевого пользователя",
   "common.action.exportCsv": "Экспорт CSV",
+  "common.datePicker.endDate": "Дата окончания",
+  "common.datePicker.startDate": "Дата начала",
   "common.table.total": "Всего {{total}} элементов",
   "dashboard.stats.abnormalOrders": "Аномальные заказы",
   "dashboard.stats.credits": "Потраченные кредиты за этот месяц",

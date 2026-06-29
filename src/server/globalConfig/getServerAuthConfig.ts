@@ -12,9 +12,7 @@ const getBetterAuthSSOProviders = () => {
 export const getServerAuthConfig = (): GlobalServerConfig => {
   return {
     aiProvider: {},
-    disableEmailPassword: authEnv.AUTH_DISABLE_EMAIL_PASSWORD,
     enableBusinessFeatures: ENABLE_BUSINESS_FEATURES,
-    enableEmailVerification: authEnv.AUTH_EMAIL_VERIFICATION,
     enableMarketTrustedClient: !!(
       appEnv.MARKET_TRUSTED_CLIENT_SECRET && appEnv.MARKET_TRUSTED_CLIENT_ID
     ),

@@ -268,6 +268,7 @@
   "defaultAgent.model.desc": "Модел по подразбиране при създаване на нов агент",
   "defaultAgent.model.title": "Модел",
   "defaultAgent.title": "Настройки на агента по подразбиране",
+  "group.admin": "Администратор",
   "group.aiConfig": "Агент",
   "group.common": "Общи",
   "group.profile": "Акаунт",

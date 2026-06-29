@@ -83,9 +83,9 @@ export class UserAuthActionImpl {
   };
 
   openLogin = async (): Promise<void> => {
-    // Skip if already on a login page (/signin, /signup)
+    // Skip if already on the login page.
     const pathname = location.pathname;
-    if (pathname.startsWith('/signin') || pathname.startsWith('/signup')) {
+    if (pathname.startsWith('/signin')) {
       return;
     }
 

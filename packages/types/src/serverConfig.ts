@@ -85,13 +85,11 @@ export interface GlobalServerConfig {
   };
   commercial?: CommercialRuntimeConfig;
   defaultAgent?: PartialDeep<UserDefaultAgent>;
-  disableEmailPassword?: boolean;
   enableBusinessFeatures?: boolean;
   /**
    * @deprecated
    */
   enabledOAuthSSO?: boolean;
-  enableEmailVerification?: boolean;
   enableKlavis?: boolean;
   enableLobehubSkill?: boolean;
   enableMarketTrustedClient?: boolean;

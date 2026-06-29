@@ -1,7 +1,6 @@
 {
   "cta.learn": "Learn More",
   "cta.start": "Get Started",
-
   "cta.subtitle": "Start using {{name}} now — explore innovation from multimodal AI.",
   "cta.title": "Unleash the Power of AI, Open Infinite Possibilities",
   "custom.api.desc": "Simple and efficient API to integrate AI capabilities into your products.",
@@ -13,7 +12,6 @@
   "custom.section.subtitle": "Tailored to create AI solutions that fit your business",
   "custom.section.title": "AI Custom Service",
   "custom.support.desc": "Professional team providing full lifecycle operation and maintenance.",
-
   "custom.support.title": "Technical Support",
   "footer.about.title": "About Us",
   "footer.copyright": "© 2024 {{name}}. All rights reserved.",
@@ -22,11 +20,9 @@
   "footer.products.title": "Products & Services",
   "footer.solutions.title": "Solutions",
   "footer.support.title": "Support",
-
   "hero.badge": "AI · Create · Unlimited Possibilities",
   "hero.cta.primary": "Try It Now",
   "hero.cta.secondary": "Learn More",
-
   "hero.subtitle": "{{name}} provides leading multimodal AI technology, empowering businesses and individuals to unleash infinite creativity.",
   "hero.title.line1": "AI-Driven Creativity & Efficiency",
   "hero.title.line2": "Turn Imagination into Reality",
@@ -36,7 +32,6 @@
   "nav.chat": "Start Chat",
   "nav.contact": "Contact Us",
   "nav.cta": "Get Started",
-
   "nav.home": "Home",
   "nav.lang": "English",
   "nav.news": "News",
@@ -50,7 +45,6 @@
   "products.image2image.desc": "Upload images to generate diverse styles or creative variations.",
   "products.image2image.title": "Image to Image",
   "products.more.desc": "Continuously exploring more AI capabilities, bringing more possibilities.",
-
   "products.more.title": "More Capabilities",
   "products.section.subtitle": "Multimodal AI capabilities to meet your diverse needs",
   "products.section.title": "Our Core Products",
@@ -67,7 +61,6 @@
   "scenarios.education.desc": "Course materials and learning guides enriched by AI generation.",
   "scenarios.education.title": "Education",
   "scenarios.gaming.desc": "Character creation and scene generation for game content production.",
-
   "scenarios.gaming.title": "Gaming & Entertainment",
   "scenarios.marketing.desc": "Creative planning and brand promotion that precisely reaches customers.",
   "scenarios.marketing.title": "Marketing & Ads",

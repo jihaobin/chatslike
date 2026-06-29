@@ -3,9 +3,7 @@ import { passkey } from '@better-auth/passkey';
 import { ENABLE_BUSINESS_FEATURES } from '@lobechat/business-const';
 import { createNanoId, idGenerator, serverDB } from '@lobechat/database';
 import * as schema from '@lobechat/database/schemas';
-import bcrypt from 'bcryptjs';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { verifyPassword as defaultVerifyPassword } from 'better-auth/crypto';
 import { type BetterAuthOptions } from 'better-auth/minimal';
 import { betterAuth } from 'better-auth/minimal';
 import { admin, emailOTP, genericOAuth, phoneNumber } from 'better-auth/plugins';
@@ -20,12 +18,7 @@ import { grantTrialCreditsOnRegistration } from '@/business/server/billing/trial
 import { SUPER_ADMIN_ROLE } from '@/const/authRoles';
 import { appEnv } from '@/envs/app';
 import { authEnv } from '@/envs/auth';
-import {
-  getChangeEmailVerificationTemplate,
-  getResetPasswordEmailTemplate,
-  getVerificationEmailTemplate,
-  getVerificationOTPEmailTemplate,
-} from '@/libs/better-auth/email-templates';
+import { getVerificationOTPEmailTemplate } from '@/libs/better-auth/email-templates';
 import { getEmailTranslation } from '@/libs/better-auth/email-templates/locale';
 import { emailWhitelist } from '@/libs/better-auth/plugins/email-whitelist';
 import { initBetterAuthSSOProviders } from '@/libs/better-auth/sso';
@@ -108,79 +101,6 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
     secret: authEnv.AUTH_SECRET,
     trustedOrigins: getTrustedOrigins(enabledSSOProviders),
 
-    emailAndPassword: {
-      autoSignIn: true,
-      disableSignUp: authEnv.AUTH_DISABLE_EMAIL_PASSWORD,
-      enabled: !authEnv.AUTH_DISABLE_EMAIL_PASSWORD,
-      maxPasswordLength: 64,
-      minPasswordLength: 8,
-      requireEmailVerification: authEnv.AUTH_EMAIL_VERIFICATION,
-      revokeSessionsOnPasswordReset: true,
-
-      // Compatible with bcrypt password hashes migrated from Clerk; after login, you can re-hash in the backend using BetterAuth's default scrypt.
-      password: {
-        // New passwords continue to use BetterAuth's default hash to stay consistent with the official configuration.
-        async verify({ hash, password }: { hash: string; password: string }): Promise<boolean> {
-          if (!hash) return false;
-
-          // Compatible with bcrypt hashes exported from Clerk (starting with $2a$ or $2b$)
-          if (hash.startsWith('$2a$') || hash.startsWith('$2b$')) {
-            return bcrypt.compare(password, hash);
-          }
-
-          // For all other cases, use BetterAuth's default verification
-          return defaultVerifyPassword({ hash, password });
-        },
-      },
-
-      sendResetPassword: async ({ user, url }, request) => {
-        const { t, lang } = await getEmailTranslation(request);
-        const template = getResetPasswordEmailTemplate({ lang, t, url });
-
-        const emailService = new EmailService();
-        await emailService.sendMail({
-          to: user.email,
-          ...template,
-        });
-      },
-    },
-    emailVerification: {
-      autoSignInAfterVerification: true,
-      expiresIn: VERIFICATION_LINK_EXPIRES_IN,
-      sendVerificationEmail: async ({ user, url }, request) => {
-        // Skip sending verification link email for mobile clients (Expo/React Native)
-        // Mobile clients use OTP verification instead, triggered manually via emailOTP plugin
-        if (request?.headers?.get?.('x-client-type') === 'mobile') {
-          return;
-        }
-
-        const { t, lang } = await getEmailTranslation(request);
-
-        // Use different template for change-email vs signup verification
-        const isChangeEmail = request?.url?.includes('/change-email');
-        const template = isChangeEmail
-          ? getChangeEmailVerificationTemplate({
-              expiresInSeconds: VERIFICATION_LINK_EXPIRES_IN,
-              lang,
-              t,
-              url,
-              userName: user.name,
-            })
-          : getVerificationEmailTemplate({
-              expiresInSeconds: VERIFICATION_LINK_EXPIRES_IN,
-              lang,
-              t,
-              url,
-              userName: user.name,
-            });
-
-        const emailService = new EmailService();
-        await emailService.sendMail({
-          to: user.email,
-          ...template,
-        });
-      },
-    },
     onAPIError: {
       errorURL: '/auth-error',
     },
@@ -233,9 +153,6 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
       },
     },
     user: {
-      changeEmail: {
-        enabled: true,
-      },
       additionalFields: {
         username: {
           required: false,
@@ -267,12 +184,6 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
           // Other models: use shared nanoid generator (12 chars) to keep consistency.
           return createNanoId(12)();
         },
-      },
-    },
-    rateLimit: {
-      customRules: {
-        '/request-password-reset': { max: 3, window: 60 },
-        '/send-verification-email': { max: 3, window: 60 },
       },
     },
     plugins: [

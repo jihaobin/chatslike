@@ -10,6 +10,7 @@ import PhoneVerificationRow from './PhoneVerificationRow';
 const sendPhoneVerificationCode = vi.fn();
 const verifyPhoneForTrial = vi.fn();
 let phoneNumberVerified = false;
+let phone = '';
 
 vi.mock('@/components/AntdStaticMethods', () => ({
   message: { error: vi.fn(), success: vi.fn() },
@@ -18,7 +19,7 @@ vi.mock('@/components/AntdStaticMethods', () => ({
 vi.mock('@/store/user', () => ({
   useUserStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
-      phone: '',
+      phone,
       phoneNumberVerified,
       sendPhoneVerificationCode,
       verifyPhoneForTrial,
@@ -45,6 +46,7 @@ vi.mock('react-i18next', () => ({
 describe('PhoneVerificationRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    phone = '';
     phoneNumberVerified = false;
     sendPhoneVerificationCode.mockResolvedValue({
       cooldownSeconds: 60,
@@ -119,6 +121,51 @@ describe('PhoneVerificationRow', () => {
     render(<PhoneVerificationRow />);
 
     expect(screen.queryByText('profile.phoneRetryTrialGrantAction')).not.toBeInTheDocument();
+  });
+
+  it('should allow changing an already verified phone number with a new verification code', async () => {
+    phone = '+861349913597';
+    phoneNumberVerified = true;
+    render(<PhoneVerificationRow />);
+
+    expect(screen.getByDisplayValue('+861349913597')).toBeDisabled();
+
+    fireEvent.click(screen.getByText('profile.phoneChangeAction'));
+
+    const phoneInput = screen.getByPlaceholderText('profile.phonePlaceholder');
+    expect(phoneInput).not.toBeDisabled();
+    fireEvent.change(phoneInput, { target: { value: '+8613800000000' } });
+    fireEvent.click(screen.getByText('profile.phoneSendCodeAction'));
+
+    await waitFor(() => {
+      expect(sendPhoneVerificationCode).toHaveBeenCalledWith('+8613800000000');
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('profile.phoneCodePlaceholder'), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(screen.getByText('profile.phoneVerifyCodeAction'));
+
+    await waitFor(() => {
+      expect(verifyPhoneForTrial).toHaveBeenCalledWith({
+        code: '123456',
+        phoneNumber: '+8613800000000',
+      });
+    });
+  });
+
+  it('should not send code when changing to the already bound phone number', async () => {
+    phone = '+861349913597';
+    phoneNumberVerified = true;
+    render(<PhoneVerificationRow />);
+
+    fireEvent.click(screen.getByText('profile.phoneChangeAction'));
+    fireEvent.click(screen.getByText('profile.phoneSendCodeAction'));
+
+    await waitFor(() => {
+      expect(screen.getByText('profile.phoneAlreadyBoundCurrent')).toBeInTheDocument();
+    });
+    expect(sendPhoneVerificationCode).not.toHaveBeenCalled();
   });
 
   it('should show a clear message when the phone number is already bound', async () => {

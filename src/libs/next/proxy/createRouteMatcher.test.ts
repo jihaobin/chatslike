@@ -12,10 +12,10 @@ const createMockRequest = (pathname: string): NextRequest =>
 describe('createRouteMatcher', () => {
   describe('exact path matching', () => {
     it('should match exact paths', () => {
-      const matcher = createRouteMatcher(['/signin', '/signup']);
+      const matcher = createRouteMatcher(['/signin', '/auth-error']);
 
       expect(matcher(createMockRequest('/signin'))).toBe(true);
-      expect(matcher(createMockRequest('/signup'))).toBe(true);
+      expect(matcher(createMockRequest('/auth-error'))).toBe(true);
       expect(matcher(createMockRequest('/login'))).toBe(false);
     });
 

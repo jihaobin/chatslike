@@ -12,10 +12,7 @@ export const serverConfigSelectors = {
     },
   commercialEnabled: (s: ServerConfigStore) =>
     serverConfigSelectors.commercial(s).commercial.enabled,
-  disableEmailPassword: (s: ServerConfigStore) => s.serverConfig.disableEmailPassword || false,
   enableBusinessFeatures: (s: ServerConfigStore) => s.serverConfig.enableBusinessFeatures || false,
-  enableEmailVerification: (s: ServerConfigStore) =>
-    s.serverConfig.enableEmailVerification || false,
   enableKlavis: (s: ServerConfigStore) => s.serverConfig.enableKlavis || false,
   enableLobehubSkill: (s: ServerConfigStore) => s.serverConfig.enableLobehubSkill || false,
   enableMarketTrustedClient: (s: ServerConfigStore) =>

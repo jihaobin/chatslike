@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "Email do operador",
   "audit.search.targetEmail": "Email do usuário alvo",
   "common.action.exportCsv": "Exportar CSV",
+  "common.datePicker.endDate": "Data de término",
+  "common.datePicker.startDate": "Data de Início",
   "common.table.total": "Total de {{total}} itens",
   "dashboard.stats.abnormalOrders": "Pedidos Anormais",
   "dashboard.stats.credits": "Créditos Consumidos Este Mês",

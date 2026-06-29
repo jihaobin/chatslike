@@ -268,6 +268,7 @@
   "defaultAgent.model.desc": "Modello predefinito utilizzato per la creazione di un nuovo Agente",
   "defaultAgent.model.title": "Modello",
   "defaultAgent.title": "Impostazioni Agente Predefinito",
+  "group.admin": "Amministratore",
   "group.aiConfig": "Agente",
   "group.common": "Generale",
   "group.profile": "Account",

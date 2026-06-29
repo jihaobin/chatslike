@@ -26,7 +26,7 @@ const robots = (): MetadataRoute.Robots => {
       },
       {
         allow: ['/'],
-        disallow: ['/api/*', '/signin', '/signup', '/knowledge/*', '/share/*'],
+        disallow: ['/api/*', '/signin', '/knowledge/*', '/share/*'],
         userAgent: '*',
       },
     ],

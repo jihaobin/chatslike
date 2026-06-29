@@ -328,14 +328,62 @@ describe('userRouter', () => {
     it('should send phone verification code without updating user', async () => {
       const updateUser = vi.fn();
       vi.mocked(UserModel).mockImplementation(() => ({ updateUser }) as never);
+      vi.mocked(UserModel.findByPhone).mockResolvedValue(undefined);
 
       const result = await userRouter
         .createCaller({ ...mockCtx })
         .sendPhoneVerificationCode('+8613800000000');
 
+      expect(UserModel.findByPhone).toHaveBeenCalledWith(serverDB, '+8613800000000');
       expect(phoneVerificationMocks.sendCode).toHaveBeenCalledWith('+8613800000000');
       expect(updateUser).not.toHaveBeenCalled();
       expect(result).toEqual({ cooldownSeconds: 60, maskedPhone: '+86138****0000' });
+    });
+
+    it('should not send phone verification code when phone is already bound to another user', async () => {
+      vi.mocked(UserModel.findByPhone).mockResolvedValue({ id: 'other-user-id' } as never);
+
+      await expect(
+        userRouter.createCaller({ ...mockCtx }).sendPhoneVerificationCode('+86 138 0000 0000'),
+      ).rejects.toMatchObject({
+        code: 'CONFLICT',
+        message: 'PHONE_ALREADY_BOUND',
+      });
+
+      expect(UserModel.findByPhone).toHaveBeenCalledWith(serverDB, '+8613800000000');
+      expect(phoneVerificationMocks.sendCode).not.toHaveBeenCalled();
+    });
+
+    it('should allow sending phone verification code when the phone belongs to current user', async () => {
+      vi.mocked(UserModel.findByPhone).mockResolvedValue({
+        id: mockUserId,
+        phoneNumberVerified: false,
+      } as never);
+
+      const result = await userRouter
+        .createCaller({ ...mockCtx })
+        .sendPhoneVerificationCode('+86 138 0000 0000');
+
+      expect(UserModel.findByPhone).toHaveBeenCalledWith(serverDB, '+8613800000000');
+      expect(phoneVerificationMocks.sendCode).toHaveBeenCalledWith('+86 138 0000 0000');
+      expect(result).toEqual({ cooldownSeconds: 60, maskedPhone: '+86138****0000' });
+    });
+
+    it('should not send phone verification code when phone is already verified by current user', async () => {
+      vi.mocked(UserModel.findByPhone).mockResolvedValue({
+        id: mockUserId,
+        phoneNumberVerified: true,
+      } as never);
+
+      await expect(
+        userRouter.createCaller({ ...mockCtx }).sendPhoneVerificationCode('+86 138 0000 0000'),
+      ).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+        message: 'PHONE_ALREADY_BOUND_TO_CURRENT_USER',
+      });
+
+      expect(UserModel.findByPhone).toHaveBeenCalledWith(serverDB, '+8613800000000');
+      expect(phoneVerificationMocks.sendCode).not.toHaveBeenCalled();
     });
 
     it('should not update user when code verification fails', async () => {

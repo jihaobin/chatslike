@@ -4,8 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   authEnv: {
-    AUTH_DISABLE_EMAIL_PASSWORD: false,
-    AUTH_EMAIL_VERIFICATION: true,
     AUTH_SECRET: 'test-secret',
     AUTH_SSO_PROVIDERS: '',
     WECHAT_CLIENT_ID: 'wechat-client-id' as string | undefined,
@@ -19,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   })),
   grantTrialCreditsOnRegistration: vi.fn(),
   initUser: vi.fn(),
+  sendMail: vi.fn(),
 }));
 
 vi.mock('@better-auth/expo', () => ({
@@ -41,18 +40,8 @@ vi.mock('@lobechat/database', () => ({
 
 vi.mock('@lobechat/database/schemas', () => ({}));
 
-vi.mock('bcryptjs', () => ({
-  default: {
-    compare: vi.fn(),
-  },
-}));
-
 vi.mock('better-auth/adapters/drizzle', () => ({
   drizzleAdapter: vi.fn(() => ({ id: 'drizzle-adapter' })),
-}));
-
-vi.mock('better-auth/crypto', () => ({
-  verifyPassword: vi.fn(),
 }));
 
 vi.mock('better-auth/minimal', () => ({
@@ -98,9 +87,6 @@ vi.mock('@/envs/auth', () => ({
 }));
 
 vi.mock('@/libs/better-auth/email-templates', () => ({
-  getChangeEmailVerificationTemplate: vi.fn(() => ({})),
-  getResetPasswordEmailTemplate: vi.fn(() => ({})),
-  getVerificationEmailTemplate: vi.fn(() => ({})),
   getVerificationOTPEmailTemplate: vi.fn(() => ({})),
 }));
 
@@ -122,7 +108,9 @@ vi.mock('@/libs/better-auth/utils/server', () => ({
 }));
 
 vi.mock('@/server/services/email', () => ({
-  EmailService: vi.fn(),
+  EmailService: vi.fn(() => ({
+    sendMail: mocks.sendMail,
+  })),
 }));
 
 vi.mock('@/server/services/sms', () => ({
@@ -148,18 +136,23 @@ describe('defineConfig', () => {
     });
   });
 
-  it('should revoke existing sessions after password reset by default', async () => {
+  it('should not register email/password auth after email login removal', async () => {
     const { defineConfig } = await import('./define-config');
 
-    defineConfig({ plugins: [] });
+    const options = defineConfig({ plugins: [] }) as unknown as BetterAuthOptions;
 
-    expect(mocks.betterAuth).toHaveBeenCalledWith(
-      expect.objectContaining({
-        emailAndPassword: expect.objectContaining({
-          revokeSessionsOnPasswordReset: true,
-        }),
-      }),
-    );
+    expect(options.emailAndPassword).toBeUndefined();
+    expect(options.rateLimit?.customRules ?? {}).not.toHaveProperty('/request-password-reset');
+  });
+
+  it('should not register email magic-link verification after email login removal', async () => {
+    const { defineConfig } = await import('./define-config');
+
+    const options = defineConfig({ plugins: [] }) as unknown as BetterAuthOptions;
+
+    expect(options.emailVerification).toBeUndefined();
+    expect(options.user?.changeEmail).toBeUndefined();
+    expect(options.rateLimit?.customRules ?? {}).not.toHaveProperty('/change-email');
   });
 
   it('should register super-admin as a Better Auth admin role', async () => {

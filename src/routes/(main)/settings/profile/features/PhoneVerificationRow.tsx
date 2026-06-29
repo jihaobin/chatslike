@@ -16,6 +16,7 @@ const PHONE_REGEX = /^\+?[\d\s\-()]{6,32}$/;
 const CODE_REGEX = /^\d{6}$/;
 const PHONE_ERROR_TRANSLATION_KEYS = {
   PHONE_ALREADY_BOUND: 'profile.phoneAlreadyBound',
+  PHONE_ALREADY_BOUND_TO_CURRENT_USER: 'profile.phoneAlreadyBoundCurrent',
   PHONE_CODE_ATTEMPTS_EXCEEDED: 'profile.phoneCodeAttemptsExceeded',
   PHONE_CODE_EXPIRED: 'profile.phoneCodeExpired',
   PHONE_CODE_INVALID: 'profile.phoneCodeInvalid',
@@ -45,6 +46,8 @@ const getPhoneErrorMessageKey = (error: unknown) => {
   return PHONE_ERROR_TRANSLATION_KEYS[key as keyof typeof PHONE_ERROR_TRANSLATION_KEYS];
 };
 
+const normalizePhoneValue = (value: string) => value.trim().replaceAll(/[\s\-()]/g, '');
+
 const PhoneVerificationRow = () => {
   const { t } = useTranslation('auth');
   const phone = useUserStore(userProfileSelectors.phone);
@@ -53,6 +56,7 @@ const PhoneVerificationRow = () => {
   const verifyPhoneForTrial = useUserStore((s) => s.verifyPhoneForTrial);
   const [submitting, setSubmitting] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
   const [maskedPhone, setMaskedPhone] = useState('');
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -92,6 +96,15 @@ const PhoneVerificationRow = () => {
     const value = getPhoneValue();
     if (!validatePhone(value)) return;
 
+    if (
+      phoneNumberVerified &&
+      normalizePhoneValue(value) === normalizePhoneValue(phone) &&
+      normalizePhoneValue(phone)
+    ) {
+      setError(t('profile.phoneAlreadyBoundCurrent'));
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError('');
@@ -105,7 +118,7 @@ const PhoneVerificationRow = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [getPhoneValue, sendPhoneVerificationCode, t, validatePhone]);
+  }, [getPhoneValue, phone, phoneNumberVerified, sendPhoneVerificationCode, t, validatePhone]);
 
   const handleVerify = useCallback(async () => {
     const phoneValue = getPhoneValue();
@@ -126,6 +139,9 @@ const PhoneVerificationRow = () => {
       setSubmitting(true);
       setError('');
       await verifyPhoneForTrial({ code, phoneNumber: phoneValue });
+      setEditing(false);
+      setCodeSent(false);
+      setCooldownSeconds(0);
       message.success(t('profile.phoneVerified'));
     } catch (error) {
       setError(t(getPhoneErrorMessageKey(error) || 'profile.phoneVerifyFailed'));
@@ -134,15 +150,30 @@ const PhoneVerificationRow = () => {
     }
   }, [getPhoneValue, t, validatePhone, verifyPhoneForTrial]);
 
-  const action = phoneNumberVerified ? null : codeSent ? (
-    <Button loading={submitting} size="small" type="primary" onClick={handleVerify}>
-      {t('profile.phoneVerifyCodeAction')}
-    </Button>
-  ) : (
-    <Button loading={submitting} size="small" type="primary" onClick={handleSendCode}>
-      {t('profile.phoneSendCodeAction')}
-    </Button>
-  );
+  const handleChangePhone = useCallback(() => {
+    setEditing(true);
+    setCodeSent(false);
+    setCooldownSeconds(0);
+    setMaskedPhone('');
+    setError('');
+  }, []);
+
+  const canEdit = !phoneNumberVerified || editing;
+
+  const action =
+    phoneNumberVerified && !editing ? (
+      <Button size="small" onClick={handleChangePhone}>
+        {t('profile.phoneChangeAction')}
+      </Button>
+    ) : codeSent ? (
+      <Button loading={submitting} size="small" type="primary" onClick={handleVerify}>
+        {t('profile.phoneVerifyCodeAction')}
+      </Button>
+    ) : (
+      <Button loading={submitting} size="small" type="primary" onClick={handleSendCode}>
+        {t('profile.phoneSendCodeAction')}
+      </Button>
+    );
 
   return (
     <ProfileRow action={action} label={t('profile.phone')}>
@@ -151,8 +182,8 @@ const PhoneVerificationRow = () => {
           {submitting && <Spin indicator={<LoadingOutlined spin />} size="small" />}
           <Input
             defaultValue={phone || ''}
-            disabled={phoneNumberVerified || submitting || codeSent}
-            key={phone}
+            disabled={!canEdit || submitting || codeSent}
+            key={`${phone}-${editing ? 'editing' : 'readonly'}`}
             placeholder={t('profile.phonePlaceholder')}
             ref={inputRef}
             status={error ? 'error' : undefined}
@@ -163,7 +194,7 @@ const PhoneVerificationRow = () => {
             }}
           />
         </Flexbox>
-        {codeSent && !phoneNumberVerified && (
+        {codeSent && canEdit && (
           <Flexbox horizontal align="center" gap={8}>
             <Input
               disabled={submitting}

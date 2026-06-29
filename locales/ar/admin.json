@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "البريد الإلكتروني للمشغل",
   "audit.search.targetEmail": "البريد الإلكتروني للمستخدم المستهدف",
   "common.action.exportCsv": "تصدير CSV",
+  "common.datePicker.endDate": "تاريخ الانتهاء",
+  "common.datePicker.startDate": "تاريخ البدء",
   "common.table.total": "إجمالي {{total}} عنصر",
   "dashboard.stats.abnormalOrders": "الطلبات غير الطبيعية",
   "dashboard.stats.credits": "الاعتمادات المستهلكة هذا الشهر",

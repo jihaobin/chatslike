@@ -348,6 +348,10 @@ export class UserModel {
     return db.query.users.findFirst({ where: eq(users.email, email) });
   };
 
+  static findByPhone = async (db: LobeChatDatabase, phone: string) => {
+    return db.query.users.findFirst({ where: eq(users.phone, phone) });
+  };
+
   static findByIds = async (db: LobeChatDatabase, ids: string[]) => {
     if (ids.length === 0) return [];
     return db.query.users.findMany({ where: inArray(users.id, ids) });

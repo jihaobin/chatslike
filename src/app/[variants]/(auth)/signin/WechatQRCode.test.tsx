@@ -68,7 +68,7 @@ describe('WechatQRCode', () => {
 
     await waitFor(() => {
       expect(mocks.oauth2).toHaveBeenCalledWith({
-        callbackURL: 'http://localhost:3000/signin',
+        callbackURL: 'http://localhost:3000/home',
         disableRedirect: true,
         providerId: 'wechat',
       });
@@ -77,7 +77,7 @@ describe('WechatQRCode', () => {
           appid: 'wx-test-app-id',
           redirect_uri: encodeURIComponent('http://localhost:3000/api/auth/oauth2/callback/wechat'),
           scope: 'snsapi_login',
-          self_redirect: true,
+          self_redirect: false,
           state: 'better-auth-state',
           style: 'black',
         }),

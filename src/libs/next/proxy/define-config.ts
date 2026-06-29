@@ -183,9 +183,7 @@ export function defineConfig() {
     '/api/desktop/(.*)',
     // better auth
     '/signin',
-    '/signup',
     '/auth-error',
-    '/reset-password',
     // oauth
     // Make only the consent view public (GET page), not other oauth paths
     '/oauth/consent/(.*)',

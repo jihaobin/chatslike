@@ -44,6 +44,7 @@ import { AgentDocumentsService } from '@/server/services/agentDocuments';
 import { FileService } from '@/server/services/file';
 import { OnboardingService } from '@/server/services/onboarding';
 import { PhoneVerificationService } from '@/server/services/phoneVerification';
+import { normalizePhoneNumber } from '@/server/services/phoneVerification/utils';
 import { createAliyunSmsProvider } from '@/server/services/sms';
 
 const usernameSchema = z
@@ -233,7 +234,16 @@ export const userRouter = router({
     return ctx.userModel.updateUser({ isOnboarded: true });
   }),
 
-  sendPhoneVerificationCode: userProcedure.input(phoneSchema).mutation(async ({ input }) => {
+  sendPhoneVerificationCode: userProcedure.input(phoneSchema).mutation(async ({ ctx, input }) => {
+    const normalizedPhoneNumber = normalizePhoneNumber(input);
+    const existedUser = await UserModel.findByPhone(ctx.serverDB, normalizedPhoneNumber);
+    if (existedUser && existedUser.id !== ctx.userId) {
+      throw new TRPCError({ code: 'CONFLICT', message: 'PHONE_ALREADY_BOUND' });
+    }
+    if (existedUser?.phoneNumberVerified) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'PHONE_ALREADY_BOUND_TO_CURRENT_USER' });
+    }
+
     const service = await createPhoneVerificationService();
     return service.sendCode(input);
   }),

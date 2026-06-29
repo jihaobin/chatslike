@@ -36,9 +36,6 @@ declare global {
       AUTH_COGNITO_SECRET?: string;
 
       AUTH_COGNITO_USERPOOL_ID?: string;
-      AUTH_DISABLE_EMAIL_PASSWORD?: string;
-      AUTH_EMAIL_VERIFICATION?: string;
-
       AUTH_FEISHU_APP_ID?: string;
       AUTH_FEISHU_APP_SECRET?: string;
 
@@ -116,9 +113,7 @@ export const getAuthConfig = () => {
       AUTH_SECRET: z.string().optional(),
       AUTH_SSO_PROVIDERS: z.string().optional().default(''),
       AUTH_TRUSTED_ORIGINS: z.string().optional(),
-      AUTH_EMAIL_VERIFICATION: z.boolean().optional().default(false),
       AUTH_ALLOWED_EMAILS: z.string().optional(),
-      AUTH_DISABLE_EMAIL_PASSWORD: z.boolean().optional().default(false),
 
       AUTH_GOOGLE_ID: z.string().optional(),
       AUTH_GOOGLE_SECRET: z.string().optional(),
@@ -204,12 +199,10 @@ export const getAuthConfig = () => {
     },
 
     runtimeEnv: {
-      AUTH_EMAIL_VERIFICATION: process.env.AUTH_EMAIL_VERIFICATION === '1',
       AUTH_SECRET: process.env.AUTH_SECRET,
       AUTH_SSO_PROVIDERS: process.env.AUTH_SSO_PROVIDERS,
       AUTH_TRUSTED_ORIGINS: process.env.AUTH_TRUSTED_ORIGINS,
       AUTH_ALLOWED_EMAILS: process.env.AUTH_ALLOWED_EMAILS,
-      AUTH_DISABLE_EMAIL_PASSWORD: process.env.AUTH_DISABLE_EMAIL_PASSWORD === '1',
 
       // Cognito provider specific env vars
       AUTH_COGNITO_DOMAIN: process.env.AUTH_COGNITO_DOMAIN,

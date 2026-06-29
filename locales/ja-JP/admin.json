@@ -23,6 +23,8 @@
   "audit.search.operatorEmail": "オペレーターのメールアドレス",
   "audit.search.targetEmail": "対象ユーザーのメールアドレス",
   "common.action.exportCsv": "CSVエクスポート",
+  "common.datePicker.endDate": "終了日",
+  "common.datePicker.startDate": "開始日",
   "common.table.total": "合計{{total}}件",
   "dashboard.stats.abnormalOrders": "異常注文",
   "dashboard.stats.credits": "今月の消費クレジット",
