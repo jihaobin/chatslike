@@ -9,7 +9,7 @@ import { lazy, Suspense } from 'react';
 import { HotkeysProvider } from 'react-hotkeys-hook';
 import { Outlet } from 'react-router-dom';
 
-import Loading from '@/components/Loading/BrandTextLoading';
+import ContentSkeleton from '@/components/Loading/ContentSkeleton';
 import { isDesktop } from '@/const/version';
 import { BANNER_HEIGHT } from '@/features/AlertBanner/CloudBanner';
 import DesktopFileMenuBridge from '@/features/DesktopFileMenuBridge';
@@ -86,7 +86,7 @@ const Layout: FC = () => {
               <DesktopHomeLayout>
                 <DesktopHome />
               </DesktopHomeLayout>
-              <Suspense fallback={<Loading debugId="DesktopMainLayout > Outlet" />}>
+              <Suspense fallback={<ContentSkeleton />}>
                 <Outlet />
               </Suspense>
             </MarketAuthProvider>

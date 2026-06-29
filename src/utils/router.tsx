@@ -16,7 +16,6 @@ import {
 
 import BusinessGlobalProvider from '@/business/client/BusinessGlobalProvider';
 import ErrorCapture from '@/components/Error';
-import Loading from '@/components/Loading/BrandTextLoading';
 import SPAGlobalProvider from '@/layout/SPAGlobalProvider';
 import { useGlobalStore } from '@/store/global';
 import { createNavigationRef } from '@/store/global/initialState';
@@ -64,7 +63,7 @@ export function dynamicElement<P = NonNullable<unknown>>(
 
   // @ts-ignore
   return (
-    <Suspense fallback={<Loading debugId={debugId || 'dynamicElement'} />}>
+    <Suspense fallback={null}>
       {/* @ts-ignore */}
       <LazyComponent {...({} as P)} />
     </Suspense>
@@ -86,7 +85,7 @@ export function dynamicLayout<P = NonNullable<unknown>>(
 
   // @ts-ignore
   return (
-    <Suspense fallback={<Loading debugId={debugId || 'dynamicLayout'} />}>
+    <Suspense fallback={null}>
       {/* @ts-ignore */}
       <LazyComponent {...({} as P)} />
     </Suspense>
