@@ -64,6 +64,15 @@ async function readDesktopRouterSources() {
 }
 
 describe('desktopRouter config sync', () => {
+  it('keeps the workspace main layout lazy in the web router', async () => {
+    const [asyncSource] = await readDesktopRouterSources();
+
+    expect(asyncSource).toContain(
+      "dynamicLayout(() => import('@/routes/(main)/_layout'), 'Desktop > Main Layout')",
+    );
+    expect(asyncSource).not.toContain("import MainLayout from '@/routes/(main)/_layout'");
+  });
+
   it('desktop (sync) route paths must match web (async) route paths', async () => {
     const [asyncSource, syncSource] = await readDesktopRouterSources();
 

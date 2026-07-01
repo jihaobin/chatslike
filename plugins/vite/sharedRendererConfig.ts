@@ -65,6 +65,27 @@ const isNodePackage = (id: string, packageName: string) => {
   return normalized.includes(`/node_modules/${packageName}/`);
 };
 
+const toKebabCase = (value: string) =>
+  value
+    .replaceAll(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replaceAll(/[^a-z0-9]+/gi, '-')
+    .replaceAll(/^-+|-+$/g, '')
+    .toLowerCase();
+
+function getAppModuleChunkName(moduleId: string): string | null {
+  const normalized = moduleId.replaceAll('\\', '/');
+
+  if (normalized.includes('/node_modules/')) return null;
+  if (normalized.includes('/src/routes/')) return 'app-routes';
+  if (normalized.includes('/src/store/')) return 'app-store';
+  if (normalized.includes('/src/services/')) return 'app-services';
+
+  const featureMatch = normalized.match(/\/src\/features\/([^/]+)/);
+  if (featureMatch) return `app-feature-${toKebabCase(featureMatch[1])}`;
+
+  return null;
+}
+
 function sharedManualChunks(id: string): string | undefined {
   // i18n locale JSON/TS files
   const localeMatch = id.match(/\/locales\/([^/]+)\/([^/.]+)/);
@@ -144,8 +165,28 @@ const isI18nChunkFileName = (fileName: string) => {
   return normalized.startsWith('i18n/') || basename.startsWith('i18n-');
 };
 
+const isAppChunkFileName = (fileName: string) => {
+  const basename = fileName.split('?')[0].replaceAll('\\', '/').split('/').at(-1) ?? fileName;
+
+  return (
+    basename.startsWith('app-routes-') ||
+    basename.startsWith('app-feature-') ||
+    basename.startsWith('app-store-') ||
+    basename.startsWith('app-services-') ||
+    basename === 'app-routes.js' ||
+    basename === 'app-store.js' ||
+    basename === 'app-services.js'
+  );
+};
+
 export const sharedModulePreload = {
-  resolveDependencies: (_filename, deps) => deps.filter((dep) => !isI18nChunkFileName(dep)),
+  resolveDependencies: (_filename, deps, context) =>
+    deps.filter((dep) => {
+      if (isI18nChunkFileName(dep)) return false;
+      if (context.hostType === 'html' && isAppChunkFileName(dep)) return false;
+
+      return true;
+    }),
 } satisfies ModulePreloadOptions;
 
 export const sharedRollupOutput = {
@@ -169,12 +210,8 @@ export const createSharedRolldownOutput = (options: SharedRolldownOutputOptions 
 
           // 性能优化: 将小的路由组件合并，减少文件数量
           // 在高延迟网络环境下，减少请求数比缓存粒度更重要
-          if (!moduleId.includes('node_modules')) {
-            if (moduleId.includes('/src/routes/')) return 'app-routes';
-            if (moduleId.includes('/src/features/')) return 'app-features';
-            if (moduleId.includes('/src/store/')) return 'app-store';
-            if (moduleId.includes('/src/services/')) return 'app-services';
-          }
+          const appChunkName = getAppModuleChunkName(moduleId);
+          if (appChunkName) return appChunkName;
 
           return null;
         },
@@ -295,6 +332,7 @@ export const sharedResolveDedupe = [
 ];
 
 export const __testing = {
+  getAppModuleChunkName,
   sharedResolveDedupe,
   sharedManualChunks,
 };

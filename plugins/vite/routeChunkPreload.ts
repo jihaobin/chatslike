@@ -18,6 +18,8 @@ interface IdleWarmupManifest {
   allJsManifestFileName?: string;
   idleRouteFetch: string[];
   idleRoutePreload: string[];
+  routeIdlePreload?: RuntimeRoutePreloadEntry[];
+  routePreload?: RuntimeRoutePreloadEntry[];
 }
 
 interface OutputChunkLike {
@@ -72,7 +74,7 @@ const defaultRoutePreloadGroups = [
       'src/routes/(main)/agent/(chat)/_layout',
       'src/routes/(main)/agent',
     ],
-    patterns: ['^/agent(/|$)'],
+    patterns: ['^/(?:home/)?agent(/|$)'],
   },
 ] as const satisfies RouteChunkPreloadRoute[];
 
@@ -86,21 +88,21 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/group',
       'src/routes/(main)/group/profile',
     ],
-    patterns: ['^/group(/|$)'],
+    patterns: ['^/(?:home/)?group(/|$)'],
   },
   {
     id: 'desktop-agent-profile',
     includeDynamicImports: true,
     includeStaticImports: true,
     modules: ['src/routes/(main)/agent/profile'],
-    patterns: ['^/agent/[^/]+/profile(/|$)'],
+    patterns: ['^/(?:home/)?agent/[^/]+/profile(/|$)'],
   },
   {
     id: 'desktop-agent-channel',
     includeDynamicImports: true,
     includeStaticImports: true,
     modules: ['src/routes/(main)/agent/channel'],
-    patterns: ['^/agent/[^/]+/channel(/|$)'],
+    patterns: ['^/(?:home/)?agent/[^/]+/channel(/|$)'],
   },
   {
     id: 'desktop-agent-page',
@@ -111,7 +113,7 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/agent/[topicId]/page',
       'src/routes/(main)/agent/[topicId]/page/[docId]',
     ],
-    patterns: ['^/agent/[^/]+(?:/[^/]+)?/page(/|$)'],
+    patterns: ['^/(?:home/)?agent/[^/]+(?:/[^/]+)?/page(/|$)'],
   },
   {
     id: 'desktop-community',
@@ -139,7 +141,7 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/community/(detail)/skill',
       'src/routes/(main)/community/(detail)/user',
     ],
-    patterns: ['^/community(/|$)'],
+    patterns: ['^/(?:home/)?community(/|$)'],
   },
   {
     id: 'desktop-resource',
@@ -153,21 +155,21 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/resource/library',
       'src/routes/(main)/resource/library/[slug]',
     ],
-    patterns: ['^/resource(/|$)'],
+    patterns: ['^/(?:home/)?resource(/|$)'],
   },
   {
     id: 'desktop-settings',
     includeDynamicImports: true,
     includeStaticImports: true,
     modules: ['src/routes/(main)/settings/_layout', 'src/routes/(main)/settings'],
-    patterns: ['^/settings(/|$)'],
+    patterns: ['^/(?:home/)?settings(/|$)'],
   },
   {
     id: 'desktop-settings-provider',
     includeDynamicImports: true,
     includeStaticImports: true,
     modules: ['src/routes/(main)/settings/provider'],
-    patterns: ['^/settings/provider(/|$)'],
+    patterns: ['^/(?:home/)?settings/provider(/|$)'],
   },
   {
     id: 'desktop-memory',
@@ -182,7 +184,7 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/memory/identities',
       'src/routes/(main)/memory/preferences',
     ],
-    patterns: ['^/memory(/|$)'],
+    patterns: ['^/(?:home/)?memory(/|$)'],
   },
   {
     id: 'desktop-create',
@@ -194,7 +196,7 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/(create)/video/_layout',
       'src/routes/(main)/(create)/video',
     ],
-    patterns: ['^/(image|video)(/|$)'],
+    patterns: ['^/(?:home/)?(image|video)(/|$)'],
   },
   {
     id: 'desktop-eval',
@@ -210,7 +212,7 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/eval/bench/[benchmarkId]/runs/[runId]',
       'src/routes/(main)/eval/bench/[benchmarkId]/runs/[runId]/cases/[caseId]',
     ],
-    patterns: ['^/eval(/|$)'],
+    patterns: ['^/(?:home/)?eval(/|$)'],
   },
   {
     id: 'desktop-tasks',
@@ -222,7 +224,7 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/task/[taskId]',
       'src/routes/(main)/agent/task/[taskId]',
     ],
-    patterns: ['^/(tasks|task|agent/[^/]+/task)(/|$)'],
+    patterns: ['^/(?:home/)?(tasks|task|agent/[^/]+/task)(/|$)'],
   },
   {
     id: 'desktop-page',
@@ -233,7 +235,7 @@ const defaultIdleRoutePreloadGroups = [
       'src/routes/(main)/page',
       'src/routes/(main)/page/[id]',
     ],
-    patterns: ['^/page(/|$)'],
+    patterns: ['^/(?:home/)?page(/|$)'],
   },
 ] as const satisfies RouteChunkPreloadRoute[];
 
@@ -384,6 +386,18 @@ function createRoutePreloadManifest(
     .filter((entry) => entry.preload.length > 0);
 }
 
+function filterRoutePreloadEntries(
+  entries: RuntimeRoutePreloadEntry[],
+  shouldKeepFile: (fileName: string) => boolean,
+) {
+  return entries
+    .map((entry) => ({
+      ...entry,
+      preload: entry.preload.filter(shouldKeepFile),
+    }))
+    .filter((entry) => entry.preload.length > 0);
+}
+
 function appendDeploymentQuery(href: string, deploymentId = process.env.VERCEL_DEPLOYMENT_ID) {
   if (!deploymentId || href.includes('dpl=')) return href;
 
@@ -473,6 +487,11 @@ function injectRouteModulepreloadsIntoHtml(
 }
 
 function createIdleWarmupScript(manifest: IdleWarmupManifest, base: string, deploymentId?: string) {
+  const toRuntimeRouteEntry = (entry: RuntimeRoutePreloadEntry) => ({
+    id: entry.id,
+    patterns: entry.patterns,
+    preload: entry.preload.map((fileName) => createAssetHref(fileName, base, deploymentId)),
+  });
   const payload = {
     allJsManifest: manifest.allJsManifestFileName
       ? createAssetHref(manifest.allJsManifestFileName, base, deploymentId)
@@ -484,6 +503,8 @@ function createIdleWarmupScript(manifest: IdleWarmupManifest, base: string, depl
     idleRoutePreload: manifest.idleRoutePreload.map((fileName) =>
       createAssetHref(fileName, base, deploymentId),
     ),
+    routeIdlePreload: manifest.routeIdlePreload?.map(toRuntimeRouteEntry) ?? [],
+    routePreload: manifest.routePreload?.map(toRuntimeRouteEntry) ?? [],
   };
 
   return [
@@ -501,7 +522,12 @@ function createIdleWarmupScript(manifest: IdleWarmupManifest, base: string, depl
     '        const warmQueue=(items)=>{let i=0,a=0;const pump=()=>visible(()=>{while(a<2&&i<items.length){a++;warm(items[i++]).finally(()=>{a--;idle(pump);});}});idle(pump);};',
     '        const toHref=(f)=>new URL(f,m.base&&m.base!=="./"?location.origin+m.base:location.href).href;',
     '        const warmAll=()=>{if(!m.allJsManifest)return;fetch(m.allJsManifest,{cache:"force-cache",credentials:"same-origin"}).then((r)=>r.ok?r.json():[]).then((files)=>warmQueue(files.map(toHref))).catch(()=>{});};',
-    '        const start=()=>setTimeout(()=>idle(()=>run(m.idleRoutePreload,addModulepreload,4,()=>{warmQueue(m.idleRouteFetch||[]);setTimeout(()=>idle(warmAll),1.2e4);})),2e3);',
+    '        const match=(e)=>{try{return(e.patterns||[]).some((p)=>new RegExp(p).test(location.pathname));}catch(_){return false;}};',
+    '        const uniq=(items)=>[...new Set(items)];',
+    '        const matched=(entries)=>uniq((entries||[]).filter(match).flatMap((e)=>e.preload||[]));',
+    '        const routeNow=matched(m.routePreload);',
+    '        const routeIdle=uniq([...(m.idleRoutePreload||[]),...matched(m.routeIdlePreload)]);',
+    '        const start=()=>{routeNow.forEach(addModulepreload);setTimeout(()=>idle(()=>run(routeIdle,addModulepreload,4,()=>{warmQueue(m.idleRouteFetch||[]);setTimeout(()=>idle(warmAll),1.2e4);})),2e3);};',
     '        document.readyState==="complete"?start():window.addEventListener("load",start,{once:true});',
     '      })();',
     '    </script>',
@@ -517,7 +543,9 @@ function injectIdleWarmupScriptIntoHtml(
   if (
     manifest.idleRoutePreload.length === 0 &&
     manifest.idleRouteFetch.length === 0 &&
-    !manifest.allJsManifestFileName
+    !manifest.allJsManifestFileName &&
+    (manifest.routePreload?.length ?? 0) === 0 &&
+    (manifest.routeIdlePreload?.length ?? 0) === 0
   )
     return html;
 
@@ -574,42 +602,36 @@ export function routeChunkPreload(options: RouteChunkPreloadOptions = {}): Plugi
             (chunkSizeByFileName.get(fileName) ?? minInitialRoutePreloadSize) >=
             minInitialRoutePreloadSize,
         );
-        const htmlWithInitialPreloads = injectRouteModulepreloadsIntoHtml(
-          htmlWithoutSmallPreloads,
+        const initialRoutePreload = filterRoutePreloadEntries(
           manifest,
-          config.base,
-          deploymentId,
           (fileName) =>
             (chunkSizeByFileName.get(fileName) ?? minInitialRoutePreloadSize) >=
             minInitialRoutePreloadSize,
         );
+        const routeIdlePreload = [
+          ...filterRoutePreloadEntries(manifest, (fileName) => {
+            const size = chunkSizeByFileName.get(fileName) ?? minInitialRoutePreloadSize;
+
+            return (
+              size >= minInitialRoutePreloadSize || isCriticalRouteSmallChunkFileName(fileName)
+            );
+          }),
+          ...filterRoutePreloadEntries(
+            idleManifest,
+            (fileName) =>
+              (chunkSizeByFileName.get(fileName) ?? minInitialRoutePreloadSize) >=
+              minInitialRoutePreloadSize,
+          ),
+        ];
 
         return injectIdleWarmupScriptIntoHtml(
-          htmlWithInitialPreloads,
+          htmlWithoutSmallPreloads,
           {
             allJsManifestFileName: allJsWarmup ? allJsWarmupManifestFileName : undefined,
             idleRouteFetch: [],
-            idleRoutePreload: [
-              ...new Set([
-                ...manifest
-                  .flatMap((entry) => entry.preload)
-                  .filter((fileName) => {
-                    const size = chunkSizeByFileName.get(fileName) ?? minInitialRoutePreloadSize;
-
-                    return (
-                      size >= minInitialRoutePreloadSize ||
-                      isCriticalRouteSmallChunkFileName(fileName)
-                    );
-                  }),
-                ...idleManifest
-                  .flatMap((entry) => entry.preload)
-                  .filter(
-                    (fileName) =>
-                      (chunkSizeByFileName.get(fileName) ?? minInitialRoutePreloadSize) >=
-                      minInitialRoutePreloadSize,
-                  ),
-              ]),
-            ],
+            idleRoutePreload: [],
+            routeIdlePreload,
+            routePreload: initialRoutePreload,
           },
           config.base,
           deploymentId,
@@ -628,6 +650,7 @@ export const __testing = {
   createRoutePreloadManifest,
   defaultIdleRoutePreloadGroups,
   defaultRoutePreloadGroups,
+  filterRoutePreloadEntries,
   injectIdleWarmupScriptIntoHtml,
   injectRouteModulepreloadsIntoHtml,
   removeSmallModulepreloadsFromHtml,

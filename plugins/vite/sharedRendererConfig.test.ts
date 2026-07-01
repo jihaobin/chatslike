@@ -36,6 +36,28 @@ describe('sharedModulePreload', () => {
       ),
     ).toEqual(['assets/vendor-icons.js', 'vendor/vendor-react.js', 'assets/page.js']);
   });
+
+  it('keeps app chunks out of entry html preloads while preserving runtime dynamic preloads', () => {
+    const resolveDependencies = sharedModulePreload.resolveDependencies!;
+    const deps = [
+      'assets/app-routes.js',
+      'assets/app-feature-admin.js',
+      'assets/app-store.js',
+      'assets/app-services.js',
+      'vendor/vendor-react.js',
+      'assets/explore.js',
+    ];
+
+    expect(
+      resolveDependencies('assets/index.js', deps, { hostId: 'index.html', hostType: 'html' }),
+    ).toEqual(['vendor/vendor-react.js', 'assets/explore.js']);
+    expect(
+      resolveDependencies('assets/explore.js', deps, {
+        hostId: 'assets/explore.js',
+        hostType: 'js',
+      }),
+    ).toEqual(deps);
+  });
 });
 
 describe('sharedManualChunks', () => {
@@ -76,5 +98,30 @@ describe('sharedManualChunks', () => {
         '/repo/node_modules/.pnpm/openai@4/node_modules/openai/index.mjs',
       ),
     ).toBe('vendor-ai-runtime');
+  });
+});
+
+describe('app module chunk names', () => {
+  it('keeps coarse app chunks while splitting top-level feature domains', () => {
+    expect(__testing.getAppModuleChunkName('/repo/src/routes/(main)/agent/index.tsx')).toBe(
+      'app-routes',
+    );
+    expect(__testing.getAppModuleChunkName('/repo/src/store/user/index.ts')).toBe('app-store');
+    expect(__testing.getAppModuleChunkName('/repo/src/services/user.ts')).toBe('app-services');
+
+    expect(__testing.getAppModuleChunkName('/repo/src/features/Explore/index.tsx')).toBe(
+      'app-feature-explore',
+    );
+    expect(__testing.getAppModuleChunkName('/repo/src/features/Conversation/index.tsx')).toBe(
+      'app-feature-conversation',
+    );
+    expect(__testing.getAppModuleChunkName('/repo/src/features/ModelSwitchPanel/index.tsx')).toBe(
+      'app-feature-model-switch-panel',
+    );
+
+    expect(__testing.getAppModuleChunkName('/repo/src/features/Explore/index.tsx')).not.toBe(
+      __testing.getAppModuleChunkName('/repo/src/features/Conversation/index.tsx'),
+    );
+    expect(__testing.getAppModuleChunkName('/repo/src/components/App.tsx')).toBeNull();
   });
 });

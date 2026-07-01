@@ -24,6 +24,7 @@ import { ServerConfigStoreProvider } from '@/store/serverConfig/Provider';
 import type { SPAServerConfig } from '@/types/spaServerConfig';
 
 import Locale from './Locale';
+import { removeStartupLoadingScreen } from './removeStartupLoadingScreen';
 
 const ModalHost = lazy(() => import('@lobehub/ui').then((m) => ({ default: m.ModalHost })));
 const BaseModalHost = lazy(() =>
@@ -36,7 +37,7 @@ const ContextMenuHost = lazy(() =>
 
 const SPAGlobalProvider = memo<PropsWithChildren>(({ children }) => {
   useLayoutEffect(() => {
-    document.getElementById('loading-screen')?.remove();
+    removeStartupLoadingScreen();
   }, []);
 
   const serverConfig: SPAServerConfig | undefined = window.__SERVER_CONFIG__;

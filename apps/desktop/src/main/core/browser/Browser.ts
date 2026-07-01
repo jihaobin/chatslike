@@ -402,9 +402,7 @@ export default class Browser {
   // ==================== Content Loading ====================
 
   loadPlaceholder = async (): Promise<void> => {
-    logger.debug(`[${this.identifier}] Loading splash screen placeholder`);
-    await this._browserWindow!.loadFile(path.join(resourcesDir, 'splash.html'));
-    logger.debug(`[${this.identifier}] Splash screen placeholder loaded.`);
+    logger.debug(`[${this.identifier}] Skipping splash screen placeholder.`);
   };
 
   loadUrl = async (path: string): Promise<void> => {

@@ -1,7 +1,12 @@
+import path from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type App as AppCore } from '../../App';
 import Browser, { type BrowserWindowOpts } from '../Browser';
+
+const errorPagePath = path.join('/mock/resources', 'error.html');
+const splashPagePath = path.join('/mock/resources', 'splash.html');
 
 // Use vi.hoisted to define mocks before hoisting
 const {
@@ -461,7 +466,7 @@ describe('Browser', () => {
 
       await browser.loadUrl('/test-path');
 
-      expect(mockBrowserWindow.loadFile).toHaveBeenCalledWith('/mock/resources/error.html');
+      expect(mockBrowserWindow.loadFile).toHaveBeenCalledWith(errorPagePath);
     });
 
     it('should setup retry handler on error', async () => {
@@ -479,7 +484,7 @@ describe('Browser', () => {
       mockBrowserWindow.loadURL.mockRejectedValueOnce(new Error('Load failed'));
       mockBrowserWindow.loadURL.mockResolvedValueOnce(undefined);
       mockBrowserWindow.loadFile.mockImplementation(async (filePath: string) => {
-        if (filePath === '/mock/resources/error.html') throw new Error('Error page failed');
+        if (filePath === errorPagePath) throw new Error('Error page failed');
         return undefined;
       });
 
@@ -492,10 +497,10 @@ describe('Browser', () => {
   });
 
   describe('loadPlaceholder', () => {
-    it('should load splash screen', async () => {
+    it('should skip the splash screen placeholder', async () => {
       await browser.loadPlaceholder();
 
-      expect(mockBrowserWindow.loadFile).toHaveBeenCalledWith('/mock/resources/splash.html');
+      expect(mockBrowserWindow.loadFile).not.toHaveBeenCalledWith(splashPagePath);
     });
   });
 

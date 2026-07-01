@@ -427,6 +427,37 @@ describe('routeChunkPreload', () => {
     expect(result).not.toContain('js-warmup-manifest.json');
   });
 
+  it('does not inject workspace route preloads into the public landing html', () => {
+    const plugin = routeChunkPreload();
+    const configResolved = plugin.configResolved as (config: {
+      base: string;
+      root: string;
+    }) => void;
+    const bundle = {
+      'assets/agent-CJm8x.js': createChunk({
+        code: 'x'.repeat(2048),
+        facadeModuleId: '/repo/src/routes/(main)/agent/index.tsx',
+        fileName: 'assets/agent-CJm8x.js',
+        moduleIds: ['/repo/src/routes/(main)/agent/index.tsx'],
+      }),
+    } satisfies TestOutputBundle;
+    const transformIndexHtml = plugin.transformIndexHtml as {
+      handler: (html: string, ctx: { bundle: TestOutputBundle; path?: string }) => string;
+    };
+
+    configResolved({ base: '/_spa/', root: '/repo' });
+    const result = transformIndexHtml.handler('<html><head></head><body></body></html>', {
+      bundle,
+      path: '/',
+    });
+
+    expect(result).not.toContain(
+      '<link rel="modulepreload" crossorigin href="/_spa/assets/agent-CJm8x.js',
+    );
+    expect(result).toContain('"routePreload":[{"id":"desktop-chat-launch"');
+    expect(result).toContain('"/_spa/assets/agent-CJm8x.js"');
+  });
+
   it('keeps tiny route dependencies out of initial html while preserving idle warmup coverage', () => {
     const plugin = routeChunkPreload();
     const configResolved = plugin.configResolved as (config: {
@@ -456,16 +487,14 @@ describe('routeChunkPreload', () => {
       bundle,
     });
 
-    expect(result).toContain(
-      '<link rel="modulepreload" crossorigin href="/_spa/assets/agent-CJm8x.js',
-    );
+    expect(result).not.toContain('<link rel="modulepreload"');
+    expect(result).toContain('"routePreload":[{"id":"desktop-chat-launch"');
+    expect(result).toContain('"/_spa/assets/agent-CJm8x.js"');
     expect(result).not.toContain(
       '<link rel="modulepreload" crossorigin href="/_spa/assets/HeaderSlot-D8p.js',
     );
     expect(result).toContain('"idleRouteFetch":[]');
-    expect(result).toContain(
-      '"idleRoutePreload":["/_spa/assets/agent-CJm8x.js","/_spa/assets/HeaderSlot-D8p.js"',
-    );
+    expect(result).toContain('"routeIdlePreload":[{"id":"desktop-chat-launch"');
     expect(result).toContain('"/_spa/assets/HeaderSlot-D8p.js');
   });
 
@@ -509,7 +538,8 @@ describe('routeChunkPreload', () => {
     });
 
     expect(result).toContain('"idleRouteFetch":[]');
-    expect(result).toContain('"idleRoutePreload":["/_spa/assets/settings-CJm8x.js"');
+    expect(result).toContain('"routeIdlePreload":[{"id":"custom-settings"');
+    expect(result).toContain('"/_spa/assets/settings-CJm8x.js"');
     expect(result).not.toContain('/_spa/assets/tiny-D8p.js');
   });
 

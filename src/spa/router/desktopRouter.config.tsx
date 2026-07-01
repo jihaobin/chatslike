@@ -17,7 +17,6 @@ import {
   BusinessDesktopRoutesWithoutMainLayout,
 } from '@/business/client/BusinessDesktopRoutes';
 import { pageRouteMeta } from '@/features/Pages/routeMeta';
-import MainLayout from '@/routes/(main)/_layout';
 import { agentRouteMeta } from '@/routes/(main)/agent/features/routeMeta';
 import { groupRouteMeta } from '@/routes/(main)/group/features/routeMeta';
 import AgentManagementGuard from '@/routes/(main)/guards/AgentManagementGuard';
@@ -771,7 +770,7 @@ export const desktopRoutes: RouteObject[] = [
         path: '*',
       },
     ],
-    element: <MainLayout />,
+    element: dynamicLayout(() => import('@/routes/(main)/_layout'), 'Desktop > Main Layout'),
     errorElement: <ErrorBoundary />,
     handle: {
       meta: routeMeta({ icon: Home, titleKey: 'navigation.home' }),
