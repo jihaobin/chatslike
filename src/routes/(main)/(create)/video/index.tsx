@@ -8,7 +8,7 @@ import PromptInput from './features/PromptInput';
 import VideoWorkspace from './features/VideoWorkspace';
 
 const DesktopVideoPage = memo(() => (
-  <CreateGenerationPage PromptInput={PromptInput} Workspace={VideoWorkspace} path="/video" />
+  <CreateGenerationPage PromptInput={PromptInput} Workspace={VideoWorkspace} path="/home/video" />
 ));
 
 DesktopVideoPage.displayName = 'DesktopVideoPage';

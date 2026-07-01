@@ -13,7 +13,7 @@ const ImageLayout = () => {
 
   return (
     <GenerationLayout
-      breadcrumb={[{ href: '/image', title: t('tab.image') }]}
+      breadcrumb={[{ href: '/home/image', title: t('tab.image') }]}
       extra={<RegisterHotkeys />}
       generationTopicsSelector={generationTopicSelectors.generationTopics}
       namespace="image"

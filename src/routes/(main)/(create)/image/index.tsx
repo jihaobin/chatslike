@@ -8,7 +8,7 @@ import ImageWorkspace from './features/ImageWorkspace';
 import PromptInput from './features/PromptInput';
 
 const DesktopImagePage = memo(() => (
-  <CreateGenerationPage PromptInput={PromptInput} Workspace={ImageWorkspace} path="/image" />
+  <CreateGenerationPage PromptInput={PromptInput} Workspace={ImageWorkspace} path="/home/image" />
 ));
 
 DesktopImagePage.displayName = 'DesktopImagePage';

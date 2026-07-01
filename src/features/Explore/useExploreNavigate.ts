@@ -13,7 +13,7 @@ import { agentByIdSelectors } from '@/store/agent/selectors';
  * Navigation actions for the Explore portal — the "hub" that routes users into
  * the real feature pages.
  *
- * - Feature buttons jump to existing routes (`/home`, `/image`, `/video`, `/community`).
+ * - Feature buttons jump to existing routes (`/home`, `/home/image`, `/home/video`, `/community`).
  * - A model card preselects that model on the home agent, then enters the chat
  *   workspace. This mirrors `StarterList`'s `updateAgentConfigById` pattern:
  *   chat has no `?model=` param, so we mutate the agent config before navigating.
@@ -27,11 +27,11 @@ export const useExploreNavigate = () => {
 
   const goChat = useCallback(() => navigate('/home'), [navigate]);
   const goImage = useCallback(
-    (model?: string) => navigate(model ? `/image?model=${model}` : '/image'),
+    (model?: string) => navigate(model ? `/home/image?model=${model}` : '/home/image'),
     [navigate],
   );
   const goVideo = useCallback(
-    (model?: string) => navigate(model ? `/video?model=${model}` : '/video'),
+    (model?: string) => navigate(model ? `/home/video?model=${model}` : '/home/video'),
     [navigate],
   );
   const goCommunity = useCallback(() => navigate('/community'), [navigate]);

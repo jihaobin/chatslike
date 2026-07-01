@@ -35,9 +35,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 }));
 
 type StarterTitleKey =
-  | 'starter.imageGeneration'
-  | 'starter.videoGeneration'
-  | 'starter.deepseekV4Pro';
+  'starter.imageGeneration' | 'starter.videoGeneration' | 'starter.deepseekV4Pro';
 
 interface StarterItem {
   disabled?: boolean;
@@ -78,12 +76,12 @@ const StarterList = memo(() => {
   const handleClick = useCallback(
     async (key: StarterKey) => {
       if (key === 'video') {
-        navigate('/video?model=dreamina-seedance-2-0-260128');
+        navigate('/home/video?model=dreamina-seedance-2-0-260128');
         return;
       }
 
       if (key === 'image') {
-        navigate('/image?model=gpt-image-2');
+        navigate('/home/image?model=gpt-image-2');
         return;
       }
 

@@ -11,7 +11,7 @@ const VideoLayout = () => {
 
   return (
     <GenerationLayout
-      breadcrumb={[{ href: '/video', title: t('tab.video') }]}
+      breadcrumb={[{ href: '/home/video', title: t('tab.video') }]}
       generationTopicsSelector={generationTopicSelectors.generationTopics}
       namespace="video"
       navKey="video"

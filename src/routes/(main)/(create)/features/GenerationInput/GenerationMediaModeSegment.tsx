@@ -91,7 +91,7 @@ const GenerationMediaModeSegment = memo<GenerationMediaModeSegmentProps>(
     const handleChange = useCallback(
       (value: string) => {
         if (value === mode) return;
-        navigate(value === 'video' ? '/video' : '/image');
+        navigate(value === 'video' ? '/home/video' : '/home/image');
       },
       [mode, navigate],
     );
