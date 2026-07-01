@@ -1,6 +1,6 @@
 {
-  "pid": 25052,
+  "pid": 2544,
   "version": "0.9.9",
-  "socketPath": "\\\\.\\pipe\\codegraph-32f5c9601e833d32",
-  "startedAt": 1780715987961
+  "socketPath": "/mnt/f/lobehub/.codegraph/daemon.sock",
+  "startedAt": 1782788860370
 }

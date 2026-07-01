@@ -7,7 +7,7 @@ import type {
   EnabledProvider,
   ProviderConfig,
 } from '@lobechat/types';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, lte } from 'drizzle-orm';
 import { isEmpty } from 'es-toolkit/compat';
 import type {
   AIChatModelCard,
@@ -17,6 +17,9 @@ import type {
   EnabledAiModel,
   ModelAbilities,
   ModelParamsSchema,
+  Pricing,
+  PricingUnit,
+  PricingUnitType,
 } from 'model-bank';
 import { AiModelSourceEnum, AiModelTypeSchema, isAiModelVisible, ModelProvider } from 'model-bank';
 import { DEFAULT_MODEL_PROVIDER_LIST } from 'model-bank/modelProviders';
@@ -26,7 +29,13 @@ import { merge, mergeArrayById } from '@/utils/merge';
 
 import { AiModelModel } from '../../models/aiModel';
 import { AiProviderModel } from '../../models/aiProvider';
-import { aiModels, aiProviders } from '../../schemas';
+import {
+  aiModels,
+  aiProviders,
+  modelPricing,
+  type ModelPricingItem,
+  type UsageModality,
+} from '../../schemas';
 import type { LobeChatDatabase } from '../../type';
 import { GLOBAL_PROVIDER_CONFIG_USER_ID } from './constants';
 
@@ -36,8 +45,11 @@ interface AiInfraReposOptions {
   platformHostedModelsEnabled?: boolean;
 }
 
+type RuntimeEnabledAiModel = EnabledAiModel & { pricing?: Pricing };
+
 const normalizeProvider = (provider: string) => provider.toLowerCase();
 const PLATFORM_CATALOG_USER_ID = 'platform-catalog';
+const PLATFORM_CREDIT_PRICING_SOURCE = 'platformCredit';
 
 /**
  * Provider-level search defaults (only used when built-in models don't provide settings.searchImpl and settings.searchProvider)
@@ -132,6 +144,67 @@ const normalizeModelParameters = (parameters: unknown): ModelParamsSchema | unde
   if (!parameters || typeof parameters !== 'object') return undefined;
 
   return parameters as ModelParamsSchema;
+};
+
+const PRICING_UNIT_BY_MODALITY: Record<string, PricingUnitType> = {
+  image: 'image',
+  video: 'second',
+};
+
+const getPricingModalityByModelType = (
+  type: RuntimeEnabledAiModel['type'],
+): UsageModality | undefined => {
+  if (type === 'chat') return 'text';
+  if (type === 'image' || type === 'video') return type;
+};
+
+const getPlatformPricingUnits = (pricing: ModelPricingItem): PricingUnit[] => {
+  if (
+    typeof pricing.inputCreditsPerMillionTokens === 'number' &&
+    typeof pricing.outputCreditsPerMillionTokens === 'number'
+  ) {
+    return [
+      {
+        name: 'textInput',
+        rate: pricing.inputCreditsPerMillionTokens,
+        strategy: 'fixed',
+        unit: 'millionTokens',
+      },
+      {
+        name: 'textOutput',
+        rate: pricing.outputCreditsPerMillionTokens,
+        strategy: 'fixed',
+        unit: 'millionTokens',
+      },
+    ];
+  }
+
+  if (typeof pricing.fixedCreditsPerUnit === 'number') {
+    return [
+      {
+        name: pricing.modality === 'video' ? 'videoGeneration' : 'imageGeneration',
+        rate: pricing.fixedCreditsPerUnit,
+        strategy: 'fixed',
+        unit:
+          (pricing.unit as PricingUnitType | null) ||
+          PRICING_UNIT_BY_MODALITY[pricing.modality] ||
+          'image',
+      },
+    ];
+  }
+
+  return [];
+};
+
+const createPlatformCreditPricing = (pricing: ModelPricingItem): Pricing | undefined => {
+  const units = getPlatformPricingUnits(pricing);
+  if (units.length === 0) return undefined;
+
+  return {
+    currency: 'CNY',
+    pricingSource: PLATFORM_CREDIT_PRICING_SOURCE,
+    units,
+  } as Pricing & { pricingSource: typeof PLATFORM_CREDIT_PRICING_SOURCE };
 };
 
 const normalizeModelType = (type: unknown) => {
@@ -260,22 +333,34 @@ export class AiInfraRepos {
     return list
       .filter((item) => item.enabled)
       .sort((a, b) => a.sort! - b.sort!)
-      .map(
-        (item): EnabledProvider => ({
-          id: item.id,
-          logo: item.logo,
-          name: item.name,
-          source: item.source,
-        }),
-      );
+      .map((item): EnabledProvider => ({
+        id: item.id,
+        logo: item.logo,
+        name: item.name,
+        source: item.source,
+      }));
   };
 
   /**
    * used in the chat page. to show the enabled models
    */
   getEnabledModels = async (filterEnabled: boolean = true) => {
+    const attachPlatformPricing = async (models: RuntimeEnabledAiModel[]) => {
+      const pricingByModel = await this.getActivePlatformPricingMap();
+
+      return models.map((model): RuntimeEnabledAiModel => {
+        const modality = getPricingModalityByModelType(model.type);
+        const pricing = modality
+          ? pricingByModel.get(`${model.providerId}:${model.id}:${modality}`)
+          : undefined;
+        if (!pricing) return model;
+
+        return { ...model, pricing };
+      });
+    };
+
     if (this.options.platformHostedModelsEnabled) {
-      return this.getGlobalPlatformEnabledModels();
+      return attachPlatformPricing(await this.getGlobalPlatformEnabledModels());
     }
 
     const [providers, allModels] = await Promise.all([
@@ -339,9 +424,30 @@ export class AiInfraRepos {
       })
       .map((item) => injectSearchSettings(item.providerId, item));
 
-    return [...builtinModels, ...appendedUserModels].sort(
+    const enabledModels = [...builtinModels, ...appendedUserModels].sort(
       (a, b) => (a?.sort ?? Infinity) - (b?.sort ?? Infinity),
-    ) as EnabledAiModel[];
+    ) as RuntimeEnabledAiModel[];
+
+    return attachPlatformPricing(enabledModels);
+  };
+
+  private getActivePlatformPricingMap = async (): Promise<Map<string, Pricing>> => {
+    const rows = await this.db
+      .select()
+      .from(modelPricing)
+      .where(and(eq(modelPricing.status, 'active'), lte(modelPricing.effectiveAt, new Date())))
+      .orderBy(desc(modelPricing.effectiveAt), desc(modelPricing.createdAt));
+
+    const latestPricing = new Map<string, Pricing>();
+    for (const row of rows) {
+      const pricing = createPlatformCreditPricing(row);
+      if (!pricing) continue;
+
+      const key = `${row.provider}:${row.model}:${row.modality}`;
+      if (!latestPricing.has(key)) latestPricing.set(key, pricing);
+    }
+
+    return latestPricing;
   };
 
   private getPlatformCatalogEnabledModels = async (): Promise<EnabledAiModel[]> => {
@@ -451,14 +557,12 @@ export class AiInfraRepos {
 
     return providers
       .filter((provider) => provider.enabled === true)
-      .map(
-        (provider): EnabledProvider => ({
-          id: provider.id,
-          logo: provider.logo ?? undefined,
-          name: provider.name ?? undefined,
-          source: provider.source ?? 'custom',
-        }),
-      );
+      .map((provider): EnabledProvider => ({
+        id: provider.id,
+        logo: provider.logo ?? undefined,
+        name: provider.name ?? undefined,
+        source: provider.source ?? 'custom',
+      }));
   };
 
   private getGlobalPlatformEnabledModels = async (): Promise<EnabledAiModel[]> => {

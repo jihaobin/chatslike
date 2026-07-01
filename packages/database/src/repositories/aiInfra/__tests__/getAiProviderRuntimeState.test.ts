@@ -4,7 +4,7 @@ import type { EnabledAiModel } from 'model-bank';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getTestDB } from '../../../core/getTestDB';
-import { aiModels, aiProviders, users } from '../../../schemas';
+import { aiModels, aiProviders, modelPricing, users } from '../../../schemas';
 import type { LobeChatDatabase } from '../../../type';
 import { GLOBAL_PROVIDER_CONFIG_USER_ID } from '../constants';
 import { AiInfraRepos } from '../index';
@@ -30,6 +30,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  await serverDB.delete(modelPricing);
   await serverDB.delete(users).where(eq(users.id, GLOBAL_PROVIDER_CONFIG_USER_ID));
   await serverDB.delete(users).where(eq(users.id, userId));
   repo = new AiInfraRepos(serverDB, userId, mockProviderConfigs);
@@ -445,6 +446,69 @@ describe('AiInfraRepos', () => {
         'openai:gpt-4o',
       ]);
       expect(result.enabledChatAiProviders.map((provider) => provider.id)).toEqual(['openai']);
+    });
+
+    it('attaches active platform credit pricing to runtime models', async () => {
+      await serverDB.insert(users).values([{ id: GLOBAL_PROVIDER_CONFIG_USER_ID }, { id: userId }]);
+      await serverDB.insert(aiProviders).values({
+        enabled: true,
+        id: 'anthropic',
+        name: 'Anthropic',
+        source: 'builtin',
+        sort: 1,
+        userId: GLOBAL_PROVIDER_CONFIG_USER_ID,
+      });
+      await serverDB.insert(modelPricing).values({
+        inputCreditsPerMillionTokens: 140_000,
+        modality: 'text',
+        model: 'claude-opus-4-8',
+        outputCreditsPerMillionTokens: 280_000,
+        priceKey: 'text:claude-opus-4-8',
+        provider: 'anthropic',
+        status: 'active',
+      });
+
+      const platformRepo = new AiInfraRepos(
+        serverDB,
+        userId,
+        {
+          anthropic: {
+            enabled: true,
+            serverModelLists: [
+              {
+                enabled: true,
+                id: 'claude-opus-4-8',
+                pricing: {
+                  currency: 'USD',
+                  units: [
+                    { name: 'textInput', rate: 0.14, strategy: 'fixed', unit: 'millionTokens' },
+                    { name: 'textOutput', rate: 0.28, strategy: 'fixed', unit: 'millionTokens' },
+                  ],
+                },
+                type: 'chat',
+              },
+            ],
+          },
+        },
+        { platformHostedModelsEnabled: true },
+      );
+
+      const result = await platformRepo.getAiProviderRuntimeState();
+
+      expect(result.enabledAiModels[0]).toEqual(
+        expect.objectContaining({
+          id: 'claude-opus-4-8',
+          pricing: {
+            currency: 'CNY',
+            pricingSource: 'platformCredit',
+            units: [
+              { name: 'textInput', rate: 140_000, strategy: 'fixed', unit: 'millionTokens' },
+              { name: 'textOutput', rate: 280_000, strategy: 'fixed', unit: 'millionTokens' },
+            ],
+          },
+          providerId: 'anthropic',
+        }),
+      );
     });
   });
 });

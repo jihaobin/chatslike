@@ -108,6 +108,15 @@ const textPricing = {
   ],
 };
 
+const platformCreditTextPricing = {
+  currency: 'CNY',
+  pricingSource: 'platformCredit',
+  units: [
+    { name: 'textInput', rate: 140_000, strategy: 'fixed', unit: 'millionTokens' },
+    { name: 'textOutput', rate: 280_000, strategy: 'fixed', unit: 'millionTokens' },
+  ],
+};
+
 const imagePricing = {
   approximatePricePerImage: 0.04,
   approximatePricePerVideo: 0.8,
@@ -163,6 +172,20 @@ describe('ModelDetailPanel pricing', () => {
     expect(container).toHaveTextContent('$5.00/M tokens');
     expect(container).toHaveTextContent('$25.00/M tokens');
     expect(container).not.toHaveTextContent('credits/M tokens');
+  });
+
+  it('renders platform credit pricing for non-branding providers when runtime pricing is business data', () => {
+    const { container } = render(
+      <ModelDetailPanel
+        enabledList={createEnabledList('anthropic', platformCreditTextPricing)}
+        model="test-model"
+        provider="anthropic"
+      />,
+    );
+
+    expect(container).toHaveTextContent('140.0K credits/M tokens');
+    expect(container).toHaveTextContent('280.0K credits/M tokens');
+    expect(container).not.toHaveTextContent('$0.14/M tokens');
   });
 
   it('renders branding provider image and video pricing in credits', () => {

@@ -78,9 +78,11 @@ interface FormattedUnitPrice {
 
 const BRANDING_CREDIT_UNIT = 1_000_000;
 const MILLION_SCALE_UNITS = new Set<PricingUnit['unit']>(['millionCharacters', 'millionTokens']);
+const PLATFORM_CREDIT_PRICING_SOURCE = 'platformCredit';
 
 interface FormatPricingRateOptions {
   isCreditPricing?: boolean;
+  isPlatformCreditPricing?: boolean;
   unit?: PricingUnit['unit'];
 }
 
@@ -90,6 +92,18 @@ const formatBrandingCreditRate = (rate: number, unit?: PricingUnit['unit']) => {
   return String(formatShortenNumber(Math.round(rate * BRANDING_CREDIT_UNIT)));
 };
 
+const formatPlatformCreditRate = (rate: number) => String(formatShortenNumber(Math.round(rate)));
+
+const formatCreditRate = (
+  rate: number,
+  unit: PricingUnit['unit'] | undefined,
+  isPlatformCreditPricing: boolean,
+) => {
+  return isPlatformCreditPricing
+    ? formatPlatformCreditRate(rate)
+    : formatBrandingCreditRate(rate, unit);
+};
+
 const formatPricingRate = (
   rate: number | undefined,
   currency?: ModelPriceCurrency,
@@ -97,15 +111,20 @@ const formatPricingRate = (
 ) => {
   if (typeof rate !== 'number') return '0';
 
-  return options.isCreditPricing
-    ? formatBrandingCreditRate(rate, options.unit)
-    : formatPriceByCurrency(rate, currency);
+  if (options.isCreditPricing) {
+    return options.isPlatformCreditPricing
+      ? formatPlatformCreditRate(rate)
+      : formatBrandingCreditRate(rate, options.unit);
+  }
+
+  return formatPriceByCurrency(rate, currency);
 };
 
 const getFormattedUnitPrice = (
   pricing: Pricing,
   unitName: PricingUnitName,
   isCreditPricing: boolean,
+  isPlatformCreditPricing: boolean,
 ): FormattedUnitPrice => {
   const currency = pricing.currency as ModelPriceCurrency | undefined;
   const currentRate =
@@ -119,23 +138,30 @@ const getFormattedUnitPrice = (
   return {
     current: formatPricingRate(currentRate, currency, {
       isCreditPricing,
+      isPlatformCreditPricing,
       unit: 'millionTokens',
     }),
     original:
       typeof originalRate === 'number'
         ? formatPricingRate(originalRate, currency, {
             isCreditPricing,
+            isPlatformCreditPricing,
             unit: 'millionTokens',
           })
         : undefined,
   };
 };
 
-const getPrice = (pricing: Pricing, isCreditPricing: boolean) => {
+const getPrice = (pricing: Pricing, isCreditPricing: boolean, isPlatformCreditPricing: boolean) => {
   return {
-    cachedInput: getFormattedUnitPrice(pricing, 'textInput_cacheRead', isCreditPricing),
-    input: getFormattedUnitPrice(pricing, 'textInput', isCreditPricing),
-    output: getFormattedUnitPrice(pricing, 'textOutput', isCreditPricing),
+    cachedInput: getFormattedUnitPrice(
+      pricing,
+      'textInput_cacheRead',
+      isCreditPricing,
+      isPlatformCreditPricing,
+    ),
+    input: getFormattedUnitPrice(pricing, 'textInput', isCreditPricing, isPlatformCreditPricing),
+    output: getFormattedUnitPrice(pricing, 'textOutput', isCreditPricing, isPlatformCreditPricing),
   };
 };
 
@@ -199,6 +225,10 @@ const UNIT_LABEL_MAP: Record<string, string> = {
   second: '/s',
 };
 
+const isPlatformCreditPricing = (pricing?: Pricing) =>
+  (pricing as (Pricing & { pricingSource?: string }) | undefined)?.pricingSource ===
+  PLATFORM_CREDIT_PRICING_SOURCE;
+
 interface PriceValueProps {
   prefix?: string;
   price: FormattedUnitPrice;
@@ -226,9 +256,14 @@ const formatUnitRate = (
   unit: PricingUnit,
   currency?: ModelPriceCurrency,
   isCreditPricing?: boolean,
+  isPlatformCreditPricing?: boolean,
 ): FormattedUnitPrice => {
   const formatRate = (rate: number) =>
-    formatPricingRate(rate, currency, { isCreditPricing, unit: unit.unit });
+    formatPricingRate(rate, currency, {
+      isCreditPricing,
+      isPlatformCreditPricing,
+      unit: unit.unit,
+    });
   const formatRange = (low: string, high: string) =>
     isCreditPricing ? `${low} ~ ${high}` : `${low} ~ $${high}`;
 
@@ -330,9 +365,10 @@ const ModelDetailPanel: FC<ModelDetailPanelProps> = memo(
     const updateExpandedKeys = useGlobalStore((s) => s.updateModelDetailPanelExpandedKeys);
 
     const pricing = model?.pricing;
-    const isCreditPricing = provider === BRANDING_PROVIDER;
+    const isPlatformCredit = isPlatformCreditPricing(pricing);
+    const isCreditPricing = provider === BRANDING_PROVIDER || isPlatformCredit;
     const hasPricing = !!pricing;
-    const formatPrice = pricing ? getPrice(pricing, isCreditPricing) : null;
+    const formatPrice = pricing ? getPrice(pricing, isCreditPricing, isPlatformCredit) : null;
     const pricingGroups = useMemo(
       () => (pricing ? groupPricingUnits(pricing.units) : []),
       [pricing],
@@ -343,7 +379,7 @@ const ModelDetailPanel: FC<ModelDetailPanelProps> = memo(
       const currency = pricing.currency as ModelPriceCurrency | undefined;
       if (pricingMode === 'image' && typeof pricing.approximatePricePerImage === 'number') {
         const amount = isCreditPricing
-          ? formatBrandingCreditRate(pricing.approximatePricePerImage, 'image')
+          ? formatCreditRate(pricing.approximatePricePerImage, 'image', isPlatformCredit)
           : formatPriceByCurrency(pricing.approximatePricePerImage, currency);
         return t(
           isCreditPricing
@@ -359,7 +395,7 @@ const ModelDetailPanel: FC<ModelDetailPanelProps> = memo(
       }
       if (pricingMode === 'video' && typeof pricing.approximatePricePerVideo === 'number') {
         const amount = isCreditPricing
-          ? formatBrandingCreditRate(pricing.approximatePricePerVideo)
+          ? formatCreditRate(pricing.approximatePricePerVideo, undefined, isPlatformCredit)
           : formatPriceByCurrency(pricing.approximatePricePerVideo, currency);
         return t(
           isCreditPricing
@@ -595,6 +631,7 @@ const ModelDetailPanel: FC<ModelDetailPanelProps> = memo(
                               unit,
                               model.pricing?.currency as ModelPriceCurrency,
                               isCreditPricing,
+                              isPlatformCredit,
                             )}
                             suffix={
                               isCreditPricing
