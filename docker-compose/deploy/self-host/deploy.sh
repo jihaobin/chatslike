@@ -2,7 +2,7 @@
 set -eu
 
 usage() {
-  echo "Usage: $0 ghcr.io/my-account/lobehub-self-hosted:sha-83b8aa5" >&2
+  echo "Usage: $0 registry.example.com/my-account/lobehub-self-hosted:sha-83b8aa5" >&2
 }
 
 if [ "$#" -ne 1 ]; then
@@ -12,13 +12,31 @@ fi
 
 NEW_IMAGE="$1"
 
-case "$NEW_IMAGE" in
-  ghcr.io/*:sha-*) ;;
-  *)
-    echo "Error: image must be an immutable GHCR sha tag, for example ghcr.io/my-account/lobehub-self-hosted:sha-83b8aa5" >&2
-    exit 2
-    ;;
-esac
+validate_image() {
+  image="$1"
+  image_name="${image##*/}"
+
+  case "$image" in
+    ""|*[[:space:]]*)
+      echo "Error: image must be a single Docker image reference without whitespace." >&2
+      exit 2
+      ;;
+  esac
+
+  case "$image_name" in
+    *:*)
+      tag="${image_name##*:}"
+      if [ -n "$tag" ] && [ "$tag" != "latest" ]; then
+        return 0
+      fi
+      ;;
+  esac
+
+  echo "Error: image must include an explicit non-latest tag, for example registry.example.com/my-account/lobehub-self-hosted:sha-83b8aa5" >&2
+  exit 2
+}
+
+validate_image "$NEW_IMAGE"
 
 if [ ! -f ".env" ]; then
   echo "Error: .env not found. Run this script from the server deployment directory." >&2

@@ -1,6 +1,9 @@
 Dockerfile
 .dockerignore
 node_modules
+**/node_modules
+.pnpm-store
+**/.pnpm-store
 npm-debug.log
 .next
 .git

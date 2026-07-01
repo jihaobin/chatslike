@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 ## Set global build ENV
 ARG NODEJS_VERSION="24"
 
@@ -67,6 +69,7 @@ ENV NEXT_PUBLIC_ANALYTICS_UMAMI="${NEXT_PUBLIC_ANALYTICS_UMAMI}" \
 # Node
 ARG NODE_OPTIONS="--max-old-space-size=4096"
 ENV NODE_OPTIONS="${NODE_OPTIONS}"
+ENV CI="true"
 
 WORKDIR /app
 
@@ -86,8 +89,11 @@ RUN set -e && \
     export COREPACK_NPM_REGISTRY=$(npm config get registry | sed 's/\/$//') && \
     npm i -g corepack@latest && \
     corepack enable && \
-    corepack use $(sed -n 's/.*"packageManager": "\(.*\)".*/\1/p' package.json) && \
-    pnpm i && \
+    corepack use $(sed -n 's/.*"packageManager": "\(.*\)".*/\1/p' package.json)
+
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm i --config.node-linker=hoisted --config.confirmModulesPurge=false && \
     mkdir -p /deps && \
     cd /deps && \
     echo '{"name":"deps","private":true}' > package.json && \

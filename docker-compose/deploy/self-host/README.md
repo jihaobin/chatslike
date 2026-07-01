@@ -1,4 +1,4 @@
-# Self-hosted GHCR deployment
+# Self-hosted image deployment
 
 This folder contains helper files for deploying a customized LobeHub image to an existing Docker Compose server.
 
@@ -41,7 +41,7 @@ Make scripts executable on the server:
 chmod +x deploy.sh rollback.sh
 ```
 
-## 3. Configure GHCR access and current image
+## 3. Configure registry access and current image
 
 Make sure `LOBE_IMAGE` in the server `.env` points to the image that is currently running before the first custom deployment:
 
@@ -49,37 +49,43 @@ Make sure `LOBE_IMAGE` in the server `.env` points to the image that is currentl
 LOBE_IMAGE=lobehub/lobehub
 ```
 
-If this server is already running a customized image, use the exact currently running image instead. The deployment script records this value in `.last-lobe-image` for default rollback, then updates `.env` to the new GHCR image passed to `./deploy.sh`.
+If this server is already running a customized image, use the exact currently running image instead. The deployment script records this value in `.last-lobe-image` for default rollback, then updates `.env` to the new image passed to `./deploy.sh`.
 
-This project is hosted in a private GitHub repository, so treat the GHCR image as a private package. Log in once on the server:
+If the image is stored in a private registry, log in once on the server before deployment. Use the registry host that matches your image:
 
 ```bash
 docker login ghcr.io
+docker login registry.cn-hangzhou.aliyuncs.com
+docker login ccr.ccs.tencentyun.com
 ```
 
-Use a GitHub personal access token with `read:packages`.
+Use the credential required by your registry. For GHCR, use a GitHub personal access token with `read:packages`.
 
-After the first GitHub Actions build, check the package settings in GitHub Packages / GHCR:
+For private GHCR images, after the first GitHub Actions build, check the package settings in GitHub Packages / GHCR:
 
 - The package is linked to this repository.
 - This repository has Actions access to write the package.
 - The account used by the server PAT can read the private package.
 
-If `docker compose pull lobe` returns `denied` or `unauthorized`, check the GHCR login state, PAT `read:packages` scope, and the package repository access settings first.
+If `docker compose pull lobe` returns `denied` or `unauthorized`, check the matching registry login state, credential scope, and repository access settings first.
 
 ## 4. First deployment
 
-Replace sample image values like `ghcr.io/my-account/lobehub-self-hosted:sha-83b8aa5` with the exact `ghcr.io/<github-owner>/<repo>:sha-<short-sha>` tag printed by the GitHub Actions / GHCR workflow.
+Replace sample image values with the exact immutable image tag published by your build workflow. The script accepts images from any Docker-compatible registry, but the image must include an explicit non-`latest` tag.
 
 Run from the server deployment directory:
 
 ```bash
-./deploy.sh ghcr.io/my-account/lobehub-self-hosted:sha-83b8aa5
+./deploy.sh registry.example.com/my-account/lobehub-self-hosted:sha-83b8aa5
+# or
+./deploy.sh registry.cn-hangzhou.aliyuncs.com/my-account/lobehub-self-hosted:sha-83b8aa5
+# or
+./deploy.sh ccr.ccs.tencentyun.com/my-account/lobehub-self-hosted:v1.2.3
 ```
 
 The script:
 
-- Accepts only immutable GHCR `sha-` image tags.
+- Accepts any registry image with an explicit non-`latest` tag.
 - Creates a private temporary directory for intermediate files.
 - Records the previous image in `.last-lobe-image`.
 - Creates a PostgreSQL logical backup in `backups/` before changing `.env`.
@@ -92,12 +98,12 @@ The script:
 
 ## 5. Routine deployment
 
-After GitHub Actions publishes a new `sha-` image:
+After your build workflow publishes a new image:
 
-Use the exact `ghcr.io/<github-owner>/<repo>:sha-<short-sha>` tag printed by the workflow.
+Use the exact tag printed by the workflow or registry console.
 
 ```bash
-./deploy.sh ghcr.io/my-account/lobehub-self-hosted:sha-0123abc
+./deploy.sh registry.example.com/my-account/lobehub-self-hosted:sha-0123abc
 ```
 
 Then check:
@@ -126,7 +132,7 @@ Rollback to the previous recorded image:
 Rollback to an explicit image:
 
 ```bash
-./rollback.sh ghcr.io/my-account/lobehub-self-hosted:sha-83b8aa5
+./rollback.sh registry.example.com/my-account/lobehub-self-hosted:sha-83b8aa5
 ```
 
 Rollback also creates a PostgreSQL logical backup in `backups/` before changing `.env`. If a new release has already run an irreversible database migration, image rollback alone may not be enough. Use the SQL backup created before deployment when database restoration is required.

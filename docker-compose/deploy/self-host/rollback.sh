@@ -2,7 +2,7 @@
 set -eu
 
 usage() {
-  echo "Usage: $0 [ghcr.io/my-account/lobehub-self-hosted:sha-83b8aa5]" >&2
+  echo "Usage: $0 [registry.example.com/my-account/lobehub-self-hosted:sha-83b8aa5]" >&2
   echo "If no image is provided, .last-lobe-image is used." >&2
 }
 
@@ -20,13 +20,35 @@ else
   exit 2
 fi
 
-case "$TARGET_IMAGE" in
-  ghcr.io/*:sha-*|lobehub/lobehub*) ;;
-  *)
-    echo "Error: rollback image must be a GHCR sha tag or the original lobehub/lobehub image." >&2
-    exit 2
-    ;;
-esac
+validate_image() {
+  image="$1"
+  image_name="${image##*/}"
+
+  if [ "$image" = "lobehub/lobehub" ]; then
+    return 0
+  fi
+
+  case "$image" in
+    ""|*[[:space:]]*)
+      echo "Error: image must be a single Docker image reference without whitespace." >&2
+      exit 2
+      ;;
+  esac
+
+  case "$image_name" in
+    *:*)
+      tag="${image_name##*:}"
+      if [ -n "$tag" ] && [ "$tag" != "latest" ]; then
+        return 0
+      fi
+      ;;
+  esac
+
+  echo "Error: image must be lobehub/lobehub or include an explicit non-latest tag, for example registry.example.com/my-account/lobehub-self-hosted:sha-83b8aa5" >&2
+  exit 2
+}
+
+validate_image "$TARGET_IMAGE"
 
 if [ ! -f ".env" ]; then
   echo "Error: .env not found. Run this script from the server deployment directory." >&2
