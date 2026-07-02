@@ -102,26 +102,22 @@ describe('sharedManualChunks', () => {
 });
 
 describe('app module chunk names', () => {
-  it('keeps coarse app chunks while splitting top-level feature domains', () => {
-    expect(__testing.getAppModuleChunkName('/repo/src/routes/(main)/agent/index.tsx')).toBe(
-      'app-routes',
-    );
-    expect(__testing.getAppModuleChunkName('/repo/src/store/user/index.ts')).toBe('app-store');
-    expect(__testing.getAppModuleChunkName('/repo/src/services/user.ts')).toBe('app-services');
+  it('keeps route modules in route-owned chunks instead of one app-routes bundle', () => {
+    expect(__testing.getAppModuleChunkName('/repo/src/routes/(main)/agent/index.tsx')).toBeNull();
+    expect(
+      __testing.getAppModuleChunkName('/repo/src/routes/(main)/settings/index.tsx'),
+    ).toBeNull();
+  });
 
-    expect(__testing.getAppModuleChunkName('/repo/src/features/Explore/index.tsx')).toBe(
-      'app-feature-explore',
-    );
-    expect(__testing.getAppModuleChunkName('/repo/src/features/Conversation/index.tsx')).toBe(
-      'app-feature-conversation',
-    );
-    expect(__testing.getAppModuleChunkName('/repo/src/features/ModelSwitchPanel/index.tsx')).toBe(
-      'app-feature-model-switch-panel',
-    );
+  it('keeps feature modules in importer-owned chunks to avoid entry chunk pollution', () => {
+    expect(__testing.getAppModuleChunkName('/repo/src/features/Explore/index.tsx')).toBeNull();
+    expect(__testing.getAppModuleChunkName('/repo/src/features/AgentBuilder/index.tsx')).toBeNull();
+    expect(__testing.getAppModuleChunkName('/repo/src/features/CommandMenu/index.tsx')).toBeNull();
+  });
 
-    expect(__testing.getAppModuleChunkName('/repo/src/features/Explore/index.tsx')).not.toBe(
-      __testing.getAppModuleChunkName('/repo/src/features/Conversation/index.tsx'),
-    );
+  it('keeps store and service modules in importer-owned chunks to avoid entry chunk pollution', () => {
+    expect(__testing.getAppModuleChunkName('/repo/src/store/user/index.ts')).toBeNull();
+    expect(__testing.getAppModuleChunkName('/repo/src/services/user.ts')).toBeNull();
     expect(__testing.getAppModuleChunkName('/repo/src/components/App.tsx')).toBeNull();
   });
 });

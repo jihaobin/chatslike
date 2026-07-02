@@ -1,6 +1,7 @@
 import type { Plugin, ResolvedConfig } from 'vite';
 
 interface RouteChunkPreloadRoute {
+  excludeImportedFilePatterns?: RegExp[];
   id: string;
   includeDynamicImports?: boolean;
   includeStaticImports?: boolean;
@@ -65,8 +66,8 @@ const isCriticalRouteSmallChunkFileName = (fileName: string) => {
 
 const defaultRoutePreloadGroups = [
   {
+    excludeImportedFilePatterns: [/\/?app-feature-/],
     id: 'desktop-chat-launch',
-    includeDynamicImports: true,
     includeStaticImports: true,
     modules: [
       'src/routes/(main)/_layout',
@@ -327,7 +328,11 @@ function collectChunkDependencies(
   chunk: OutputChunkLike,
   chunksByFileName: Map<string, OutputChunkLike>,
   collected: Set<string>,
-  options: { includeDynamicImports?: boolean; includeStaticImports?: boolean },
+  options: {
+    excludeImportedFilePatterns?: RegExp[];
+    includeDynamicImports?: boolean;
+    includeStaticImports?: boolean;
+  },
 ) {
   if (collected.has(chunk.fileName)) return;
   if (isPrewarmExcludedChunk(chunk)) return;
@@ -340,6 +345,9 @@ function collectChunkDependencies(
   ];
 
   for (const importedFileName of imports) {
+    if (options.excludeImportedFilePatterns?.some((pattern) => pattern.test(importedFileName)))
+      continue;
+
     const importedChunk = chunksByFileName.get(importedFileName);
     if (!importedChunk) continue;
     collectChunkDependencies(importedChunk, chunksByFileName, collected, options);
@@ -364,6 +372,7 @@ function createRoutePreloadManifest(
         for (const chunk of matchingChunks) {
           if (route.includeStaticImports || route.includeDynamicImports) {
             collectChunkDependencies(chunk, chunksByFileName, preload, {
+              excludeImportedFilePatterns: route.excludeImportedFilePatterns,
               includeDynamicImports: route.includeDynamicImports,
               includeStaticImports: route.includeStaticImports,
             });

@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -125,7 +128,7 @@ describe('AgentModalProvider', () => {
     renderProvider();
 
     fireEvent.click(screen.getByText('Open create agent modal'));
-    fireEvent.click(screen.getByText('Create Blank'));
+    fireEvent.click(await screen.findByText('Create Blank'));
 
     await waitFor(() => {
       expect(mocks.createAgent).toHaveBeenCalledWith({ groupId: undefined });
@@ -133,5 +136,22 @@ describe('AgentModalProvider', () => {
       expect(mocks.navigate).toHaveBeenCalledWith('/agent/agent-new/profile');
       expect(mocks.refreshAgentList).toHaveBeenCalled();
     });
+  });
+
+  it('keeps modal implementations lazy so workspace startup does not load heavy panels', () => {
+    const sourcePath = [
+      path.resolve(process.cwd(), 'src/routes/(main)/home/_layout/Body/Agent/ModalProvider.tsx'),
+      path.resolve(process.cwd(), 'ModalProvider.tsx'),
+    ].find(existsSync);
+    const source = readFileSync(sourcePath!, 'utf8');
+
+    expect(source).not.toMatch(/import\s+\{\s*ChatGroupWizard\s*\}\s+from/);
+    expect(source).not.toMatch(/import\s+\{\s*MemberSelectionModal\s*\}\s+from/);
+    expect(source).not.toMatch(/import\s+CreatePlatformAgentModal\s+from/);
+    expect(source).not.toMatch(/import\s+EditingPopover\s+from/);
+    expect(source).not.toMatch(/import\s+\{\s*CreateAgentModal\s*\}\s+from/);
+    expect(source).not.toMatch(/import\s+ConfigGroupModal\s+from/);
+    expect(source).not.toMatch(/import\s+CreateGroupModal\s+from/);
+    expect(source).toContain('lazy(() => import');
   });
 });

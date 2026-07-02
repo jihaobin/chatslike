@@ -65,23 +65,10 @@ const isNodePackage = (id: string, packageName: string) => {
   return normalized.includes(`/node_modules/${packageName}/`);
 };
 
-const toKebabCase = (value: string) =>
-  value
-    .replaceAll(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replaceAll(/[^a-z0-9]+/gi, '-')
-    .replaceAll(/^-+|-+$/g, '')
-    .toLowerCase();
-
 function getAppModuleChunkName(moduleId: string): string | null {
   const normalized = moduleId.replaceAll('\\', '/');
 
   if (normalized.includes('/node_modules/')) return null;
-  if (normalized.includes('/src/routes/')) return 'app-routes';
-  if (normalized.includes('/src/store/')) return 'app-store';
-  if (normalized.includes('/src/services/')) return 'app-services';
-
-  const featureMatch = normalized.match(/\/src\/features\/([^/]+)/);
-  if (featureMatch) return `app-feature-${toKebabCase(featureMatch[1])}`;
 
   return null;
 }

@@ -55,11 +55,32 @@ describe('routeChunkPreload', () => {
     const manifest = __testing.createRoutePreloadManifest(bundle, '/repo');
     const agentEntry = manifest.find((entry) => entry.id === 'desktop-chat-launch');
 
-    expect(agentEntry?.preload).toEqual([
-      'assets/agent-CJm8x.js',
-      'vendor/vendor-icons-Bd7x.js',
-      'assets/MainChatInput-BwuHC6qv.js',
-    ]);
+    expect(agentEntry?.preload).toEqual(['assets/agent-CJm8x.js', 'vendor/vendor-icons-Bd7x.js']);
+  });
+
+  it('keeps chat launch dynamic route branches out of the immediate preload manifest', () => {
+    const bundle = {
+      'assets/agent-CJm8x.js': createChunk({
+        dynamicImports: ['assets/app-feature-agent-builder-B9.js'],
+        facadeModuleId: '/repo/src/routes/(main)/agent/index.tsx',
+        fileName: 'assets/agent-CJm8x.js',
+        imports: ['vendor/vendor-react-D8p.js', 'assets/app-feature-agent-builder-B9.js'],
+        moduleIds: ['/repo/src/routes/(main)/agent/index.tsx'],
+      }),
+      'assets/app-feature-agent-builder-B9.js': createChunk({
+        fileName: 'assets/app-feature-agent-builder-B9.js',
+        moduleIds: ['/repo/src/features/AgentBuilder/index.tsx'],
+      }),
+      'vendor/vendor-react-D8p.js': createChunk({
+        fileName: 'vendor/vendor-react-D8p.js',
+        moduleIds: ['/repo/node_modules/react/index.js'],
+      }),
+    } satisfies TestOutputBundle;
+
+    const manifest = __testing.createRoutePreloadManifest(bundle, '/repo');
+    const agentEntry = manifest.find((entry) => entry.id === 'desktop-chat-launch');
+
+    expect(agentEntry?.preload).toEqual(['assets/agent-CJm8x.js', 'vendor/vendor-react-D8p.js']);
   });
 
   it('matches route modules when built from the cloud repository root', () => {
@@ -458,7 +479,7 @@ describe('routeChunkPreload', () => {
     expect(result).toContain('"/_spa/assets/agent-CJm8x.js"');
   });
 
-  it('keeps tiny route dependencies out of initial html while preserving idle warmup coverage', () => {
+  it('keeps default chat dynamic dependencies out of route warmup', () => {
     const plugin = routeChunkPreload();
     const configResolved = plugin.configResolved as (config: {
       base: string;
@@ -495,7 +516,7 @@ describe('routeChunkPreload', () => {
     );
     expect(result).toContain('"idleRouteFetch":[]');
     expect(result).toContain('"routeIdlePreload":[{"id":"desktop-chat-launch"');
-    expect(result).toContain('"/_spa/assets/HeaderSlot-D8p.js');
+    expect(result).not.toContain('"/_spa/assets/HeaderSlot-D8p.js');
   });
 
   it('does not warm tiny low-priority idle route chunks', () => {
