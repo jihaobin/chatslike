@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { stripStartupLoadingScreen } from '../../../../../scripts/stripStartupLoadingScreen.mts';
+import { stripStartupLoadingScreen } from '../../../../../scripts/stripStartupLoadingScreen.mjs';
 import { mobileHtmlTemplate } from './mobileHtmlTemplate.source';
 
 const rootIndexHtml = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');

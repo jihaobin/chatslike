@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { stripStartupLoadingScreen } from './stripStartupLoadingScreen.mts';
+import { stripStartupLoadingScreen } from "./stripStartupLoadingScreen.mjs"
 
 const root = resolve(import.meta.dirname, '..');
 const desktopHtml = stripStartupLoadingScreen(
