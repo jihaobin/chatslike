@@ -1,3 +1,4 @@
+import type { ExtendParamsValues } from 'model-bank';
 import { z } from 'zod';
 
 import type { SearchMode } from '../search';
@@ -24,24 +25,13 @@ export interface AgentSelfIterationChatConfig {
   };
 }
 
-export interface LobeAgentChatConfig extends AgentMemoryChatConfig, AgentSelfIterationChatConfig {
-  codexMaxReasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh';
+export interface LobeAgentChatConfig
+  extends AgentMemoryChatConfig, AgentSelfIterationChatConfig, ExtendParamsValues {
   /**
    * Model ID to use for generating compression summaries
    */
   compressionModelId?: string;
-  deepseekV4ReasoningEffort?: 'none' | 'high' | 'max';
 
-  /**
-   * Disable context caching
-   */
-  disableContextCaching?: boolean;
-
-  effort?: 'low' | 'medium' | 'high' | 'max';
-  /**
-   * Whether to enable adaptive thinking (Claude Opus 4.6)
-   */
-  enableAdaptiveThinking?: boolean;
   /**
    * Whether the agent runs in agent mode (full tool access) vs chat mode
    * (only runtime-managed tools like KB / memory / web-browsing).
@@ -70,10 +60,6 @@ export interface LobeAgentChatConfig extends AgentMemoryChatConfig, AgentSelfIte
   enableHistoryCount?: boolean;
   enableMaxTokens?: boolean;
   /**
-   * Whether to enable reasoning
-   */
-  enableReasoning?: boolean;
-  /**
    * Custom reasoning effort level
    */
   enableReasoningEffort?: boolean;
@@ -81,48 +67,11 @@ export interface LobeAgentChatConfig extends AgentMemoryChatConfig, AgentSelfIte
    * Whether to enable streaming output
    */
   enableStreaming?: boolean;
-  gpt5_1ReasoningEffort?: 'none' | 'low' | 'medium' | 'high';
-  gpt5_2ProReasoningEffort?: 'medium' | 'high' | 'xhigh';
-  gpt5_2ReasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
-  gpt5ReasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
-  grok4_3ReasoningEffort?: 'none' | 'low' | 'medium' | 'high';
-  grok4_20ReasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh';
   /**
    * Number of historical messages
    */
   historyCount?: number;
-  hy3ReasoningEffort?: 'no_think' | 'low' | 'high';
-  /**
-   * Image aspect ratio for image generation models
-   */
-  imageAspectRatio?: string;
-  /**
-   * Image aspect ratio for Nano Banana 2 (supports extra-wide 1:4, 4:1, 1:8, 8:1)
-   */
-  imageAspectRatio2?: string;
-  /**
-   * Image resolution for image generation models
-   */
-  imageResolution?: '1K' | '2K' | '4K';
-  /**
-   * Image resolution for image generation models (with 512 support)
-   */
-  imageResolution2?: '512' | '1K' | '2K' | '4K';
   inputTemplate?: string;
-  /**
-   * Effort level for Claude Opus 4.7 (adds xhigh tier between high and max)
-   */
-  opus47Effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
-  reasoningBudgetToken?: number;
-  /**
-   * Reasoning budget token for models with 32k max (GLM-5/GLM-4.7)
-   */
-  reasoningBudgetToken32k?: number;
-  /**
-   * Reasoning budget token for models with 80k max (Qwen3 series)
-   */
-  reasoningBudgetToken80k?: number;
-  reasoningEffort?: 'low' | 'medium' | 'high';
   /**
    * Runtime environment configuration (desktop only)
    */
@@ -140,17 +89,6 @@ export interface LobeAgentChatConfig extends AgentMemoryChatConfig, AgentSelfIte
   skillActivateMode?: 'auto' | 'manual';
 
   /**
-   * Output text verbosity control
-   */
-  textVerbosity?: 'low' | 'medium' | 'high';
-
-  thinking?: 'disabled' | 'auto' | 'enabled';
-  thinkingBudget?: number;
-  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high';
-  thinkingLevel2?: 'low' | 'high';
-  thinkingLevel3?: 'low' | 'medium' | 'high';
-  thinkingLevel4?: 'minimal' | 'high';
-  /**
    * Maximum length for tool execution result content (in characters)
    * This prevents context overflow when sending tool results back to LLM
    * @default 6000
@@ -161,8 +99,6 @@ export interface LobeAgentChatConfig extends AgentMemoryChatConfig, AgentSelfIte
    * Agent-specific topic list organization preference.
    */
   topicGroupMode?: TopicGroupMode;
-
-  urlContext?: boolean;
 
   useModelBuiltinSearch?: boolean;
 }

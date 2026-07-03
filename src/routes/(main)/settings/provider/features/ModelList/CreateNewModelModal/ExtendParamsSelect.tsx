@@ -1,6 +1,7 @@
 import { Flexbox } from '@lobehub/ui';
-import { Popover, Select, Space, Switch, Tag, theme, Typography } from 'antd';
-import { type ExtendParamsType } from 'model-bank';
+import { Popover, Select, Switch, Tag, theme, Typography } from 'antd';
+import { createStaticStyles } from 'antd-style';
+import type { type ExtendParamsType, ExtendParamsValues } from 'model-bank';
 import { type ReactNode } from 'react';
 import { memo, useMemo } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
@@ -15,8 +16,12 @@ import GPT52ReasoningEffortSlider from '@/features/ModelSwitchPanel/components/C
 import Grok43ReasoningEffortSlider from '@/features/ModelSwitchPanel/components/ControlsForm/Grok43ReasoningEffortSlider';
 import Grok420ReasoningEffortSlider from '@/features/ModelSwitchPanel/components/ControlsForm/Grok420ReasoningEffortSlider';
 import Hy3ReasoningEffortSlider from '@/features/ModelSwitchPanel/components/ControlsForm/Hy3ReasoningEffortSlider';
-import ImageAspectRatio2Select from '@/features/ModelSwitchPanel/components/ControlsForm/ImageAspectRatio2Select';
-import ImageAspectRatioSelect from '@/features/ModelSwitchPanel/components/ControlsForm/ImageAspectRatioSelect';
+import ImageAspectRatio2Select, {
+  type ImageAspectRatio2SelectProps,
+} from '@/features/ModelSwitchPanel/components/ControlsForm/ImageAspectRatio2Select';
+import ImageAspectRatioSelect, {
+  type ImageAspectRatioSelectProps,
+} from '@/features/ModelSwitchPanel/components/ControlsForm/ImageAspectRatioSelect';
 import ImageResolution2Slider from '@/features/ModelSwitchPanel/components/ControlsForm/ImageResolution2Slider';
 import ImageResolutionSlider from '@/features/ModelSwitchPanel/components/ControlsForm/ImageResolutionSlider';
 import Opus47EffortSlider from '@/features/ModelSwitchPanel/components/ControlsForm/Opus47EffortSlider';
@@ -31,6 +36,42 @@ import ThinkingLevel3Slider from '@/features/ModelSwitchPanel/components/Control
 import ThinkingLevel4Slider from '@/features/ModelSwitchPanel/components/ControlsForm/ThinkingLevel4Slider';
 import ThinkingLevelSlider from '@/features/ModelSwitchPanel/components/ControlsForm/ThinkingLevelSlider';
 import ThinkingSlider from '@/features/ModelSwitchPanel/components/ControlsForm/ThinkingSlider';
+
+const styles = createStaticStyles(({ css, cssVar }) => ({
+  paramHint: css`
+    font-size: 12px;
+    line-height: 16px;
+    color: ${cssVar.colorTextTertiary};
+  `,
+  paramLabel: css`
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+    color: ${cssVar.colorTextSecondary};
+  `,
+  paramRow: css`
+    padding-block: 10px;
+    border-block-start: 1px solid ${cssVar.colorSplit};
+  `,
+  paramSection: css`
+    margin-block-start: 4px;
+    padding-inline: 12px;
+    border: 1px solid ${cssVar.colorSplit};
+    border-radius: 10px;
+  `,
+  paramTag: css`
+    padding-block: 2px;
+    padding-inline: 7px;
+    border-radius: 999px;
+
+    font-family: ${cssVar.fontFamilyCode};
+    font-size: 10px;
+    font-weight: 500;
+    color: ${cssVar.colorTextQuaternary};
+
+    background: ${cssVar.colorFillQuaternary};
+  `,
+}));
 
 type ExtendParamsOption = {
   hintKey: string;
@@ -160,6 +201,13 @@ const EXTEND_PARAMS_OPTIONS: ExtendParamsOption[] = [
   },
 ];
 
+const SWITCH_PARAM_KEYS = new Set<ExtendParamsType>([
+  'disableContextCaching',
+  'enableAdaptiveThinking',
+  'enableReasoning',
+  'urlContext',
+]);
+
 // Map variant keys to their base i18n title key (synced with ControlsForm.tsx)
 // This allows reusing existing i18n translations instead of adding new ones
 const TITLE_KEY_ALIASES: Partial<Record<ExtendParamsType, ExtendParamsType>> = {
@@ -268,7 +316,9 @@ type ExtendParamsDefinition = {
 };
 
 interface ExtendParamsSelectProps {
+  defaultExtendParamsValue?: ExtendParamsValues;
   onChange?: (value: ExtendParamsType[]) => void;
+  onDefaultExtendParamsChange?: (key: keyof ExtendParamsValues, value: unknown) => void;
   value?: ExtendParamsType[];
 }
 
@@ -291,9 +341,11 @@ const PreviewContent = ({
   previewFallback,
   parameterTag,
   previewWidth,
+  interactive,
 }: {
   desc?: ReactNode;
   hint: string;
+  interactive?: boolean;
   label: string;
   parameterTag?: string;
   preview?: ReactNode;
@@ -331,7 +383,9 @@ const PreviewContent = ({
             </Typography.Text>
           ) : null}
           {preview ? (
-            <div style={{ pointerEvents: 'none', width: '100%' }}>{preview}</div>
+            <div style={{ pointerEvents: interactive ? 'auto' : 'none', width: '100%' }}>
+              {preview}
+            </div>
           ) : (
             <Typography.Text type={'secondary'}>{previewFallback}</Typography.Text>
           )}
@@ -341,180 +395,350 @@ const PreviewContent = ({
   );
 };
 
-const ExtendParamsSelect = memo<ExtendParamsSelectProps>(({ value, onChange }) => {
-  const { t } = useTranslation('modelProvider');
-  const { t: tChat } = useTranslation('chat');
+const ExtendParamsSelect = memo<ExtendParamsSelectProps>(
+  ({ value, onChange, defaultExtendParamsValue, onDefaultExtendParamsChange }) => {
+    const { t } = useTranslation('modelProvider');
+    const { t: tChat } = useTranslation('chat');
 
-  // Preview controls use controlled mode with default values (no store access)
-  const previewControls = useMemo<Partial<Record<ExtendParamsType, ReactNode>>>(
-    () => ({
-      codexMaxReasoningEffort: <CodexMaxReasoningEffortSlider value="medium" />,
-      deepseekV4ReasoningEffort: <DeepSeekReasoningEffortSlider value="high" />,
-      disableContextCaching: <Switch checked disabled />,
-      effort: <EffortSlider value="high" />,
-      enableAdaptiveThinking: <Switch checked disabled />,
-      enableReasoning: <Switch checked disabled />,
-      gpt5ReasoningEffort: <GPT5ReasoningEffortSlider value="medium" />,
-      gpt5_1ReasoningEffort: <GPT51ReasoningEffortSlider value="none" />,
-      gpt5_2ProReasoningEffort: <GPT52ProReasoningEffortSlider value="medium" />,
-      gpt5_2ReasoningEffort: <GPT52ReasoningEffortSlider value="none" />,
-      grok4_20ReasoningEffort: <Grok420ReasoningEffortSlider value="medium" />,
-      grok4_3ReasoningEffort: <Grok43ReasoningEffortSlider value="low" />,
-      hy3ReasoningEffort: <Hy3ReasoningEffortSlider value="high" />,
-      imageAspectRatio: <ImageAspectRatioSelect value="1:1" />,
-      imageAspectRatio2: <ImageAspectRatio2Select value="1:1" />,
-      imageResolution: <ImageResolutionSlider value="1K" />,
-      imageResolution2: <ImageResolution2Slider value="1K" />,
-      opus47Effort: <Opus47EffortSlider value="high" />,
-      reasoningBudgetToken: <ReasoningTokenSlider defaultValue={1 * 1024} />,
-      reasoningBudgetToken32k: <ReasoningTokenSlider32k defaultValue={1 * 1024} />,
-      reasoningBudgetToken80k: <ReasoningTokenSlider80k defaultValue={1 * 1024} />,
-      reasoningEffort: <ReasoningEffortSlider value="medium" />,
-      textVerbosity: <TextVerbositySlider value="medium" />,
-      thinking: <ThinkingSlider value="auto" />,
-      thinkingBudget: <ThinkingBudgetSlider defaultValue={2 * 1024} />,
-      thinkingLevel: <ThinkingLevelSlider value="high" />,
-      thinkingLevel2: <ThinkingLevel2Slider value="high" />,
-      thinkingLevel3: <ThinkingLevel3Slider value="high" />,
-      thinkingLevel4: <ThinkingLevel4Slider value="minimal" />,
-      urlContext: <Switch checked disabled />,
-    }),
-    [],
-  );
+    // Preview controls use controlled mode with default values (no store access)
+    const previewControls = useMemo<Partial<Record<ExtendParamsType, ReactNode>>>(
+      () => ({
+        codexMaxReasoningEffort: <CodexMaxReasoningEffortSlider value="medium" />,
+        deepseekV4ReasoningEffort: <DeepSeekReasoningEffortSlider value="high" />,
+        disableContextCaching: <Switch checked disabled />,
+        effort: <EffortSlider value="high" />,
+        enableAdaptiveThinking: <Switch checked disabled />,
+        enableReasoning: <Switch checked disabled />,
+        gpt5ReasoningEffort: <GPT5ReasoningEffortSlider value="medium" />,
+        gpt5_1ReasoningEffort: <GPT51ReasoningEffortSlider value="none" />,
+        gpt5_2ProReasoningEffort: <GPT52ProReasoningEffortSlider value="medium" />,
+        gpt5_2ReasoningEffort: <GPT52ReasoningEffortSlider value="none" />,
+        grok4_20ReasoningEffort: <Grok420ReasoningEffortSlider value="medium" />,
+        grok4_3ReasoningEffort: <Grok43ReasoningEffortSlider value="low" />,
+        hy3ReasoningEffort: <Hy3ReasoningEffortSlider value="high" />,
+        imageAspectRatio: <ImageAspectRatioSelect value="1:1" />,
+        imageAspectRatio2: <ImageAspectRatio2Select value="1:1" />,
+        imageResolution: <ImageResolutionSlider value="1K" />,
+        imageResolution2: <ImageResolution2Slider value="1K" />,
+        opus47Effort: <Opus47EffortSlider value="high" />,
+        reasoningBudgetToken: <ReasoningTokenSlider defaultValue={1 * 1024} />,
+        reasoningBudgetToken32k: <ReasoningTokenSlider32k defaultValue={1 * 1024} />,
+        reasoningBudgetToken80k: <ReasoningTokenSlider80k defaultValue={1 * 1024} />,
+        reasoningEffort: <ReasoningEffortSlider value="medium" />,
+        textVerbosity: <TextVerbositySlider value="medium" />,
+        thinking: <ThinkingSlider value="auto" />,
+        thinkingBudget: <ThinkingBudgetSlider defaultValue={2 * 1024} />,
+        thinkingLevel: <ThinkingLevelSlider value="high" />,
+        thinkingLevel2: <ThinkingLevel2Slider value="high" />,
+        thinkingLevel3: <ThinkingLevel3Slider value="high" />,
+        thinkingLevel4: <ThinkingLevel4Slider value="minimal" />,
+        urlContext: <Switch checked disabled />,
+      }),
+      [],
+    );
 
-  const previewFallback = String(
-    t('providerModels.item.modelConfig.extendParams.previewFallback', {
-      defaultValue: 'Preview unavailable',
-    }),
-  );
+    const editableControls = useMemo<Partial<Record<ExtendParamsType, ReactNode>>>(
+      () => ({
+        codexMaxReasoningEffort: (
+          <CodexMaxReasoningEffortSlider
+            value={defaultExtendParamsValue?.codexMaxReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('codexMaxReasoningEffort', v)}
+          />
+        ),
+        deepseekV4ReasoningEffort: (
+          <DeepSeekReasoningEffortSlider
+            value={defaultExtendParamsValue?.deepseekV4ReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('deepseekV4ReasoningEffort', v)}
+          />
+        ),
+        disableContextCaching: (
+          <Switch
+            checked={defaultExtendParamsValue?.disableContextCaching}
+            onChange={(v) => onDefaultExtendParamsChange?.('disableContextCaching', v)}
+          />
+        ),
+        effort: (
+          <EffortSlider
+            value={defaultExtendParamsValue?.effort}
+            onChange={(v) => onDefaultExtendParamsChange?.('effort', v)}
+          />
+        ),
+        enableAdaptiveThinking: (
+          <Switch
+            checked={defaultExtendParamsValue?.enableAdaptiveThinking}
+            onChange={(v) => onDefaultExtendParamsChange?.('enableAdaptiveThinking', v)}
+          />
+        ),
+        enableReasoning: (
+          <Switch
+            checked={defaultExtendParamsValue?.enableReasoning}
+            onChange={(v) => onDefaultExtendParamsChange?.('enableReasoning', v)}
+          />
+        ),
+        gpt5ReasoningEffort: (
+          <GPT5ReasoningEffortSlider
+            value={defaultExtendParamsValue?.gpt5ReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('gpt5ReasoningEffort', v)}
+          />
+        ),
+        gpt5_1ReasoningEffort: (
+          <GPT51ReasoningEffortSlider
+            value={defaultExtendParamsValue?.gpt5_1ReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('gpt5_1ReasoningEffort', v)}
+          />
+        ),
+        gpt5_2ProReasoningEffort: (
+          <GPT52ProReasoningEffortSlider
+            value={defaultExtendParamsValue?.gpt5_2ProReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('gpt5_2ProReasoningEffort', v)}
+          />
+        ),
+        gpt5_2ReasoningEffort: (
+          <GPT52ReasoningEffortSlider
+            value={defaultExtendParamsValue?.gpt5_2ReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('gpt5_2ReasoningEffort', v)}
+          />
+        ),
+        grok4_20ReasoningEffort: (
+          <Grok420ReasoningEffortSlider
+            value={defaultExtendParamsValue?.grok4_20ReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('grok4_20ReasoningEffort', v)}
+          />
+        ),
+        grok4_3ReasoningEffort: (
+          <Grok43ReasoningEffortSlider
+            value={defaultExtendParamsValue?.grok4_3ReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('grok4_3ReasoningEffort', v)}
+          />
+        ),
+        hy3ReasoningEffort: (
+          <Hy3ReasoningEffortSlider
+            value={defaultExtendParamsValue?.hy3ReasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('hy3ReasoningEffort', v)}
+          />
+        ),
+        imageAspectRatio: (
+          <ImageAspectRatioSelect
+            value={
+              defaultExtendParamsValue?.imageAspectRatio as ImageAspectRatioSelectProps['value']
+            }
+            onChange={(v) => onDefaultExtendParamsChange?.('imageAspectRatio', v)}
+          />
+        ),
+        imageAspectRatio2: (
+          <ImageAspectRatio2Select
+            value={
+              defaultExtendParamsValue?.imageAspectRatio2 as ImageAspectRatio2SelectProps['value']
+            }
+            onChange={(v) => onDefaultExtendParamsChange?.('imageAspectRatio2', v)}
+          />
+        ),
+        imageResolution: (
+          <ImageResolutionSlider
+            value={defaultExtendParamsValue?.imageResolution}
+            onChange={(v) => onDefaultExtendParamsChange?.('imageResolution', v)}
+          />
+        ),
+        imageResolution2: (
+          <ImageResolution2Slider
+            value={defaultExtendParamsValue?.imageResolution2}
+            onChange={(v) => onDefaultExtendParamsChange?.('imageResolution2', v)}
+          />
+        ),
+        opus47Effort: (
+          <Opus47EffortSlider
+            value={defaultExtendParamsValue?.opus47Effort}
+            onChange={(v) => onDefaultExtendParamsChange?.('opus47Effort', v)}
+          />
+        ),
+        reasoningBudgetToken: (
+          <ReasoningTokenSlider
+            value={defaultExtendParamsValue?.reasoningBudgetToken}
+            onChange={(v) => onDefaultExtendParamsChange?.('reasoningBudgetToken', v)}
+          />
+        ),
+        reasoningBudgetToken32k: (
+          <ReasoningTokenSlider32k
+            value={defaultExtendParamsValue?.reasoningBudgetToken32k}
+            onChange={(v) => onDefaultExtendParamsChange?.('reasoningBudgetToken32k', v)}
+          />
+        ),
+        reasoningBudgetToken80k: (
+          <ReasoningTokenSlider80k
+            value={defaultExtendParamsValue?.reasoningBudgetToken80k}
+            onChange={(v) => onDefaultExtendParamsChange?.('reasoningBudgetToken80k', v)}
+          />
+        ),
+        reasoningEffort: (
+          <ReasoningEffortSlider
+            value={defaultExtendParamsValue?.reasoningEffort}
+            onChange={(v) => onDefaultExtendParamsChange?.('reasoningEffort', v)}
+          />
+        ),
+        textVerbosity: (
+          <TextVerbositySlider
+            value={defaultExtendParamsValue?.textVerbosity}
+            onChange={(v) => onDefaultExtendParamsChange?.('textVerbosity', v)}
+          />
+        ),
+        thinking: (
+          <ThinkingSlider
+            value={defaultExtendParamsValue?.thinking}
+            onChange={(v) => onDefaultExtendParamsChange?.('thinking', v)}
+          />
+        ),
+        thinkingBudget: (
+          <ThinkingBudgetSlider
+            value={defaultExtendParamsValue?.thinkingBudget}
+            onChange={(v) => onDefaultExtendParamsChange?.('thinkingBudget', v)}
+          />
+        ),
+        thinkingLevel: (
+          <ThinkingLevelSlider
+            value={defaultExtendParamsValue?.thinkingLevel}
+            onChange={(v) => onDefaultExtendParamsChange?.('thinkingLevel', v)}
+          />
+        ),
+        thinkingLevel2: (
+          <ThinkingLevel2Slider
+            value={defaultExtendParamsValue?.thinkingLevel2}
+            onChange={(v) => onDefaultExtendParamsChange?.('thinkingLevel2', v)}
+          />
+        ),
+        thinkingLevel3: (
+          <ThinkingLevel3Slider
+            value={defaultExtendParamsValue?.thinkingLevel3}
+            onChange={(v) => onDefaultExtendParamsChange?.('thinkingLevel3', v)}
+          />
+        ),
+        thinkingLevel4: (
+          <ThinkingLevel4Slider
+            value={defaultExtendParamsValue?.thinkingLevel4}
+            onChange={(v) => onDefaultExtendParamsChange?.('thinkingLevel4', v)}
+          />
+        ),
+        urlContext: (
+          <Switch
+            checked={defaultExtendParamsValue?.urlContext}
+            onChange={(v) => onDefaultExtendParamsChange?.('urlContext', v)}
+          />
+        ),
+      }),
+      [defaultExtendParamsValue, onDefaultExtendParamsChange],
+    );
 
-  const definitions = useMemo<ExtendParamsDefinition[]>(() => {
-    const descOverrides: Partial<Record<ExtendParamsType, ReactNode>> = {
-      disableContextCaching: (() => {
-        const original = tChat('extendParams.disableContextCaching.desc', { defaultValue: '' });
+    const previewFallback = String(
+      t('providerModels.item.modelConfig.extendParams.previewFallback', {
+        defaultValue: 'Preview unavailable',
+      }),
+    );
 
-        const sanitized = original.replace(/（<\d>.*?<\/\d>）/u, '');
+    const definitions = useMemo<ExtendParamsDefinition[]>(() => {
+      const descOverrides: Partial<Record<ExtendParamsType, ReactNode>> = {
+        disableContextCaching: (() => {
+          const original = tChat('extendParams.disableContextCaching.desc', { defaultValue: '' });
 
-        return (
-          sanitized || (
-            <Trans i18nKey={'extendParams.disableContextCaching.desc'} ns={'chat'}>
-              单条对话生成成本最高可降低 90%，响应速度提升 4 倍。开启后将自动禁用历史消息数限制
-            </Trans>
-          )
-        );
-      })(),
-      enableReasoning: (() => {
-        const original = tChat('extendParams.enableReasoning.desc', { defaultValue: '' });
-
-        const sanitized = original.replace(/（<\d>.*?<\/\d>）/u, '');
-
-        return (
-          sanitized || (
-            <Trans i18nKey={'extendParams.enableReasoning.desc'} ns={'chat'}>
-              开启后模型会先进行推理，适合复杂问题。
-            </Trans>
-          )
-        );
-      })(),
-    };
-
-    return EXTEND_PARAMS_OPTIONS.map((item) => {
-      const descKey = `extendParams.${item.key}.desc`;
-      const rawDesc = tChat(descKey as any, { defaultValue: '' });
-      const normalizedDesc =
-        typeof rawDesc === 'string' && rawDesc !== '' && rawDesc !== descKey ? rawDesc : undefined;
-      const desc = descOverrides[item.key] ?? normalizedDesc;
-      const meta = PREVIEW_META[item.key];
-      // Use alias key for title if available (synced with ControlsForm.tsx)
-      const titleKey = TITLE_KEY_ALIASES[item.key] ?? item.key;
-      const baseLabel = String(
-        tChat(`extendParams.${titleKey}.title` as any, { defaultValue: item.key }),
-      );
-
-      const label =
-        meta?.labelOverride ||
-        (meta?.labelSuffix && `${baseLabel}${meta.labelSuffix}`) ||
-        baseLabel;
-
-      return {
-        desc,
-        hint: String(t(item.hintKey as any)),
-        key: item.key,
-        label,
-        parameterTag: meta?.tag,
-        preview: previewControls[item.key],
-        previewWidth: meta?.previewWidth,
-      };
-    });
-  }, [previewControls, t, tChat]);
-
-  const definitionMap = useMemo(() => {
-    return new Map(definitions.map((item) => [item.key, item]));
-  }, [definitions]);
-
-  const options = useMemo(
-    () =>
-      definitions.map((item) => ({
-        label: item.label,
-        value: item.key,
-      })),
-    [definitions],
-  );
-
-  const placeholder = String(t('providerModels.item.modelConfig.extendParams.placeholder'));
-  const handleChange = (val: ExtendParamsType[]) => {
-    onChange?.(normalizeExtendParamsValue(val, definitionMap));
-  };
-
-  return (
-    <Flexbox gap={8}>
-      <Select
-        allowClear
-        mode={'multiple'}
-        options={options}
-        placeholder={placeholder}
-        popupMatchSelectWidth={false}
-        style={{ width: '100%' }}
-        value={value}
-        optionRender={(option) => {
-          const def = definitionMap.get(option.value as ExtendParamsType);
-          if (!def) return option.label;
+          const sanitized = original.replace(/（<\d>.*?<\/\d>）/u, '');
 
           return (
-            <Popover
-              placement={'right'}
-              content={
-                <PreviewContent
-                  desc={def.desc}
-                  hint={def.hint}
-                  label={def.label}
-                  parameterTag={def.parameterTag}
-                  preview={def.preview}
-                  previewFallback={previewFallback}
-                  previewWidth={def.previewWidth}
-                />
-              }
-            >
-              <Flexbox gap={4}>
-                <Typography.Text>{def.label}</Typography.Text>
-                <Typography.Text style={{ fontSize: 12 }} type={'secondary'}>
-                  {def.hint}
-                </Typography.Text>
-              </Flexbox>
-            </Popover>
+            sanitized || (
+              <Trans i18nKey={'extendParams.disableContextCaching.desc'} ns={'chat'}>
+                单条对话生成成本最高可降低 90%，响应速度提升 4 倍。开启后将自动禁用历史消息数限制
+              </Trans>
+            )
           );
-        }}
-        onChange={(val) => handleChange(val as ExtendParamsType[])}
-      />
-      {value && value.length > 0 && (
-        <Space wrap size={[8, 8]}>
-          {value.map((key) => {
-            const def = definitionMap.get(key);
-            if (!def) return null;
+        })(),
+        enableReasoning: (() => {
+          const original = tChat('extendParams.enableReasoning.desc', { defaultValue: '' });
+
+          const sanitized = original.replace(/（<\d>.*?<\/\d>）/u, '');
+
+          return (
+            sanitized || (
+              <Trans i18nKey={'extendParams.enableReasoning.desc'} ns={'chat'}>
+                开启后模型会先进行推理，适合复杂问题。
+              </Trans>
+            )
+          );
+        })(),
+      };
+
+      return EXTEND_PARAMS_OPTIONS.map((item) => {
+        const descKey = `extendParams.${item.key}.desc`;
+        const rawDesc = tChat(descKey as any, { defaultValue: '' });
+        const normalizedDesc =
+          typeof rawDesc === 'string' && rawDesc !== '' && rawDesc !== descKey
+            ? rawDesc
+            : undefined;
+        const desc = descOverrides[item.key] ?? normalizedDesc;
+        const meta = PREVIEW_META[item.key];
+        // Use alias key for title if available (synced with ControlsForm.tsx)
+        const titleKey = TITLE_KEY_ALIASES[item.key] ?? item.key;
+        const baseLabel = String(
+          tChat(`extendParams.${titleKey}.title` as any, { defaultValue: item.key }),
+        );
+
+        const label =
+          meta?.labelOverride ||
+          (meta?.labelSuffix && `${baseLabel}${meta.labelSuffix}`) ||
+          baseLabel;
+
+        return {
+          desc,
+          hint: String(t(item.hintKey as any)),
+          key: item.key,
+          label,
+          parameterTag: meta?.tag,
+          preview: previewControls[item.key],
+          previewWidth: meta?.previewWidth,
+        };
+      });
+    }, [previewControls, t, tChat]);
+
+    const definitionMap = useMemo(() => {
+      return new Map(definitions.map((item) => [item.key, item]));
+    }, [definitions]);
+
+    const editableDefinitionMap = useMemo(() => {
+      return new Map(
+        definitions.map((item) => [
+          item.key,
+          { ...item, preview: editableControls[item.key] ?? item.preview },
+        ]),
+      );
+    }, [definitions, editableControls]);
+
+    const options = useMemo(
+      () =>
+        definitions.map((item) => ({
+          label: item.label,
+          value: item.key,
+        })),
+      [definitions],
+    );
+
+    const placeholder = String(t('providerModels.item.modelConfig.extendParams.placeholder'));
+    const handleChange = (val: ExtendParamsType[]) => {
+      onChange?.(normalizeExtendParamsValue(val, definitionMap));
+    };
+
+    return (
+      <Flexbox gap={8}>
+        <Select
+          allowClear
+          mode={'multiple'}
+          options={options}
+          placeholder={placeholder}
+          popupMatchSelectWidth={false}
+          style={{ width: '100%' }}
+          value={value}
+          optionRender={(option) => {
+            const def = definitionMap.get(option.value as ExtendParamsType);
+            if (!def) return option.label;
+
             return (
               <Popover
-                key={key}
-                placement={'top'}
+                placement={'right'}
                 content={
                   <PreviewContent
                     desc={def.desc}
@@ -527,16 +751,45 @@ const ExtendParamsSelect = memo<ExtendParamsSelectProps>(({ value, onChange }) =
                   />
                 }
               >
-                <Tag bordered={false} color={'processing'}>
-                  {def.label}
-                </Tag>
+                <Flexbox gap={4}>
+                  <Typography.Text>{def.label}</Typography.Text>
+                  <Typography.Text style={{ fontSize: 12 }} type={'secondary'}>
+                    {def.hint}
+                  </Typography.Text>
+                </Flexbox>
               </Popover>
             );
-          })}
-        </Space>
-      )}
-    </Flexbox>
-  );
-});
+          }}
+          onChange={(val) => handleChange(val as ExtendParamsType[])}
+        />
+        {value && value.length > 0 && (
+          <div className={styles.paramSection}>
+            {value.map((key) => {
+              const def = editableDefinitionMap.get(key);
+              if (!def) return null;
+              const control = editableControls[key];
+              const isSwitchStyle = SWITCH_PARAM_KEYS.has(key);
+
+              return (
+                <Flexbox className={styles.paramRow} gap={isSwitchStyle ? 0 : 8} key={key}>
+                  <Flexbox horizontal align={'center'} gap={8} justify={'space-between'}>
+                    <Flexbox gap={4}>
+                      <span className={styles.paramLabel}>{def.label}</span>
+                      {def.parameterTag && (
+                        <code className={styles.paramTag}>{def.parameterTag}</code>
+                      )}
+                    </Flexbox>
+                    {isSwitchStyle && control}
+                  </Flexbox>
+                  {!isSwitchStyle && control && <div style={{ width: '100%' }}>{control}</div>}
+                </Flexbox>
+              );
+            })}
+          </div>
+        )}
+      </Flexbox>
+    );
+  },
+);
 
 export default ExtendParamsSelect;

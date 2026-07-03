@@ -47,7 +47,7 @@ const ModelConfigModal = memo<ModelConfigModalProps>(({ open, setOpen }) => {
           type="primary"
           onClick={async () => {
             if (!editingProvider || !formInstance) return;
-            const data = formInstance.getFieldsValue();
+            const data = formInstance.getFieldsValue(true);
 
             setLoading(true);
 

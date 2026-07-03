@@ -54,7 +54,11 @@ const ModelConfigModal = memo<ModelConfigModalProps>(
             type="primary"
             onClick={async () => {
               if (!editingProvider || !id || !formInstance) return;
-              const data = formInstance.getFieldsValue();
+              const rawData = formInstance.getFieldsValue(true);
+              // getFieldsValue(true) includes null object fields from initialValues; strip them
+              const data = Object.fromEntries(
+                Object.entries(rawData).filter(([, v]) => v !== null),
+              );
 
               setLoading(true);
               await updateAiModelsConfig(id, editingProvider, data);

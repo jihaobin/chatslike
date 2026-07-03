@@ -309,7 +309,6 @@ class ChatService {
     // ============  3. process extend params   ============ //
 
     const extendParams = resolveModelExtendParams({
-      chatConfig,
       model: payload.model,
       provider: payload.provider!,
     });

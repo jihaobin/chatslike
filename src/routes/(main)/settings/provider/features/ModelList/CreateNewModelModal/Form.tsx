@@ -1,8 +1,8 @@
 import { Input } from '@lobehub/ui';
 import { type FormInstance } from 'antd';
 import { Checkbox, Form, Select } from 'antd';
-import { type AiModelType } from 'model-bank';
-import { memo, useEffect, useMemo } from 'react';
+import type { type AiModelType, ExtendParamsValues } from 'model-bank';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import MaxTokenSlider from '@/components/MaxTokenSlider';
@@ -24,6 +24,10 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
     const { t } = useTranslation('modelProvider');
 
     const [formInstance] = Form.useForm();
+
+    const [defaultExtendParamsValue, setDefaultExtendParamsValue] = useState<ExtendParamsValues>(
+      () => (initialValues as any)?.settings?.defaultExtendParams ?? {},
+    );
 
     const isMobile = useIsMobile();
 
@@ -54,6 +58,12 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
     useEffect(() => {
       onFormInstanceReady(formInstance);
     }, []);
+
+    useEffect(() => {
+      const initial = (initialValues as any)?.settings?.defaultExtendParams ?? {};
+      setDefaultExtendParamsValue(initial);
+      formInstance.setFieldValue(['settings', 'defaultExtendParams'], initial);
+    }, [initialValues, formInstance]);
 
     return (
       <div
@@ -110,7 +120,14 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
             label={t('providerModels.item.modelConfig.extendParams.title')}
             name={['settings', 'extendParams']}
           >
-            <ExtendParamsSelect />
+            <ExtendParamsSelect
+              defaultExtendParamsValue={defaultExtendParamsValue}
+              onDefaultExtendParamsChange={(key, val) => {
+                const next = { ...defaultExtendParamsValue, [key]: val };
+                setDefaultExtendParamsValue(next);
+                formInstance.setFieldValue(['settings', 'defaultExtendParams'], next);
+              }}
+            />
           </Form.Item>
           <Form.Item
             extra={t('providerModels.item.modelConfig.functionCall.extra')}

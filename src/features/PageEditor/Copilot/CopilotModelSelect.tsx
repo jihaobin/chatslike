@@ -1,12 +1,10 @@
-import { ActionIcon, Center, Flexbox } from '@lobehub/ui';
+import { Center, Flexbox } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
-import { ChevronDownIcon, Settings2Icon } from 'lucide-react';
-import { memo, useCallback, useState } from 'react';
+import { ChevronDownIcon } from 'lucide-react';
+import { memo, useCallback } from 'react';
 
-import ActionPopover from '@/features/ChatInput/ActionBar/components/ActionPopover';
 import { conversationSelectors, useConversationStore } from '@/features/Conversation';
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
-import ControlsForm from '@/features/ModelSwitchPanel/components/ControlsForm';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
 import { aiModelSelectors, useAiInfraStore } from '@/store/aiInfra';
@@ -37,7 +35,6 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 }));
 
 const CopilotModelSelect = memo(() => {
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const agentId = useConversationStore(conversationSelectors.agentId);
 
   const [model, provider, updateAgentConfigById] = useAgentStore((s) => [
@@ -47,9 +44,6 @@ const CopilotModelSelect = memo(() => {
   ]);
 
   const enabledModel = useAiInfraStore(aiModelSelectors.getEnabledModelById(model, provider));
-  const isModelHasExtendParams = useAiInfraStore(
-    aiModelSelectors.isModelHasExtendParams(model, provider),
-  );
 
   const displayName = enabledModel?.displayName || model;
 
@@ -75,22 +69,6 @@ const CopilotModelSelect = memo(() => {
           </Flexbox>
         </Center>
       </ModelSwitchPanel>
-      {isModelHasExtendParams && (
-        <ActionPopover
-          content={<ControlsForm />}
-          minWidth={350}
-          open={settingsOpen}
-          placement={'topRight'}
-          trigger={'click'}
-          onOpenChange={setSettingsOpen}
-        >
-          <ActionIcon
-            icon={Settings2Icon}
-            size={{ blockSize: 28, size: 16 }}
-            onClick={() => setSettingsOpen(true)}
-          />
-        </ActionPopover>
-      )}
     </Flexbox>
   );
 });
