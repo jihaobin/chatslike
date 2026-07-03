@@ -298,7 +298,7 @@ describe('defineConfig', () => {
     expect(options.signUpOnVerification?.getTempEmail('+86 138 0000 0000')).toBe(
       'phone-8613800000000@phone.invalid',
     );
-    expect(options.signUpOnVerification?.getTempName('+8613800000000')).toBe('+8613800000000');
+    expect(options.signUpOnVerification?.getTempName?.('+8613800000000')).toBe('+8613800000000');
   });
 
   it('should not register unsupported direct WeChat social provider', async () => {

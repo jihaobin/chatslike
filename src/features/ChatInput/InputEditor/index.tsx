@@ -415,7 +415,13 @@ const InputEditor = memo<{
             renderComp: expand
               ? undefined
               : ({ children, open }) =>
-                  open ? createPortal(children, slashMenuRef.current ?? document.body) : null,
+                  open
+                    ? createPortal(
+                        children,
+                        (slashMenuRef && 'current' in slashMenuRef ? slashMenuRef.current : null) ??
+                          document.body,
+                      )
+                    : null,
           }),
         });
 

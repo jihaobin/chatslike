@@ -69,7 +69,7 @@ const AdminAudit = () => {
         const expires = after?.banExpires
           ? t('audit.detail.banExpires', { date: new Date(after.banExpires).toLocaleDateString() })
           : t('audit.detail.banPermanent');
-        return t('audit.detail.banAccount', { expires, reason });
+        return t('audit.detail.accountBan', { expires, reason });
       }
       case 'account_unban': {
         return t('audit.detail.accountUnban');
@@ -83,9 +83,9 @@ const AdminAudit = () => {
   const columns = [
     {
       dataIndex: 'createdAt',
-      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
-      sorter: (a: { createdAt: string }, b: { createdAt: string }) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      render: (v: Date) => (v ? new Date(v).toLocaleString() : '-'),
+      sorter: (a: { createdAt: Date }, b: { createdAt: Date }) =>
+        a.createdAt.getTime() - b.createdAt.getTime(),
       title: t('audit.column.createdAt'),
       width: 160,
     },

@@ -126,13 +126,32 @@ const loadEditorState = (
   { editorData, fallbackContent = '' }: LoadEditorStateParams,
 ) => {
   if (isValidEditorData(editorData)) {
-    editor.hydrateEditorData(
-      editorData as unknown as SerializedEditorState<SerializedLexicalNode>,
-      {
-        keepId: true,
-      },
-    );
-    return;
+    // Temporarily suppress console.error during hydration to prevent log spam
+    // when processing many documents with stale editorData schemas.
+    // Lexical internally calls console.error before throwing, which pollutes
+    // the console even though we catch and handle the error gracefully.
+    const originalConsoleError = console.error;
+    console.error = () => {}; // Silently ignore
+
+    try {
+      editor.hydrateEditorData(
+        editorData as unknown as SerializedEditorState<SerializedLexicalNode>,
+        {
+          keepId: true,
+        },
+      );
+      return;
+    } catch (error) {
+      // editorData passed validation but Lexical hydration failed (corrupt/stale schema)
+      // Fall back to markdown hydration
+      console.warn(
+        '[headlessEditor] hydrateEditorData failed, falling back to markdown:',
+        error instanceof Error ? error.message : error,
+      );
+    } finally {
+      // Always restore console.error, even if hydration succeeded or threw
+      console.error = originalConsoleError;
+    }
   }
 
   hydrateMarkdownOrEmptyState(editor, fallbackContent, { keepId: true });

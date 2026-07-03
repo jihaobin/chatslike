@@ -1,7 +1,7 @@
 'use client';
 
 import { type ReactNode } from 'react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useDeferredValue } from 'react';
 
 import { useFetchAgentDocuments } from '@/hooks/useFetchAgentDocuments';
 import { useFetchTopicMemories } from '@/hooks/useFetchMemoryForTopic';
@@ -95,6 +95,10 @@ const ChatList = memo<ChatListProps>(
     useFetchMessages(context, { revalidateOnFocus: !isStreaming, skipFetch });
     const displayMessages = useConversationStore(dataSelectors.displayMessages);
     const displayMessageIds = useConversationStore(dataSelectors.displayMessageIds);
+    // Keep the previous topic's messages visible while the new topic's data is
+    // loading. React 18 defers updating the list until the new messages are
+    // ready, which eliminates the blank-screen flash between topic switches.
+    const deferredDisplayMessageIds = useDeferredValue(displayMessageIds);
     const latestMessageId = displayMessageIds.at(-1);
 
     // Skip fetching notebook and memories for share pages (they require authentication)
@@ -118,7 +122,7 @@ const ChatList = memo<ChatListProps>(
 
     const defaultItemContent = useCallback(
       (index: number, id: string) => {
-        const isLatestItem = displayMessageIds.length === index + 1;
+        const isLatestItem = deferredDisplayMessageIds.length === index + 1;
         const anchoredReceipts = receiptsByAnchor.get(id) ?? [];
         const receiptRender =
           anchoredReceipts.length > 0 ? (
@@ -135,7 +139,7 @@ const ChatList = memo<ChatListProps>(
           />
         );
       },
-      [displayMessageIds.length, defaultWorkflowExpandLevel, receiptsByAnchor],
+      [deferredDisplayMessageIds.length, defaultWorkflowExpandLevel, receiptsByAnchor],
     );
     const messagesInit = useConversationStore(dataSelectors.messagesInit);
 
@@ -143,11 +147,17 @@ const ChatList = memo<ChatListProps>(
     // because there's no server data to fetch - only local optimistic updates exist
     const isNewConversation = !context.topicId;
 
-    if (!messagesInit && !isNewConversation) {
+    // Track if we're in a "topic switching" state: context has a topicId,
+    // messages are initialized (from previous topic), but current display is empty.
+    // This prevents blank screen when switching topics by showing skeleton instead.
+    const isSwitchingTopic =
+      messagesInit && !isNewConversation && displayMessageIds.length === 0 && !!context.topicId;
+
+    if ((!messagesInit && !isNewConversation) || isSwitchingTopic) {
       return <SkeletonList />;
     }
 
-    if ((showWelcome || displayMessageIds.length === 0) && welcome) {
+    if ((showWelcome || deferredDisplayMessageIds.length === 0) && welcome) {
       return (
         <WideScreenContainer
           style={{
@@ -166,7 +176,7 @@ const ChatList = memo<ChatListProps>(
     return (
       <MessageActionProvider withSingletonActionsBar={!disableActionsBar}>
         <VirtualizedList
-          dataSource={displayMessageIds}
+          dataSource={deferredDisplayMessageIds}
           footerSlot={footerSlot}
           headerSlot={headerSlot}
           itemContent={itemContent ?? defaultItemContent}

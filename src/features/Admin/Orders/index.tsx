@@ -125,9 +125,9 @@ const AdminOrders = () => {
     { dataIndex: 'paymentChannel', title: t('orders.column.channel'), width: 100 },
     {
       dataIndex: 'createdAt',
-      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
-      sorter: (a: { createdAt: string }, b: { createdAt: string }) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      render: (v: Date) => (v ? new Date(v).toLocaleString() : '-'),
+      sorter: (a: { createdAt: Date }, b: { createdAt: Date }) =>
+        a.createdAt.getTime() - b.createdAt.getTime(),
       title: t('orders.column.createdAt'),
       width: 160,
     },

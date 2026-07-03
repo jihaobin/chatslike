@@ -23,9 +23,9 @@ export const MSG_CONTENT_CLASSNAME = 'msg_content_flag';
 export const styles = createStaticStyles(({ css, cssVar }) => {
   return {
     bubble: css`
-      padding-block: 8px;
-      padding-inline: 12px;
-      border-radius: ${cssVar.borderRadiusLG};
+      padding-block: 10px;
+      padding-inline: 14px;
+      border-radius: 12px;
       background-color: ${cssVar.colorFillTertiary};
     `,
     disabled: css`

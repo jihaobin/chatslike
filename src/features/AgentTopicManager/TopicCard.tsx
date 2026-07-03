@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { SESSION_CHAT_TOPIC_URL } from '@/const/url';
 import { useActivityTime } from '@/hooks/useActivityTime';
+import { useChatStore } from '@/store/chat';
 import type { ChatTopic } from '@/types/topic';
 
 import StatusDot from './StatusDot';
@@ -95,6 +96,11 @@ const TopicCard = memo<TopicCardProps>(({ topic, agentId }) => {
         toggleSelected(topic.id);
         return;
       }
+      // Kick off the message fetch immediately (before navigation) so the data
+      // lands in the SWR cache while the topics-page route is still mounted.
+      // When the chat route mounts it reads from cache instead of waiting for
+      // a fresh network request, eliminating the "hard reload" feel.
+      void useChatStore.getState().switchTopic(topic.id);
       navigate(SESSION_CHAT_TOPIC_URL(agentId, topic.id));
     },
     [selectMode, topic.id, agentId, toggleSelected, navigate],

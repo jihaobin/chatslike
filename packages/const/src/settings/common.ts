@@ -7,7 +7,7 @@ export const DEFAULT_COMMON_SETTINGS: UserGeneralConfig = {
   // Appearance panel removed: contextMenuMode is pinned to 'default' in the selector.
   contextMenuMode: 'default',
   costEstimateWarningThreshold: DEFAULT_COST_ESTIMATE_WARNING_THRESHOLD,
-  fontSize: 14,
+  fontSize: 16,
   highlighterTheme: 'lobe-theme',
   isDevMode: false,
   isLiteMode: false,

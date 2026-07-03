@@ -42,17 +42,20 @@ export const AGENTS_OFFICIAL_URL = urlJoin(OFFICIAL_SITE, 'agent');
 
 export const SESSION_CHAT_URL = (agentId: string, mobile?: boolean) => {
   if (mobile) return `/agent/${agentId}`;
-  return `/agent/${agentId}`;
+  // Desktop: use /home/agent path directly to avoid redirect
+  return `/home/agent/${agentId}`;
 };
 
 export const SESSION_CHAT_TOPIC_URL = (agentId: string, topicId: string, mobile?: boolean) => {
   if (mobile) return urlJoin('/agent', agentId, topicId);
-  return urlJoin('/agent', agentId, topicId);
+  // Desktop: use /home/agent path directly to avoid redirect
+  return urlJoin('/home/agent', agentId, topicId);
 };
 
 export const SESSION_CHAT_TOPIC_PAGE_URL = (agentId: string, topicId: string, mobile?: boolean) => {
   if (mobile) return urlJoin('/agent', agentId, topicId, 'page');
-  return urlJoin('/agent', agentId, topicId, 'page');
+  // Desktop: use /home/agent path directly to avoid redirect
+  return urlJoin('/home/agent', agentId, topicId, 'page');
 };
 
 export const AGENT_PROFILE_URL = (agentId: string) => `/agent/${agentId}/profile`;

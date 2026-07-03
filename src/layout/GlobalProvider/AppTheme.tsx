@@ -168,8 +168,8 @@ const AppTheme = memo<AppThemeProps>(
             cssVar: { key: 'lobe-vars' },
             token: {
               fontFamily: customFontFamily
-                ? `${customFontFamily},${antdTheme.fontFamily}`
-                : undefined,
+                ? `${customFontFamily}, "-apple-system-body", ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"`
+                : `"-apple-system-body", ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"`,
               motion: animationMode !== 'disabled',
               motionUnit: animationMode === 'agile' ? 0.05 : 0.1,
             },

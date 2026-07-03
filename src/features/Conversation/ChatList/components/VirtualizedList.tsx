@@ -290,14 +290,22 @@ const VirtualizedList = memo<VirtualizedListProps>(
           {(messageId, index): ReactElement => {
             if (messageId === CONVERSATION_HEADER_ID) {
               return (
-                <WideScreenContainer key={messageId} style={{ position: 'relative' }}>
+                <WideScreenContainer
+                  key={messageId}
+                  minWidth={800}
+                  style={{ position: 'relative' }}
+                >
                   {headerSlot}
                 </WideScreenContainer>
               );
             }
             if (messageId === CONVERSATION_FOOTER_ID) {
               return (
-                <WideScreenContainer key={messageId} style={{ position: 'relative' }}>
+                <WideScreenContainer
+                  key={messageId}
+                  minWidth={800}
+                  style={{ position: 'relative' }}
+                >
                   {footerSlot}
                 </WideScreenContainer>
               );
@@ -310,7 +318,11 @@ const VirtualizedList = memo<VirtualizedListProps>(
               // a 200ms transition.
               const shouldAnimate = !isScrollShrinking && spacerHeight === 0;
               return (
-                <WideScreenContainer key={messageId} style={{ position: 'relative' }}>
+                <WideScreenContainer
+                  key={messageId}
+                  minWidth={800}
+                  style={{ position: 'relative' }}
+                >
                   <div
                     aria-hidden
                     ref={registerSpacerNode}
@@ -344,7 +356,7 @@ const VirtualizedList = memo<VirtualizedListProps>(
             }
 
             return (
-              <WideScreenContainer key={messageId} style={{ position: 'relative' }}>
+              <WideScreenContainer key={messageId} minWidth={800} style={{ position: 'relative' }}>
                 {content}
                 {isLastItem && isAutoScrollEnabled && !spacerActive && <AutoScroll />}
               </WideScreenContainer>

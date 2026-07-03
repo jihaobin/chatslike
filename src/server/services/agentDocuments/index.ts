@@ -133,12 +133,24 @@ export class AgentDocumentsService {
   private async projectDocuments<T extends AgentDocument | AgentDocumentWithRules>(
     docs: T[],
   ): Promise<T[]> {
-    return Promise.all(
-      docs.map(async (doc) => {
-        const projected = await this.projectDocumentContent(doc);
-        return { ...projected, ...deriveAgentDocumentFields(projected) };
-      }),
-    );
+    // Process documents in batches to avoid creating too many concurrent
+    // headless editor instances, which can slow down page loads significantly
+    // when many documents have stale editorData that triggers fallback hydration.
+    const BATCH_SIZE = 10;
+    const results: T[] = [];
+
+    for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+      const batch = docs.slice(i, i + BATCH_SIZE);
+      const projected = await Promise.all(
+        batch.map(async (doc) => {
+          const content = await this.projectDocumentContent(doc);
+          return { ...content, ...deriveAgentDocumentFields(content) };
+        }),
+      );
+      results.push(...projected);
+    }
+
+    return results;
   }
 
   private async attachLiteXML(doc: AgentDocument): Promise<AgentDocumentWithLiteXML> {
