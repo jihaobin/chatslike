@@ -24,6 +24,7 @@ import WideScreenContainer from '../../WideScreenContainer';
 import InterventionBar from '../InterventionBar';
 import { dataSelectors, messageStateSelectors, useConversationStore } from '../store';
 import TodoProgress from '../TodoProgress';
+import type { ConversationChatInputVariant } from './layout';
 import QueueTray from './QueueTray';
 import { getConversationChatInputUiState } from './utils';
 
@@ -48,10 +49,18 @@ export interface ChatInputProps {
    */
   allowExpand?: boolean;
   /**
+   * Visual chrome variant for the composer. Does not change enabled actions.
+   */
+  chatInputVariant?: ConversationChatInputVariant;
+  /**
    * Custom children to render instead of default Desktop component.
    * Use this to add custom UI like error alerts, MessageFromUrl, etc.
    */
   children?: ReactNode;
+  /**
+   * Optional centered rail width for the composer.
+   */
+  contentWidth?: number;
   /**
    * Suppress the followUp placeholder variant (e.g. onboarding has no
    * follow-up design). When true, placeholder stays in default variant.
@@ -133,6 +142,8 @@ const ChatInput = memo<ChatInputProps>(
   ({
     actionBarStyle,
     allowExpand,
+    chatInputVariant,
+    contentWidth,
     disableFollowUpVariant,
     disableQueue,
     feature,
@@ -288,6 +299,7 @@ const ChatInput = memo<ChatInputProps>(
 
     const defaultContent = (
       <WideScreenContainer
+        minWidth={contentWidth}
         style={{ position: 'relative', ...(skipScrollMarginWithList ? { marginTop: -12 } : null) }}
       >
         {hasPendingInterventions ? (
@@ -328,6 +340,7 @@ const ChatInput = memo<ChatInputProps>(
               runtimeConfigSlot={runtimeConfigSlot}
               sendAreaPrefix={businessSendAreaPrefix}
               showRuntimeConfig={showRuntimeConfig}
+              variant={chatInputVariant}
             />
           </>
         )}

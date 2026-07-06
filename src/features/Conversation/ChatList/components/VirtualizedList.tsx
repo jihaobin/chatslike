@@ -35,6 +35,7 @@ const USER_SCROLL_INTENT_TTL_MS = 500;
 const SCROLL_KEYS = new Set(['ArrowDown', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp', ' ']);
 
 interface VirtualizedListProps {
+  contentWidth?: number;
   dataSource: string[];
   footerSlot?: ReactNode;
   headerSlot?: ReactNode;
@@ -47,7 +48,7 @@ interface VirtualizedListProps {
  * Based on ConversationStore data flow, no dependency on global ChatStore.
  */
 const VirtualizedList = memo<VirtualizedListProps>(
-  ({ dataSource, footerSlot, headerSlot, itemContent }) => {
+  ({ contentWidth, dataSource, footerSlot, headerSlot, itemContent }) => {
     const virtuaRef = useRef<VListHandle>(null);
     const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastUserScrollIntentAtRef = useRef(0);
@@ -246,6 +247,7 @@ const VirtualizedList = memo<VirtualizedListProps>(
     // message lands exactly on the overlay's top edge.
     const overlayHeight = useConversationStore(inputSelectors.chatInputOverlayHeight);
     const paddingBottom = Math.max(24, overlayHeight + 12);
+    const railWidth = contentWidth ?? 800;
 
     const dataWithSlots = useMemo(
       () => [
@@ -292,7 +294,7 @@ const VirtualizedList = memo<VirtualizedListProps>(
               return (
                 <WideScreenContainer
                   key={messageId}
-                  minWidth={800}
+                  minWidth={railWidth}
                   style={{ position: 'relative' }}
                 >
                   {headerSlot}
@@ -303,7 +305,7 @@ const VirtualizedList = memo<VirtualizedListProps>(
               return (
                 <WideScreenContainer
                   key={messageId}
-                  minWidth={800}
+                  minWidth={railWidth}
                   style={{ position: 'relative' }}
                 >
                   {footerSlot}
@@ -320,7 +322,7 @@ const VirtualizedList = memo<VirtualizedListProps>(
               return (
                 <WideScreenContainer
                   key={messageId}
-                  minWidth={800}
+                  minWidth={railWidth}
                   style={{ position: 'relative' }}
                 >
                   <div
@@ -356,7 +358,11 @@ const VirtualizedList = memo<VirtualizedListProps>(
             }
 
             return (
-              <WideScreenContainer key={messageId} minWidth={800} style={{ position: 'relative' }}>
+              <WideScreenContainer
+                key={messageId}
+                minWidth={railWidth}
+                style={{ position: 'relative' }}
+              >
                 {content}
                 {isLastItem && isAutoScrollEnabled && !spacerActive && <AutoScroll />}
               </WideScreenContainer>
@@ -364,7 +370,7 @@ const VirtualizedList = memo<VirtualizedListProps>(
           }}
         </VList>
         {/* BackBottom is placed outside VList so it remains visible regardless of scroll position */}
-        <WideScreenContainer style={{ position: 'relative' }}>
+        <WideScreenContainer minWidth={railWidth} style={{ position: 'relative' }}>
           <BackBottom
             atBottom={atBottom}
             bottomOffset={overlayHeight}

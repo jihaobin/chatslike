@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { DEFAULT_AVATAR } from '@/const/meta';
 import { type ActionKeys } from '@/features/ChatInput';
 import { ChatInputProvider, DesktopChatInput } from '@/features/ChatInput';
+import { getConversationLayoutVariantConfig } from '@/features/Conversation/ChatInput/layout';
 import GroupAvatar from '@/features/GroupAvatar';
 import WideScreenContainer from '@/features/WideScreenContainer';
 import { useAgentGroupStore } from '@/store/agentGroup';
@@ -24,6 +25,7 @@ const leftActions: ActionKeys[] = ['typo', 'fileUpload', '---', ['tools', 'param
 const dmLeftActions: ActionKeys[] = ['typo', 'fileUpload', '---', ['stt']];
 
 const rightActions: ActionKeys[] = ['contextWindow'];
+const chatGPTLayout = getConversationLayoutVariantConfig('chatgpt');
 
 /**
  * Message Editor for Group Chat along with DM Portal
@@ -92,7 +94,7 @@ const Desktop = memo((props: { targetMemberId?: string }) => {
         useChatStore.setState({ inputMessage: content });
       }}
     >
-      <WideScreenContainer>
+      <WideScreenContainer minWidth={chatGPTLayout.contentWidth}>
         {mainInputSendErrorMsg && (
           <Flexbox paddingBlock={'0 6px'} paddingInline={12}>
             <Alert
@@ -103,7 +105,10 @@ const Desktop = memo((props: { targetMemberId?: string }) => {
             />
           </Flexbox>
         )}
-        <DesktopChatInput isConfigLoading={isGroupConfigLoading} />
+        <DesktopChatInput
+          isConfigLoading={isGroupConfigLoading}
+          variant={chatGPTLayout.chatInputVariant}
+        />
       </WideScreenContainer>
       <Suspense>
         <MessageFromUrl />

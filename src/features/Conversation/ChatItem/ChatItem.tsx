@@ -4,6 +4,7 @@ import { Flexbox } from '@lobehub/ui';
 import { cx } from 'antd-style';
 import { memo } from 'react';
 
+import { useConversationMarkdownVariant } from '../ConversationLayoutVariantContext';
 import FollowUpChips from '../FollowUp/FollowUpChips';
 import { contextSelectors, useConversationStore } from '../store';
 import Actions from './components/Actions';
@@ -44,6 +45,9 @@ const ChatItem = memo<ChatItemProps>(
     ...rest
   }) => {
     const isUser = placement === 'right';
+    const isChatGPTVariant = useConversationMarkdownVariant() === 'chatgpt';
+    const effectiveShowAvatar = isChatGPTVariant ? false : showAvatar;
+    const effectiveShowTitle = isChatGPTVariant ? false : showTitle;
     const conversationKey = useConversationStore(contextSelectors.conversationKey);
     const isEmptyMessage =
       !message || String(message).trim() === '' || message === placeholderMessage;
@@ -68,9 +72,9 @@ const ChatItem = memo<ChatItemProps>(
         className={cx('message-wrapper', styles.container, className)}
         data-message-id={id}
         gap={8}
-        paddingBlock={8}
+        paddingBlock={isChatGPTVariant ? 14 : 8}
         style={{
-          paddingInlineStart: isUser ? 36 : 0,
+          paddingInlineStart: isUser ? (isChatGPTVariant ? 96 : 36) : 0,
           ...style,
         }}
         {...rest}
@@ -81,9 +85,14 @@ const ChatItem = memo<ChatItemProps>(
           direction={isUser ? 'horizontal-reverse' : 'horizontal'}
           gap={8}
         >
-          {showAvatar &&
+          {effectiveShowAvatar &&
             (customAvatarRender ? customAvatarRender(avatar, avatarContent) : avatarContent)}
-          <Title avatar={avatar} showTitle={showTitle} time={time} titleAddon={titleAddon} />
+          <Title
+            avatar={avatar}
+            showTitle={effectiveShowTitle}
+            time={isChatGPTVariant ? undefined : time}
+            titleAddon={titleAddon}
+          />
         </Flexbox>
         <Flexbox
           className={'message-body'}

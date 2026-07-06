@@ -13,7 +13,9 @@ import { useUserStore } from '@/store/user';
 import { settingsSelectors } from '@/store/user/selectors';
 
 import WideScreenContainer from '../../WideScreenContainer';
+import type { ConversationMarkdownVariant } from '../ChatInput/layout';
 import SkeletonList from '../components/SkeletonList';
+import { ConversationMarkdownVariantProvider } from '../ConversationLayoutVariantContext';
 import MessageItem from '../Messages';
 import type { WorkflowExpandLevelDefault } from '../Messages/AssistantGroup/components/WorkflowCollapse';
 import { MessageActionProvider } from '../Messages/Contexts/MessageActionProvider';
@@ -23,6 +25,10 @@ import VirtualizedList from './components/VirtualizedList';
 import { useAgentSignalReceipts } from './hooks/useAgentSignalReceipts';
 
 export interface ChatListProps {
+  /**
+   * Optional centered rail width for conversation content.
+   */
+  contentWidth?: number;
   /**
    * Default expand level for assistant workflow (tool-call) groups. When set,
    * pins the initial/reset state and skips the built-in auto-collapse after
@@ -54,6 +60,10 @@ export interface ChatListProps {
    */
   itemContent?: (index: number, id: string) => ReactNode;
   /**
+   * Optional typography/chrome variant for markdown rendered inside the list.
+   */
+  markdownVariant?: ConversationMarkdownVariant;
+  /**
    * Force showing welcome component even when messages exist
    */
   showWelcome?: boolean;
@@ -71,8 +81,10 @@ const ChatList = memo<ChatListProps>(
   ({
     defaultWorkflowExpandLevel,
     disableActionsBar,
+    contentWidth,
     footerSlot,
     headerSlot,
+    markdownVariant,
     welcome,
     itemContent,
     showWelcome,
@@ -174,14 +186,17 @@ const ChatList = memo<ChatListProps>(
     }
 
     return (
-      <MessageActionProvider withSingletonActionsBar={!disableActionsBar}>
-        <VirtualizedList
-          dataSource={deferredDisplayMessageIds}
-          footerSlot={footerSlot}
-          headerSlot={headerSlot}
-          itemContent={itemContent ?? defaultItemContent}
-        />
-      </MessageActionProvider>
+      <ConversationMarkdownVariantProvider variant={markdownVariant}>
+        <MessageActionProvider withSingletonActionsBar={!disableActionsBar}>
+          <VirtualizedList
+            contentWidth={contentWidth}
+            dataSource={deferredDisplayMessageIds}
+            footerSlot={footerSlot}
+            headerSlot={headerSlot}
+            itemContent={itemContent ?? defaultItemContent}
+          />
+        </MessageActionProvider>
+      </ConversationMarkdownVariantProvider>
     );
   },
 );

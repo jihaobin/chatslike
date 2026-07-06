@@ -1,7 +1,7 @@
 import { Flexbox } from '@lobehub/ui';
 import { Popover, Select, Switch, Tag, theme, Typography } from 'antd';
 import { createStaticStyles } from 'antd-style';
-import type { type ExtendParamsType, ExtendParamsValues } from 'model-bank';
+import type { ExtendParamsType, ExtendParamsValues } from 'model-bank';
 import { type ReactNode } from 'react';
 import { memo, useMemo } from 'react';
 import { Trans, useTranslation } from 'react-i18next';

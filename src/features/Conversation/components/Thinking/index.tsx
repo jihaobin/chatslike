@@ -12,12 +12,16 @@ import Title from './Title';
 const styles = createStaticStyles(({ css, cssVar }) => ({
   contentScroll: css`
     max-height: min(40vh, 320px);
-    padding-block-end: 8px;
-    padding-inline: 8px;
-    color: ${cssVar.colorTextDescription};
+    padding-block: 2px 8px;
+    padding-inline: 16px 8px;
+    border-inline-start: 1px solid ${cssVar.colorBorderSecondary};
+
+    font-size: 13px;
+    line-height: 1.7;
+    color: ${cssVar.colorTextSecondary};
 
     article * {
-      color: ${cssVar.colorTextDescription};
+      color: ${cssVar.colorTextSecondary};
     }
   `,
   scrollRoot: css`

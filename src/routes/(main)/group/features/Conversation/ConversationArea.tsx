@@ -5,6 +5,7 @@ import { memo, Suspense, useMemo } from 'react';
 
 import ChatMiniMap from '@/features/ChatMiniMap';
 import { ChatList, ConversationProvider } from '@/features/Conversation';
+import { getConversationLayoutVariantConfig } from '@/features/Conversation/ChatInput/layout';
 import ZenModeToast from '@/features/ZenModeToast';
 import { useOperationState } from '@/hooks/useOperationState';
 import { useChatStore } from '@/store/chat';
@@ -17,6 +18,8 @@ import MessageFromUrl from './MainChatInput/MessageFromUrl';
 import ThreadHydration from './ThreadHydration';
 import { useActionsBarConfig } from './useActionsBarConfig';
 import { useGroupContext } from './useGroupContext';
+
+const chatGPTLayout = getConversationLayoutVariantConfig('chatgpt');
 
 interface ConversationAreaProps {
   mobile?: boolean;
@@ -33,10 +36,7 @@ const Conversation = memo<ConversationAreaProps>(({ mobile = false }) => {
 
   // Get raw dbMessages from ChatStore for this context
   // ConversationStore will parse them internally to generate displayMessages
-  const chatKey = useMemo(
-    () => messageMapKey(context),
-    [context.agentId, context.topicId, context.threadId],
-  );
+  const chatKey = useMemo(() => messageMapKey(context), [context]);
   const replaceMessages = useChatStore((s) => s.replaceMessages);
   const messages = useChatStore((s) => s.dbMessagesMap[chatKey]);
 
@@ -66,7 +66,11 @@ const Conversation = memo<ConversationAreaProps>(({ mobile = false }) => {
           position: 'relative',
         }}
       >
-        <ChatList welcome={<WelcomeChatItem />} />
+        <ChatList
+          contentWidth={chatGPTLayout.contentWidth}
+          markdownVariant={chatGPTLayout.markdownVariant}
+          welcome={<WelcomeChatItem />}
+        />
       </Flexbox>
       <MainChatInput />
       <ChatHydration />

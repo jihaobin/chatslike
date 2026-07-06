@@ -1,7 +1,7 @@
 import { Input } from '@lobehub/ui';
 import { type FormInstance } from 'antd';
 import { Checkbox, Form, Select } from 'antd';
-import type { type AiModelType, ExtendParamsValues } from 'model-bank';
+import type { AiModelType, ExtendParamsValues } from 'model-bank';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -26,7 +26,7 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
     const [formInstance] = Form.useForm();
 
     const [defaultExtendParamsValue, setDefaultExtendParamsValue] = useState<ExtendParamsValues>(
-      () => (initialValues as any)?.settings?.defaultExtendParams ?? {},
+      () => initialValues?.settings?.defaultExtendParams ?? {},
     );
 
     const isMobile = useIsMobile();
@@ -57,10 +57,10 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
 
     useEffect(() => {
       onFormInstanceReady(formInstance);
-    }, []);
+    }, [formInstance, onFormInstanceReady]);
 
     useEffect(() => {
-      const initial = (initialValues as any)?.settings?.defaultExtendParams ?? {};
+      const initial = initialValues?.settings?.defaultExtendParams ?? {};
       setDefaultExtendParamsValue(initial);
       formInstance.setFieldValue(['settings', 'defaultExtendParams'], initial);
     }, [initialValues, formInstance]);

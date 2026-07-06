@@ -15,7 +15,15 @@ import { combineKeys } from '@lobehub/ui';
 import { css, cx } from 'antd-style';
 import Fuse from 'fuse.js';
 import { KEY_ESCAPE_COMMAND } from 'lexical';
-import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  type CSSProperties,
+  memo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 
@@ -59,11 +67,24 @@ const className = cx(
   mentionFilledClassName,
 );
 
+type EditorTheme = {
+  fontSize: number;
+  lineHeight: number;
+  marginMultiple: number;
+};
+
+type EditorStyle = CSSProperties & {
+  '--common-font-size'?: string;
+  '--common-line-height'?: string;
+  '--common-margin-multiple'?: string;
+};
+
 const InputEditor = memo<{
   defaultRows?: number;
+  editorTheme?: EditorTheme;
   placeholder?: ReactNode;
   placeholderVariant?: PlaceholderVariant;
-}>(({ defaultRows = 2, placeholder, placeholderVariant }) => {
+}>(({ defaultRows = 2, editorTheme, placeholder, placeholderVariant }) => {
   const [
     editor,
     slashMenuRef,
@@ -431,6 +452,19 @@ const InputEditor = memo<{
       ? { enablePasteMarkdown: false, markdownOption: false, plugins }
       : { plugins };
   }, [enableRichRender, expand, slashMenuRef, autoCompletePlugin]);
+  const editorStyle = useMemo<EditorStyle>(
+    () => ({
+      ...(editorTheme
+        ? {
+            '--common-font-size': `${editorTheme.fontSize}px`,
+            '--common-line-height': String(editorTheme.lineHeight),
+            '--common-margin-multiple': String(editorTheme.marginMultiple),
+          }
+        : {}),
+      minHeight: defaultRows > 1 ? defaultRows * 23 : undefined,
+    }),
+    [defaultRows, editorTheme],
+  );
 
   const handleEditorInit = useCallback(
     (editor: IEditor) => {
@@ -464,6 +498,7 @@ const InputEditor = memo<{
       {...richRenderProps}
       mentionOption={mentionOption}
       slashOption={slashOption}
+      theme={editorTheme}
       type={'text'}
       variant={'chat'}
       placeholder={
@@ -476,7 +511,7 @@ const InputEditor = memo<{
         )
       }
       style={{
-        minHeight: defaultRows > 1 ? defaultRows * 23 : undefined,
+        ...editorStyle,
       }}
       onCompositionEnd={({ event }) => compositionProps.onCompositionEnd(event)}
       onInit={handleEditorInit}

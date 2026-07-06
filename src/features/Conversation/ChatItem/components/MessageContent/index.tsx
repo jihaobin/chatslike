@@ -11,6 +11,7 @@ import {
 } from '@/features/Conversation/store';
 import dynamic from '@/libs/next/dynamic';
 
+import { useConversationMarkdownVariant } from '../../../ConversationLayoutVariantContext';
 import { type ChatItemProps } from '../../type';
 
 const EditorModal = dynamic(
@@ -27,6 +28,16 @@ export const styles = createStaticStyles(({ css, cssVar }) => {
       padding-inline: 14px;
       border-radius: 12px;
       background-color: ${cssVar.colorFillTertiary};
+    `,
+    bubbleChatGPT: css`
+      max-width: min(100%, 520px);
+      padding-block: 10px;
+      padding-inline: 16px;
+      border-radius: 20px;
+
+      color: ${cssVar.colorText};
+
+      background-color: ${cssVar.colorFillQuaternary};
     `,
     disabled: css`
       user-select: ${'none'};
@@ -89,6 +100,7 @@ const MessageContent = memo<MessageContentProps>(
     });
 
     const { t } = useTranslation('common');
+    const isChatGPTVariant = useConversationMarkdownVariant() === 'chatgpt';
 
     const onEditingChange = useCallback(
       (edit: boolean) => toggleMessageEditing(id, edit),
@@ -103,6 +115,7 @@ const MessageContent = memo<MessageContentProps>(
             MSG_CONTENT_CLASSNAME,
             styles.message,
             variant === 'bubble' && styles.bubble,
+            variant === 'bubble' && isChatGPTVariant && styles.bubbleChatGPT,
             disabled && styles.disabled,
             className,
           )}

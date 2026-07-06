@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import AgentHome from '@/features/AgentHome';
 import ChatMiniMap from '@/features/ChatMiniMap';
 import { ChatList, ConversationProvider } from '@/features/Conversation';
+import { getConversationLayoutVariantConfig } from '@/features/Conversation/ChatInput/layout';
 import { useChatFollowUp } from '@/features/Conversation/hooks/useChatFollowUp';
 import { mergeConversationHooks } from '@/features/Conversation/utils/mergeConversationHooks';
 import ZenModeToast from '@/features/ZenModeToast';
@@ -28,6 +29,7 @@ import { useActionsBarConfig } from './useActionsBarConfig';
 import { useAgentContext } from './useAgentContext';
 
 const log = debug('lobe-render:agent:ConversationArea');
+const chatGPTLayout = getConversationLayoutVariantConfig('chatgpt');
 
 /**
  * ConversationArea
@@ -41,10 +43,7 @@ const Conversation = memo(() => {
 
   // Get raw dbMessages from ChatStore for this context
   // ConversationStore will parse them internally to generate displayMessages
-  const chatKey = useMemo(
-    () => messageMapKey(context),
-    [context.agentId, context.topicId, context.threadId],
-  );
+  const chatKey = useMemo(() => messageMapKey(context), [context]);
   const replaceMessages = useChatStore((s) => s.replaceMessages);
   const messages = useChatStore((s) => s.dbMessagesMap[chatKey]);
 
@@ -106,7 +105,9 @@ const Conversation = memo(() => {
         }}
       >
         <ChatList
+          contentWidth={chatGPTLayout.contentWidth}
           defaultWorkflowExpandLevel={isHeterogeneousAgent ? { streaming: 'full' } : undefined}
+          markdownVariant={chatGPTLayout.markdownVariant}
           welcome={<AgentHome />}
           footerSlot={
             isSubagentThread ? (

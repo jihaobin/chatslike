@@ -1,4 +1,5 @@
 import { Flexbox, Text } from '@lobehub/ui';
+import { cssVar } from 'antd-style';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -16,7 +17,7 @@ const ThinkingTitle = memo<ThinkingTitleProps>(({ showDetail, thinking, duration
   const { t } = useTranslation('components');
 
   return (
-    <Flexbox horizontal align={'center'} gap={6}>
+    <Flexbox horizontal align={'center'} gap={6} style={{ color: cssVar.colorTextSecondary }}>
       <StatusIndicator showDetail={showDetail} thinking={thinking} />
       {thinking ? (
         <span className={shinyTextStyles.shinyText}>{t('Thinking.thinking')}</span>

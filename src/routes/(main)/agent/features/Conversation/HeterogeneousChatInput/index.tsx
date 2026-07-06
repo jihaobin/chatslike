@@ -13,6 +13,7 @@ import urlJoin from 'url-join';
 import { useHeteroAgentCloudConfig } from '@/business/client/hooks/useHeteroAgentCloudConfig';
 import { type ActionKeys } from '@/features/ChatInput';
 import { ChatInput } from '@/features/Conversation';
+import { getConversationLayoutVariantConfig } from '@/features/Conversation/ChatInput/layout';
 import WideScreenContainer from '@/features/WideScreenContainer';
 import { useRemoteAgentDeviceGuard } from '@/hooks/useRemoteAgentDeviceGuard';
 import { useAgentStore } from '@/store/agent';
@@ -26,6 +27,7 @@ import WorkingDirectoryBar from './WorkingDirectoryBar';
 // can still toggle the rich-text formatting bar.
 const leftActions: ActionKeys[] = ['typo'];
 const rightActions: ActionKeys[] = [];
+const chatGPTLayout = getConversationLayoutVariantConfig('chatgpt');
 
 /**
  * HeterogeneousChatInput
@@ -122,6 +124,8 @@ const HeterogeneousChatInput = memo(() => {
       {renderDeviceGuard()}
       <ChatInput
         skipScrollMarginWithList
+        chatInputVariant={chatGPTLayout.chatInputVariant}
+        contentWidth={chatGPTLayout.contentWidth}
         leftActions={leftActions}
         rightActions={rightActions}
         runtimeConfigSlot={<WorkingDirectoryBar />}

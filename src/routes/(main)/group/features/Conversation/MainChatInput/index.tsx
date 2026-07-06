@@ -4,6 +4,7 @@ import { memo } from 'react';
 
 import { type ActionKeys } from '@/features/ChatInput';
 import { ChatInput } from '@/features/Conversation';
+import { getConversationLayoutVariantConfig } from '@/features/Conversation/ChatInput/layout';
 import { useChatStore } from '@/store/chat';
 
 import { useSendMenuItems } from './useSendMenuItems';
@@ -19,6 +20,7 @@ const leftActions: ActionKeys[] = [
 ];
 
 const rightActions: ActionKeys[] = ['contextWindow'];
+const chatGPTLayout = getConversationLayoutVariantConfig('chatgpt');
 
 /**
  * MainChatInput
@@ -34,6 +36,8 @@ const MainChatInput = memo(() => {
   return (
     <ChatInput
       skipScrollMarginWithList
+      chatInputVariant={chatGPTLayout.chatInputVariant}
+      contentWidth={chatGPTLayout.contentWidth}
       leftActions={leftActions}
       rightActions={rightActions}
       sendMenu={{ items: sendMenuItems }}
