@@ -1052,6 +1052,7 @@ describe('StreamingExecutor actions', () => {
             selectedTools: [{ identifier: 'lobe-notebook', name: 'Notebook' }],
           },
         },
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       expect(context.initialContext).toEqual({
@@ -1108,6 +1109,7 @@ describe('StreamingExecutor actions', () => {
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
         operationId,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       expect(context.initialContext?.pageEditor).toBeUndefined();
@@ -1155,6 +1157,7 @@ describe('StreamingExecutor actions', () => {
             selectedTools: [{ identifier: 'lobe-notebook', name: 'Notebook' }],
           },
         },
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       expect(generateToolsDetailed).toHaveBeenCalledWith(
@@ -1210,6 +1213,7 @@ describe('StreamingExecutor actions', () => {
         parentMessageId: currentTextMessage.id,
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       expect(generateToolsDetailed).toHaveBeenCalledWith(
@@ -1277,6 +1281,7 @@ describe('StreamingExecutor actions', () => {
         parentMessageId: currentTextMessage.id,
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       expect(generateToolsDetailed).toHaveBeenCalledWith(
@@ -1321,6 +1326,7 @@ describe('StreamingExecutor actions', () => {
         parentMessageId: userMessage.id,
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       expect(generateToolsDetailed).toHaveBeenCalledWith(
@@ -1368,6 +1374,7 @@ describe('StreamingExecutor actions', () => {
         parentMessageId: userMessage.id,
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       expect(generateToolsDetailed).toHaveBeenCalledWith(
@@ -1413,6 +1420,7 @@ describe('StreamingExecutor actions', () => {
         parentMessageId: userMessage.id,
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       // In auto mode, no tools should be excluded from defaults
@@ -1466,6 +1474,7 @@ describe('StreamingExecutor actions', () => {
             selectedTools: [{ identifier: 'lobe-notebook', name: 'Notebook' }],
           },
         },
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       expect(context.payload).toEqual(
@@ -1575,6 +1584,7 @@ describe('StreamingExecutor actions', () => {
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
         disableTools: true,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       // toolManifestMap should be empty when disableTools is true
@@ -1602,6 +1612,7 @@ describe('StreamingExecutor actions', () => {
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
         disableTools: true,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       // agentConfig should have empty tools-related fields when disableTools is true
@@ -1641,7 +1652,8 @@ describe('StreamingExecutor actions', () => {
         parentMessageId: userMessage.id,
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
-        // disableTools not set (undefined)
+        // disableTools not set (undefined),
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       // Get actual internal_createAgentState result with disableTools: false
@@ -1651,6 +1663,7 @@ describe('StreamingExecutor actions', () => {
         agentId: TEST_IDS.SESSION_ID,
         topicId: TEST_IDS.TOPIC_ID,
         disableTools: false,
+        agentRuntimeClass: agentRuntime.AgentRuntime,
       });
 
       // Both should have the same toolManifestMap (tools enabled)
@@ -2341,6 +2354,7 @@ describe('StreamingExecutor actions', () => {
           parentMessageId: TEST_IDS.USER_MESSAGE_ID,
           operationId,
           isSubAgent: true,
+          agentRuntimeClass: agentRuntime.AgentRuntime,
         });
       });
 
@@ -2383,6 +2397,7 @@ describe('StreamingExecutor actions', () => {
           messages,
           parentMessageId: TEST_IDS.USER_MESSAGE_ID,
           operationId,
+          agentRuntimeClass: agentRuntime.AgentRuntime,
         });
       });
 

@@ -3,6 +3,7 @@ import { codeInspectorPlugin } from 'code-inspector-plugin';
 import type { ModulePreloadOptions } from 'vite';
 
 import { viteEmotionSpeedy } from './emotionSpeedy';
+import { viteLobeUiDirectImport } from './lobeUiDirectImport';
 import { viteMarkdownImport } from './markdownImport';
 import { viteNodeModuleStub } from './nodeModuleStub';
 import { vitePlatformResolve } from './platformResolve';
@@ -12,8 +13,28 @@ import { routeChunkPreload } from './routeChunkPreload';
  * Shared manual chunk naming — groups leaf-node modules to reduce chunk file count.
  * Only targets pure data modules (no downstream dependents) to avoid facade chunk issues.
  */
-/** Large i18n namespaces that get their own per-locale chunk instead of merging into the locale bundle */
-const HEAVY_NS = new Set(['models', 'modelProvider']);
+/**
+ * Large i18n namespaces that get their own per-locale chunk.
+ * Each entry here produces a separate `i18n-{locale}-{ns}` file so the main
+ * `i18n-{locale}` chunk stays small and namespaces load on-demand.
+ *
+ * Threshold used: ≥ 30 KB in zh-CN (a representative mid-size locale).
+ * Run `ls -la locales/zh-CN/*.json | sort -k5 -rn` to re-check after adding namespaces.
+ */
+const HEAVY_NS = new Set([
+  // Already split (original)
+  'models',        // zh-CN: 283 KB
+  'modelProvider', // zh-CN:  30 KB
+
+  // Newly added — reduces per-locale bundles from ~600-900 KB to ~200-300 KB
+  'setting',           // zh-CN:  77 KB
+  'chat',              // zh-CN:  62 KB
+  'plugin',            // zh-CN:  49 KB
+  'suggestQuestions',  // zh-CN:  47 KB
+  'subscription',      // zh-CN:  46 KB
+  'discover',          // zh-CN:  43 KB
+  'taskTemplate',      // zh-CN:  31 KB
+]);
 
 /** antd locale filename → app locale */
 const ANTD_LOCALE: Record<string, string> = {
@@ -73,12 +94,28 @@ function getAppModuleChunkName(moduleId: string): string | null {
   return null;
 }
 
+/**
+ * Namespaces statically imported in src/locales/create.ts.
+ * These must stay in the single synchronous 'i18n-default' chunk so that
+ * i18next initialises synchronously without Suspense on the first render.
+ * Everything else is lazily fetched via resourcesToBackend and should be
+ * a separate chunk so loading one namespace doesn't pull in all 49.
+ */
+const CORE_DEFAULT_NS = new Set(['chat', 'common', 'error', 'home']);
+
 function sharedManualChunks(id: string): string | undefined {
   // i18n locale JSON/TS files
   const localeMatch = id.match(/\/locales\/([^/]+)\/([^/.]+)/);
   if (localeMatch) {
     const [, locale, ns] = localeMatch;
-    if (locale === 'default') return 'i18n-default';
+    if (locale === 'default') {
+      // Keep only the 4 core namespaces bundled together for synchronous init.
+      // All other default-locale namespaces are lazy-loaded by resourcesToBackend;
+      // giving each its own chunk prevents a 1.7 MB hit when any one is needed.
+      if (HEAVY_NS.has(ns)) return `i18n-default-${ns}`;
+      if (CORE_DEFAULT_NS.has(ns)) return 'i18n-default';
+      return `i18n-default-${ns}`;
+    }
     if (HEAVY_NS.has(ns)) return `i18n-${locale}-${ns}`;
     return `i18n-${locale}`;
   }
@@ -87,9 +124,32 @@ function sharedManualChunks(id: string): string | undefined {
     return 'vendor-ai-runtime';
 
   // model-bank (monorepo package — split before node_modules guard)
-  if (id.includes('model-bank')) return 'providerConfig';
+  // Use a single chunk name so multiple dynamic-import paths share one copy
+  // instead of producing the 14+ duplicate providerConfig chunks seen in prod.
+  if (id.includes('model-bank') || id.includes('packages/model-bank')) return 'providerConfig';
 
   if (!id.includes('node_modules')) return;
+
+  // Shiki syntax highlighter — 323 language grammars each become an async chunk,
+  // but all the shiki *runtime* code must land in one shared chunk so that the
+  // many dynamic import() paths that trigger grammar loading don't each create
+  // their own 6 MB copy.  Without this entry, the shiki bundle appeared 5×.
+  if (
+    id.includes('@shikijs/') ||
+    id.includes('/shiki/') ||
+    id.includes('vscode-textmate') ||
+    id.includes('vscode-oniguruma') ||
+    id.includes('oniguruma-to-es')
+  )
+    return 'vendor-shiki';
+
+  // emoji-mart / emoji picker — large Unicode dataset; keep in one shared chunk
+  // so the emoji panel code doesn't duplicate it across feature boundaries.
+  if (id.includes('emoji-mart') || id.includes('@emoji-mart/'))
+    return 'vendor-emoji';
+
+  // katex — math rendering; large bundle that loads only when LaTeX is rendered
+  if (id.includes('katex')) return 'vendor-katex';
 
   // antd locale → merge into i18n-{locale}
   const antdMatch = id.match(/antd\/es\/locale\/([^/.]+)\.js/);
@@ -166,10 +226,25 @@ const isAppChunkFileName = (fileName: string) => {
   );
 };
 
+const deferredRendererChunkFileNamePatterns = [
+  /^vendor-(shiki|katex|emoji)(?:-|\.|$)/,
+  /^(github-dark|catppuccin|pierre-dark|pierre-light)-/,
+  /^(javascript|typescript|tsx|jsx|wasm)-/,
+  /^mermaid(?:-|\.|$)/,
+  /^(cytoscape|dagre|graphlib|rough)(?:-|\.|$)/,
+];
+
+const isDeferredRendererChunkFileName = (fileName: string) => {
+  const basename = fileName.split('?')[0].replaceAll('\\', '/').split('/').at(-1) ?? fileName;
+
+  return deferredRendererChunkFileNamePatterns.some((pattern) => pattern.test(basename));
+};
+
 export const sharedModulePreload = {
   resolveDependencies: (_filename, deps, context) =>
     deps.filter((dep) => {
       if (isI18nChunkFileName(dep)) return false;
+      if (isDeferredRendererChunkFileName(dep)) return false;
       if (context.hostType === 'html' && isAppChunkFileName(dep)) return false;
 
       return true;
@@ -222,6 +297,7 @@ interface SharedRendererOptions {
 export function sharedRendererPlugins(options: SharedRendererOptions) {
   return [
     viteEmotionSpeedy(),
+    viteLobeUiDirectImport(),
     viteMarkdownImport(),
     viteNodeModuleStub(),
     vitePlatformResolve(options.platform),

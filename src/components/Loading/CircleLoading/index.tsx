@@ -1,6 +1,8 @@
 'use client';
 
-import { Center, Flexbox, Icon, Text } from '@lobehub/ui';
+import { Center, Flexbox } from '@lobehub/ui/es/Flex/index';
+import Icon from '@lobehub/ui/es/Icon/index';
+import Text from '@lobehub/ui/es/Text/index';
 import { LoaderCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

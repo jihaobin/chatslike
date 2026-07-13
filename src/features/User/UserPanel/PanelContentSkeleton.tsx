@@ -7,7 +7,7 @@ import { memo } from 'react';
 const PanelContentSkeleton = memo(() => {
   return (
     <Flexbox gap={2} style={{ minWidth: 300 }}>
-      {/* UserInfo + DataStatistics area */}
+      {/* UserInfo area */}
       <Flexbox gap={8} style={{ padding: '12px 16px' }}>
         <Flexbox horizontal align="center" gap={12}>
           <Skeleton.Button
@@ -43,21 +43,6 @@ const PanelContentSkeleton = memo(() => {
               }}
             />
           </Flexbox>
-        </Flexbox>
-        <Flexbox horizontal gap={4}>
-          {[1, 2, 3].map((i) => (
-            <Skeleton.Button
-              active
-              key={i}
-              size="small"
-              style={{
-                borderRadius: cssVar.borderRadius,
-                flex: 1,
-                height: 36,
-                opacity: 0.5,
-              }}
-            />
-          ))}
         </Flexbox>
       </Flexbox>
 

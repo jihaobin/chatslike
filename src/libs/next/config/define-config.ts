@@ -109,6 +109,27 @@ export function defineConfig(config: CustomNextConfig) {
           headers: securityHeaders,
           source: '/:path*',
         },
+        // SPA JS/CSS bundles — all filenames are content-hashed by Vite, so
+        // immutable caching is safe. Without this, browsers re-validate every
+        // one of the 100+ /_spa/ chunks on every page load, overwhelming the
+        // Node.js origin and causing multi-minute waterfalls.
+        {
+          headers: [
+            {
+              key: 'Cache-Control',
+              value: 'public, max-age=31536000, immutable',
+            },
+            {
+              key: 'CDN-Cache-Control',
+              value: 'public, max-age=31536000, immutable',
+            },
+            {
+              key: 'Vercel-CDN-Cache-Control',
+              value: 'public, max-age=31536000, immutable',
+            },
+          ],
+          source: '/_spa/(.*)',
+        },
         {
           headers: [
             {

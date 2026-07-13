@@ -8,14 +8,14 @@ import { type HomeStore } from '@/store/home/store';
 import { type StoreSetter } from '@/store/types';
 import { setNamespace } from '@/utils/storeDebug';
 
+import { DEFAULT_RECENT_LIST_LIMIT, RECENT_LIST_LOAD_STEP } from './initialState';
+
 const n = setNamespace('recent');
 
 const FETCH_RECENTS_KEY = 'fetchRecents';
 // Poll on a short cadence so users see new items without manual refresh.
 // SWR pauses when the tab is backgrounded.
 const RECENTS_REFRESH_INTERVAL = 10_000;
-/** SWR key prefix for `AllRecentsDrawer` (`['allRecents', open]`) */
-export const ALL_RECENTS_DRAWER_SWR_PREFIX = 'allRecents';
 
 type Setter = StoreSetter<HomeStore>;
 export const createRecentSlice = (set: Setter, get: () => HomeStore, _api?: unknown) =>
@@ -31,12 +31,15 @@ export class RecentActionImpl {
     this.#get = get;
   }
 
-  closeAllRecentsDrawer = (): void => {
-    this.#set({ allRecentsDrawerOpen: false }, false, n('closeAllRecentsDrawer'));
-  };
+  loadMoreRecents = (): void => {
+    const { hasMoreRecents, recentListLimit } = this.#get();
+    if (!hasMoreRecents) return;
 
-  openAllRecentsDrawer = (): void => {
-    this.#set({ allRecentsDrawerOpen: true }, false, n('openAllRecentsDrawer'));
+    this.#set(
+      { recentListLimit: recentListLimit + RECENT_LIST_LOAD_STEP },
+      false,
+      n('loadMoreRecents'),
+    );
   };
 
   updateRecentTitle = (id: string, title: string): void => {
@@ -45,24 +48,35 @@ export class RecentActionImpl {
   };
 
   refreshRecents = async (): Promise<void> => {
-    await Promise.all([
-      mutate((key: unknown) => Array.isArray(key) && key[0] === FETCH_RECENTS_KEY),
-      mutate((key: unknown) => Array.isArray(key) && key[0] === ALL_RECENTS_DRAWER_SWR_PREFIX),
-    ]);
+    await mutate((key: unknown) => Array.isArray(key) && key[0] === FETCH_RECENTS_KEY);
   };
 
   useFetchRecents = (
     isLogin: boolean | undefined,
-    limit: number = 10,
+    limit: number = DEFAULT_RECENT_LIST_LIMIT,
   ): SWRResponse<RecentItem[]> => {
     return useClientDataSWRWithSync<RecentItem[]>(
       isLogin === true ? [FETCH_RECENTS_KEY, isLogin, limit] : null,
       async () => recentService.getAll(limit + 1),
       {
         onData: (data) => {
-          if (this.#get().isRecentsInit && isEqual(this.#get().recents, data)) return;
+          const recents = data.slice(0, limit);
+          const hasMoreRecents = data.length > limit;
+          const current = this.#get();
 
-          this.#set({ isRecentsInit: true, recents: data }, false, n('useFetchRecents/onData'));
+          if (
+            current.isRecentsInit &&
+            current.hasMoreRecents === hasMoreRecents &&
+            isEqual(current.recents, recents)
+          ) {
+            return;
+          }
+
+          this.#set(
+            { hasMoreRecents, isRecentsInit: true, recents },
+            false,
+            n('useFetchRecents/onData'),
+          );
         },
         refreshInterval: RECENTS_REFRESH_INTERVAL,
       },

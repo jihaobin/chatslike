@@ -31,7 +31,34 @@ const getBetterAuthSSOProviders = () => {
   return parseSSOProviders(authEnv.AUTH_SSO_PROVIDERS);
 };
 
+// Environment variables are fixed at startup; cache the computed config for the
+// lifetime of the process so that the 10+ async sub-calls (genServerAiProvidersConfig,
+// getLLMConfig, etc.) only run once instead of on every SPA HTML request.
+// This is the main contributor to the 1500ms+ TTFB measured in production.
+let _configCache: Awaited<ReturnType<typeof _computeServerGlobalConfig>> | null = null;
+
+// Pre-warm the cache at module load time (not on first request) so that the
+// heavy computation happens during server startup, not when the first user hits /_spa/.
+// This moves the 1-5s delay from TTFB to container boot time (invisible to users).
+let _warmupPromise: Promise<void> | null = null;
+if (typeof window === 'undefined') {
+  // Only run on server-side (not in browser bundles)
+  _warmupPromise = _computeServerGlobalConfig().then((config) => {
+    _configCache = config;
+    console.log('[globalConfig] Pre-warmed cache at startup');
+  });
+}
+
 export const getServerGlobalConfig = async () => {
+  // If warmup is still running (rare on fast cold-starts), wait for it
+  if (_warmupPromise) await _warmupPromise;
+  if (_configCache) return _configCache;
+  // Fallback: compute now if warmup somehow failed
+  _configCache = await _computeServerGlobalConfig();
+  return _configCache;
+};
+
+async function _computeServerGlobalConfig() {
   const { DEFAULT_AGENT_CONFIG } = getAppConfig();
   const commercial = getCommercialRuntimeConfig({
     ENABLE_COMMERCIAL: process.env.ENABLE_COMMERCIAL,
@@ -143,7 +170,7 @@ export const getServerGlobalConfig = async () => {
   };
 
   return config;
-};
+}
 
 export const getServerDefaultAgentConfig = () => {
   const { DEFAULT_AGENT_CONFIG } = getAppConfig();

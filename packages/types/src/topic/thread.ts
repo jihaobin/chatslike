@@ -25,11 +25,19 @@ export enum ThreadStatus {
   Todo = 'todo',
 }
 
+export type ThreadMetadataValue =
+  | boolean
+  | null
+  | number
+  | string
+  | ThreadMetadataValue[]
+  | { [key: string]: ThreadMetadataValue | undefined };
+
 /**
  * Metadata for Thread, used for agent task execution
  */
 export interface ThreadMetadata {
-  [key: string]: unknown;
+  [key: string]: ThreadMetadataValue | undefined;
   /** Whether this thread runs in client mode (local execution) */
   clientMode?: boolean;
   /** Task completion time */
@@ -37,7 +45,7 @@ export interface ThreadMetadata {
   /** Execution duration in milliseconds */
   duration?: number;
   /** Error details when task failed */
-  error?: any;
+  error?: ThreadMetadataValue;
   /** Operation ID for tracking */
   operationId?: string;
   /**

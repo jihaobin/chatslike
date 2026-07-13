@@ -5,7 +5,6 @@ import {
   type Cost,
   type Usage,
 } from '@lobechat/agent-runtime';
-import { AgentRuntime, computeStepContext, GeneralChatAgent } from '@lobechat/agent-runtime';
 import { LobeAgentManifest } from '@lobechat/builtin-tool-lobe-agent';
 import { createPathScopeAudit } from '@lobechat/builtin-tool-local-system';
 import { PageAgentIdentifier } from '@lobechat/builtin-tool-page-agent';
@@ -59,6 +58,18 @@ import {
 import { mergeQueuedMessages, reconstructUploadFilesFromQueue } from '../../operation/types';
 
 const log = debug('lobe-store:streaming-executor');
+
+// AgentRuntime / GeneralChatAgent / computeStepContext are loaded lazily so
+// that the openai npm package (and the 1.8 MB vendor-ai-runtime chunk) stays
+// out of the synchronous module graph.  These symbols are only needed when
+// the user actually sends a message — not on every page load.
+export const getAgentRuntimeModule = (() => {
+  let cached: Promise<typeof import('@lobechat/agent-runtime')> | null = null;
+  return () => {
+    if (!cached) cached = import('@lobechat/agent-runtime');
+    return cached;
+  };
+})();
 
 const dynamicInterventionAudits = {
   pathScopeAudit: createPathScopeAudit({
@@ -171,6 +182,7 @@ export class StreamingExecutorActionImpl {
     operationId,
     subAgentId: paramSubAgentId,
     isSubAgent,
+    agentRuntimeClass,
   }: {
     messages: UIChatMessage[];
     parentMessageId: string;
@@ -188,6 +200,8 @@ export class StreamingExecutorActionImpl {
      */
     subAgentId?: string;
     isSubAgent?: boolean;
+    /** Pre-resolved AgentRuntime class (lazy-loaded by the async caller). */
+    agentRuntimeClass: typeof import('@lobechat/agent-runtime').AgentRuntime;
   }): {
     state: AgentState;
     context: AgentRuntimeContext;
@@ -337,7 +351,7 @@ export class StreamingExecutorActionImpl {
     // Create initial state or use provided state
     const state =
       initialState ||
-      AgentRuntime.createInitialState({
+      agentRuntimeClass.createInitialState({
         maxSteps: 400,
         messages,
         metadata: {
@@ -554,6 +568,12 @@ export class StreamingExecutorActionImpl {
     // Create a new array to avoid modifying the original messages
     const messages = [...originalMessages];
 
+    // Resolve the heavy AI runtime lazily — only needed from this point on.
+    // This keeps vendor-ai-runtime out of the synchronous module graph so the
+    // 1.8 MB chunk is not preloaded on every page visit.
+    const { AgentRuntime: AgentRuntimeClass, GeneralChatAgent: GeneralChatAgentClass } =
+      await getAgentRuntimeModule();
+
     // ===========================================
     // Step 1: Create Agent State (resolves config once)
     // ===========================================
@@ -573,8 +593,9 @@ export class StreamingExecutorActionImpl {
       initialState: params.initialState,
       initialContext: params.initialContext,
       operationId,
-      subAgentId, // Pass subAgentId for agent config retrieval (behavior depends on scope)
-      isSubAgent, // Pass isSubAgent to filter out lobe-agent tool in sub-agent context
+      subAgentId,
+      isSubAgent,
+      agentRuntimeClass: AgentRuntimeClass,
     });
 
     // Use model/provider from resolved agentConfig
@@ -598,7 +619,7 @@ export class StreamingExecutorActionImpl {
       provider!,
     )(getAiInfraStoreState());
 
-    const agent = new GeneralChatAgent({
+    const agent = new GeneralChatAgentClass({
       agentConfig: { maxSteps: 1000 },
       compressionConfig: {
         enabled: agentConfigData.chatConfig?.enableContextCompression ?? true, // Default to enabled
@@ -609,7 +630,7 @@ export class StreamingExecutorActionImpl {
       modelRuntimeConfig,
     });
 
-    const runtime = new AgentRuntime(agent, {
+    const runtime = new AgentRuntimeClass(agent, {
       executors: createAgentExecutors({
         agentConfig, // Pass pre-resolved config to callLLM executor
         get: this.#get,
@@ -699,7 +720,8 @@ export class StreamingExecutorActionImpl {
       // Accumulate activated skills from activateSkill messages
       const activatedSkills = selectActivatedSkillsFromMessages(currentDBMessages);
       const hasQueuedMessages = (this.#get().queuedMessages[contextKey]?.length ?? 0) > 0;
-      const stepContext = computeStepContext({
+      const { computeStepContext: computeStepContextFn } = await getAgentRuntimeModule();
+      const stepContext = computeStepContextFn({
         activatedSkills,
         activatedToolIds,
         hasQueuedMessages,

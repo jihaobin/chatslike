@@ -153,6 +153,8 @@ describe('routeChunkPreload', () => {
           'assets/typescript-D20RI-Hp.js',
           'assets/pierre-dark-BVeDunhK.js',
           'assets/mermaid.core-FQG0m7QG.js',
+          'vendor/vendor-emoji-BD8p.js',
+          'vendor/vendor-katex-CJm8x.js',
         ],
         facadeModuleId: '/repo/src/routes/(main)/settings/index.tsx',
         fileName: 'assets/settings-CJm8x.js',
@@ -180,6 +182,14 @@ describe('routeChunkPreload', () => {
       'assets/graphlib-s-2OPgNI.js': createChunk({
         fileName: 'assets/graphlib-s-2OPgNI.js',
         moduleIds: ['/repo/node_modules/graphlib/index.js'],
+      }),
+      'vendor/vendor-emoji-BD8p.js': createChunk({
+        fileName: 'vendor/vendor-emoji-BD8p.js',
+        moduleIds: ['/repo/node_modules/@emoji-mart/react/dist/main.js'],
+      }),
+      'vendor/vendor-katex-CJm8x.js': createChunk({
+        fileName: 'vendor/vendor-katex-CJm8x.js',
+        moduleIds: ['/repo/node_modules/katex/dist/katex.mjs'],
       }),
       'vendor/vendor-icons-Bd7x.js': createChunk({
         fileName: 'vendor/vendor-icons-Bd7x.js',

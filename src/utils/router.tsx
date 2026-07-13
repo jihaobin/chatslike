@@ -1,6 +1,5 @@
 'use client';
 
-import { ThemeProvider } from '@lobehub/ui';
 import { type ComponentType, type ReactElement } from 'react';
 import { lazy, memo, Suspense, useLayoutEffect } from 'react';
 import type { RouteObject } from 'react-router-dom';
@@ -15,12 +14,13 @@ import {
 } from 'react-router-dom';
 
 import BusinessGlobalProvider from '@/business/client/BusinessGlobalProvider';
-import ErrorCapture from '@/components/Error';
 import Loading from '@/components/Loading/BrandTextLoading';
 import SPAGlobalProvider from '@/layout/SPAGlobalProvider';
 import { useGlobalStore } from '@/store/global';
 import { createNavigationRef } from '@/store/global/initialState';
 import { isChunkLoadError, notifyChunkError } from '@/utils/chunkError';
+
+const RouteErrorBoundary = lazy(() => import('@/components/Error/RouteErrorBoundary'));
 
 async function importModule<T>(importFn: () => Promise<T>): Promise<T> {
   return importFn();
@@ -111,9 +111,9 @@ export const ErrorBoundary = ({ resetPath }: ErrorBoundaryProps) => {
   }
 
   return (
-    <ThemeProvider theme={{ cssVar: { key: 'lobe-vars' } }}>
-      <ErrorCapture error={error} resetPath={resetPath ?? defaultResetPath} />
-    </ThemeProvider>
+    <Suspense fallback={<Loading debugId="routeErrorBoundary" />}>
+      <RouteErrorBoundary error={error} resetPath={resetPath ?? defaultResetPath} />
+    </Suspense>
   );
 };
 

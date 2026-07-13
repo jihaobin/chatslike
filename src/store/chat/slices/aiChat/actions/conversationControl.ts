@@ -19,6 +19,7 @@ import { displayMessageSelectors } from '../../../selectors';
 import { messageMapKey } from '../../../utils/messageMapKey';
 import { type OptimisticUpdateContext } from '../../message/actions/optimisticUpdate';
 import { dbMessageSelectors } from '../../message/selectors';
+import { getAgentRuntimeModule } from './streamingExecutor';
 
 /**
  * Actions for controlling conversation operations like cancellation and error handling
@@ -315,6 +316,7 @@ export class ConversationControlActionImpl {
     );
 
     // 4. Create agent state and context with user intervention config
+    const { AgentRuntime: AgentRuntimeClass } = await getAgentRuntimeModule();
     const { state, context: initialContext } = this.#get().internal_createAgentState({
       messages: currentMessages,
       parentMessageId: toolMessageId,
@@ -322,6 +324,7 @@ export class ConversationControlActionImpl {
       topicId,
       threadId: threadId ?? undefined,
       operationId,
+      agentRuntimeClass: AgentRuntimeClass,
     });
 
     // 5. Override context with 'human_approved_tool' phase
@@ -433,6 +436,7 @@ export class ConversationControlActionImpl {
         currentMessages,
       );
 
+      const { AgentRuntime: AgentRuntimeClass } = await getAgentRuntimeModule();
       const { state, context: initialContext } = this.#get().internal_createAgentState({
         messages: currentMessages,
         parentMessageId: toolMessageId,
@@ -440,6 +444,7 @@ export class ConversationControlActionImpl {
         topicId,
         threadId: threadId ?? undefined,
         operationId,
+        agentRuntimeClass: AgentRuntimeClass,
       });
 
       // Resume directly from `tool_result` phase rather than `human_approved_tool`.
@@ -507,6 +512,7 @@ export class ConversationControlActionImpl {
     // 3. Resume agent from user message (not tool re-execution)
     const currentMessages = displayMessageSelectors.getDisplayMessagesByKey(chatKey)(this.#get());
 
+    const { AgentRuntime: AgentRuntimeClass } = await getAgentRuntimeModule();
     const { state, context: initialContext } = this.#get().internal_createAgentState({
       messages: currentMessages,
       parentMessageId: userMsg.id,
@@ -514,6 +520,7 @@ export class ConversationControlActionImpl {
       topicId,
       threadId: threadId ?? undefined,
       operationId,
+      agentRuntimeClass: AgentRuntimeClass,
     });
 
     try {
@@ -613,6 +620,7 @@ export class ConversationControlActionImpl {
     // 3. Resume agent from user message
     const currentMessages = displayMessageSelectors.getDisplayMessagesByKey(chatKey)(this.#get());
 
+    const { AgentRuntime: AgentRuntimeClass } = await getAgentRuntimeModule();
     const { state, context: initialContext } = this.#get().internal_createAgentState({
       messages: currentMessages,
       parentMessageId: userMsg.id,
@@ -620,6 +628,7 @@ export class ConversationControlActionImpl {
       topicId,
       threadId: threadId ?? undefined,
       operationId,
+      agentRuntimeClass: AgentRuntimeClass,
     });
 
     try {
@@ -1093,6 +1102,7 @@ export class ConversationControlActionImpl {
     const requestMetadata = this.#getRequestMetadataFromMessageChain(messageId, currentMessages);
 
     // Create agent state and context to continue from rejected tool message
+    const { AgentRuntime: AgentRuntimeClass } = await getAgentRuntimeModule();
     const { state, context: initialContext } = this.#get().internal_createAgentState({
       messages: currentMessages,
       parentMessageId: messageId,
@@ -1100,6 +1110,7 @@ export class ConversationControlActionImpl {
       topicId,
       threadId: threadId ?? undefined,
       operationId,
+      agentRuntimeClass: AgentRuntimeClass,
     });
 
     // Override context with 'userInput' phase to continue as if user provided feedback

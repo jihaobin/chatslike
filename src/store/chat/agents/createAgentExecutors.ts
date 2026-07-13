@@ -18,7 +18,6 @@ import type {
   SubAgentResultPayload,
   SubAgentsBatchResultPayload,
 } from '@lobechat/agent-runtime';
-import { UsageCounter } from '@lobechat/agent-runtime';
 import { isDesktop } from '@lobechat/const';
 import { countContextTokens, type ToolsEngine } from '@lobechat/context-engine';
 import { chainCompressContext } from '@lobechat/prompts';
@@ -54,6 +53,16 @@ import { StreamingHandler } from './StreamingHandler';
 import { type StreamChunk } from './types/streaming';
 
 const log = debug('lobe-store:agent-executors');
+
+// UsageCounter is only needed during LLM/tool call execution — lazy-load it
+// to prevent pulling @lobechat/agent-runtime into the synchronous module graph.
+const getAgentRuntimeModule = (() => {
+  let cached: Promise<typeof import('@lobechat/agent-runtime')> | null = null;
+  return () => {
+    if (!cached) cached = import('@lobechat/agent-runtime');
+    return cached;
+  };
+})();
 
 // Tool pricing configuration (USD per call)
 const TOOL_PRICING: Record<string, number> = {
@@ -603,6 +612,7 @@ export const createAgentExecutors = (context: {
 
       if (currentStepUsage) {
         // Use UsageCounter to accumulate LLM usage and cost
+        const { UsageCounter } = await getAgentRuntimeModule();
         const { usage, cost } = UsageCounter.accumulateLLM({
           cost: state.cost,
           model: llmPayload.model,
@@ -975,6 +985,7 @@ export const createAgentExecutors = (context: {
         const toolCost = TOOL_PRICING[toolName] || 0;
 
         // Use UsageCounter to accumulate tool usage
+        const { UsageCounter } = await getAgentRuntimeModule();
         const { usage, cost } = UsageCounter.accumulateTool({
           cost: state.cost,
           executionTime,

@@ -1,7 +1,6 @@
 import { SESSION_CHAT_TOPIC_URL, SESSION_CHAT_URL } from '@lobechat/const';
 import { useCallback } from 'react';
 
-import type { SendButtonHandler } from '@/features/ChatInput/store/initialState';
 import { useHomeDailyBrief } from '@/hooks/useHomeDailyBrief';
 import { useQueryRoute } from '@/hooks/useQueryRoute';
 import { agentService } from '@/services/agent';
@@ -9,8 +8,19 @@ import { useAgentStore } from '@/store/agent';
 import { useChatStore } from '@/store/chat';
 import { fileChatSelectors, useFileStore } from '@/store/file';
 import { useHomeStore } from '@/store/home';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { featureFlagsSelectors } from '@/store/serverConfig/selectors';
 
 import { useResolvedHomeAgentId } from '../AgentSelect/useResolvedHomeAgentId';
+
+export interface HomeSendParams {
+  clearContent?: () => void;
+  editor?: unknown;
+  getEditorData?: () => Record<string, any> | undefined;
+  getMarkdownContent?: () => string;
+}
+
+export type HomeSendHandler = (params: HomeSendParams) => Promise<void> | void;
 
 /**
  * Trim trailing ellipsis the LLM uses on hint placeholders so the sent
@@ -41,6 +51,8 @@ export const useSend = () => {
   const clearChatContextSelections = useFileStore((s) => s.clearChatContextSelections);
 
   const homeInputLoading = useHomeStore((s) => s.homeInputLoading);
+  const hideAgentManagement = useServerConfigStore(featureFlagsSelectors)?.hideAgentManagement;
+  const setHomeChatMode = useHomeStore((s) => s.setHomeChatMode);
 
   // Resolve the agent that the home input is currently bound to. Defaults to the
   // inbox agent; AgentSelect can override via systemStatus.homeSelectedAgentId.
@@ -53,7 +65,7 @@ export const useSend = () => {
   // suggestion — and rotates to the next pair.
   const { currentPair, advance } = useHomeDailyBrief();
 
-  const send = useCallback<SendButtonHandler>(
+  const send = useCallback<HomeSendHandler>(
     async ({ getEditorData, getMarkdownContent }) => {
       const { inputMessage, mainInputEditor } = useChatStore.getState();
       // Prefer the live editor content over the cached `inputMessage`.
@@ -120,18 +132,36 @@ export const useSend = () => {
             // yet — block on the fetch so sendMessage finds a real config below.
             await ensureAgentConfigLoaded(activeAgentId);
 
+            const onTopicCreated = (topicId: string) => {
+              if (hideAgentManagement) {
+                useChatStore.setState(
+                  { activeTopicId: topicId },
+                  false,
+                  'HomeInput/useSend/onTopicCreated',
+                );
+                router.replace(`/home?topic=${topicId}`);
+                return;
+              }
+
+              router.replace(SESSION_CHAT_TOPIC_URL(activeAgentId, topicId, false));
+            };
+
+            if (hideAgentManagement) {
+              setHomeChatMode('chat');
+            }
+
             sendMessage({
               context: { agentId: activeAgentId, isolatedTopic: true },
               contexts: contextList,
               editorData,
               files: fileList,
               message,
-              onTopicCreated: (topicId) => {
-                router.replace(SESSION_CHAT_TOPIC_URL(activeAgentId, topicId, false));
-              },
+              onTopicCreated,
             });
 
-            router.push(SESSION_CHAT_URL(activeAgentId, false));
+            if (!hideAgentManagement) {
+              router.push(SESSION_CHAT_URL(activeAgentId, false));
+            }
           }
         }
       } finally {
@@ -149,6 +179,8 @@ export const useSend = () => {
       router,
       currentPair,
       advance,
+      hideAgentManagement,
+      setHomeChatMode,
     ],
   );
 

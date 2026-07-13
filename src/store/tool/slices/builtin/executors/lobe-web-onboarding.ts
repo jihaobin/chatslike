@@ -1,25 +1,20 @@
 import { BUILTIN_AGENT_SLUGS } from '@lobechat/builtin-agents';
+import type {
+  ShowAgentMarketplaceArgs,
+  SubmitAgentPickArgs,
+  UpdateDocumentArgs,
+} from '@lobechat/builtin-tool-web-onboarding';
 import {
-  type UpdateDocumentArgs,
   WebOnboardingApiName,
   WebOnboardingIdentifier,
 } from '@lobechat/builtin-tool-web-onboarding';
 import {
-  AgentMarketplaceExecutionRuntime,
-  type ShowAgentMarketplaceArgs,
-  type SubmitAgentPickArgs,
-} from '@lobechat/builtin-tool-web-onboarding/agentMarketplace';
-import {
   createDocumentReadResult,
   createWebOnboardingToolResult,
 } from '@lobechat/builtin-tool-web-onboarding/utils';
-import { type BuiltinToolContext, type BuiltinToolResult } from '@lobechat/types';
+import type { BuiltinToolContext, BuiltinToolResult } from '@lobechat/types';
 import { BaseExecutor } from '@lobechat/types';
 
-import {
-  trackOnboardingMarketplacePicked,
-  trackOnboardingMarketplaceShown,
-} from '@/services/onboardingMetrics';
 import { userService } from '@/services/user';
 import { useAgentStore } from '@/store/agent';
 import { useUserStore } from '@/store/user';
@@ -32,10 +27,35 @@ const syncUserOnboardingState = async () => {
   }
 };
 
-const marketplaceRuntime = new AgentMarketplaceExecutionRuntime({
-  onPicked: (payload) => trackOnboardingMarketplacePicked(payload),
-  onShown: (payload) => trackOnboardingMarketplaceShown(payload),
-});
+// Lazy-load onboardingMetrics so it is not bundled into the main store chunk.
+// It is only needed when the marketplace is actually shown/interacted with,
+// not on every page load.
+const getOnboardingMetrics = () => import('@/services/onboardingMetrics');
+
+type MarketplaceRuntime =
+  import('@lobechat/builtin-tool-web-onboarding/agentMarketplace/runtime').AgentMarketplaceExecutionRuntime;
+
+let marketplaceRuntime: MarketplaceRuntime | undefined;
+
+const getMarketplaceRuntime = async (): Promise<MarketplaceRuntime> => {
+  if (!marketplaceRuntime) {
+    const { AgentMarketplaceExecutionRuntime } = await import(
+      '@lobechat/builtin-tool-web-onboarding/agentMarketplace/runtime'
+    );
+    marketplaceRuntime = new AgentMarketplaceExecutionRuntime({
+      onPicked: async (payload) => {
+        const { trackOnboardingMarketplacePicked } = await getOnboardingMetrics();
+        return trackOnboardingMarketplacePicked(payload);
+      },
+      onShown: async (payload) => {
+        const { trackOnboardingMarketplaceShown } = await getOnboardingMetrics();
+        return trackOnboardingMarketplaceShown(payload);
+      },
+    });
+  }
+
+  return marketplaceRuntime;
+};
 
 class WebOnboardingExecutor extends BaseExecutor<typeof WebOnboardingApiName> {
   readonly identifier = WebOnboardingIdentifier;
@@ -116,14 +136,16 @@ class WebOnboardingExecutor extends BaseExecutor<typeof WebOnboardingApiName> {
     params: ShowAgentMarketplaceArgs,
     ctx: BuiltinToolContext,
   ): Promise<BuiltinToolResult> => {
-    return marketplaceRuntime.showAgentMarketplace(params, { topicId: ctx.topicId });
+    const runtime = await getMarketplaceRuntime();
+    return runtime.showAgentMarketplace(params, { topicId: ctx.topicId });
   };
 
   submitAgentPick = async (
     params: SubmitAgentPickArgs,
     _ctx: BuiltinToolContext,
   ): Promise<BuiltinToolResult> => {
-    return marketplaceRuntime.submitAgentPick(params);
+    const runtime = await getMarketplaceRuntime();
+    return runtime.submitAgentPick(params);
   };
 }
 

@@ -1,5 +1,4 @@
 import { type AgentState, type ExecutorResult } from '@lobechat/agent-runtime';
-import { GroupOrchestrationRuntime, GroupOrchestrationSupervisor } from '@lobechat/agent-runtime';
 import { type TaskStatusResult } from '@lobechat/types';
 import debug from 'debug';
 import { type SWRResponse } from 'swr';
@@ -12,6 +11,15 @@ import { type GroupOrchestrationCallbacks } from '@/store/tool/slices/builtin/ty
 import { type StoreSetter } from '@/store/types';
 
 const log = debug('lobe-store:group-orchestration');
+
+// Lazy-load the heavy classes to keep vendor-ai-runtime out of the sync graph.
+const getAgentRuntimeModule = (() => {
+  let cached: Promise<typeof import('@lobechat/agent-runtime')> | null = null;
+  return () => {
+    if (!cached) cached = import('@lobechat/agent-runtime');
+    return cached;
+  };
+})();
 
 /**
  * Default maximum rounds for group orchestration
@@ -264,7 +272,11 @@ export class GroupOrchestrationActionImpl {
     log('[internal_execGroupOrchestration] Group config: %o', groupConfig);
 
     // 3. Create Orchestration Supervisor (State Machine)
-    const orchestrationSupervisor = new GroupOrchestrationSupervisor({
+    const {
+      GroupOrchestrationRuntime: GroupOrchestrationRuntimeClass,
+      GroupOrchestrationSupervisor: GroupOrchestrationSupervisorClass,
+    } = await getAgentRuntimeModule();
+    const orchestrationSupervisor = new GroupOrchestrationSupervisorClass({
       supervisorAgentId: groupConfig.supervisorAgentId,
       maxRounds: groupConfig.maxRounds,
     });
@@ -278,7 +290,7 @@ export class GroupOrchestrationActionImpl {
     });
 
     // 5. Create GroupOrchestrationRuntime
-    const runtime = new GroupOrchestrationRuntime(orchestrationSupervisor, {
+    const runtime = new GroupOrchestrationRuntimeClass(orchestrationSupervisor, {
       executors,
       operationId,
       getOperation: (opId: string) => {
@@ -292,7 +304,7 @@ export class GroupOrchestrationActionImpl {
     });
 
     // 6. Initialize State
-    let state = GroupOrchestrationRuntime.createInitialState({
+    let state = GroupOrchestrationRuntimeClass.createInitialState({
       operationId,
     });
 

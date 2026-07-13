@@ -3,8 +3,10 @@
 import 'antd/dist/reset.css';
 
 import { TITLE_BAR_HEIGHT } from '@lobechat/desktop-bridge';
-import { type NeutralColors, type PrimaryColors } from '@lobehub/ui';
-import { ConfigProvider, FontLoader, ThemeProvider } from '@lobehub/ui';
+import * as ConfigProviderModule from '@lobehub/ui/es/ConfigProvider/index';
+import * as FontLoaderModule from '@lobehub/ui/es/FontLoader/index';
+import type { NeutralColors, PrimaryColors } from '@lobehub/ui/es/styles/customTheme';
+import ThemeProvider from '@lobehub/ui/es/ThemeProvider/index';
 import { message as antdMessage } from 'antd';
 import { AppConfigContext } from 'antd/es/app/context';
 import { createStaticStyles, cx, useTheme } from 'antd-style';
@@ -27,6 +29,17 @@ import { useUserStore } from '@/store/user';
 import { userGeneralSettingsSelectors } from '@/store/user/selectors';
 import { GlobalStyle } from '@/styles';
 import { setCookie } from '@/utils/client/cookie';
+
+const ConfigProvider = (
+  ConfigProviderModule as unknown as {
+    default: typeof ConfigProviderModule.ConfigProvider;
+  }
+).default;
+const FontLoader = (
+  FontLoaderModule as unknown as {
+    default: typeof FontLoaderModule.FontLoader;
+  }
+).default;
 
 const styles = createStaticStyles(({ css, cssVar }) => ({
   app: css`

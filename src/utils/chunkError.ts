@@ -1,5 +1,3 @@
-import { toast } from '@lobehub/ui';
-
 const CHUNK_ERROR_PATTERNS = [
   'Failed to fetch dynamically imported module', // Chrome / Vite
   'error loading dynamically imported module', // Firefox
@@ -24,6 +22,12 @@ export function isChunkLoadError(error: unknown): boolean {
 }
 
 const RELOAD_KEY = 'lobe-chunk-reload';
+const CHUNK_ERROR_MESSAGE = 'There is a new version for the web app. Refresh the page to update';
+
+async function showChunkErrorToast() {
+  const { toast } = await import('@lobehub/ui/es/base-ui/Toast/imperative');
+  toast.error(CHUNK_ERROR_MESSAGE);
+}
 
 /**
  * Auto-reload on chunk load error. Uses sessionStorage to prevent infinite reload loops.
@@ -32,7 +36,7 @@ export function notifyChunkError(): void {
   const reloaded = sessionStorage.getItem(RELOAD_KEY);
   if (reloaded) {
     sessionStorage.removeItem(RELOAD_KEY);
-    toast.error('There is a new version for the web app. Refresh the page to update');
+    void showChunkErrorToast();
     return;
   }
   sessionStorage.setItem(RELOAD_KEY, '1');

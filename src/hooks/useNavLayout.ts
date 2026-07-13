@@ -53,6 +53,12 @@ export const useNavLayout = (): NavLayout => {
           url: '/home',
         },
         {
+          icon: getRouteById('resource')!.icon,
+          key: SidebarTabKey.Resource,
+          title: t('tab.resource'),
+          url: '/resource',
+        },
+        {
           icon: getRouteById('page')!.icon,
           key: SidebarTabKey.Pages,
           title: t('tab.pages'),
@@ -66,29 +72,11 @@ export const useNavLayout = (): NavLayout => {
     () =>
       [
         {
-          icon: getRouteById('image')!.icon,
-          key: SidebarTabKey.Image,
-          title: t('tab.generation'),
-          url: '/image',
-        },
-        {
           hidden: !showMarket,
           icon: getRouteById('community')!.icon,
           key: SidebarTabKey.Community,
           title: t('tab.community'),
           url: '/community',
-        },
-        {
-          icon: getRouteById('resource')!.icon,
-          key: SidebarTabKey.Resource,
-          title: t('tab.resource'),
-          url: '/resource',
-        },
-        {
-          icon: getRouteById('settings')!.icon,
-          key: SidebarTabKey.Setting,
-          title: t('tab.setting'),
-          url: '/settings',
         },
         {
           icon: getRouteById('memory')!.icon,

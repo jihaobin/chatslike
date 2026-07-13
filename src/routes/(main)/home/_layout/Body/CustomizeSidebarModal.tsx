@@ -54,7 +54,6 @@ const ALL_SIDEBAR_ITEMS: SidebarItemConfig[] = [
   { id: 'image', labelKey: 'tab.generation', routeId: 'image' },
   { id: 'community', labelKey: 'tab.community', routeId: 'community' },
   { id: 'resource', labelKey: 'tab.resource', routeId: 'resource' },
-  { id: 'settings', labelKey: 'tab.setting', routeId: 'settings' },
   { id: 'memory', labelKey: 'tab.memory', routeId: 'memory' },
 ];
 

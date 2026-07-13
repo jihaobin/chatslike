@@ -4,8 +4,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SendButtonHandler } from '@/features/ChatInput/store/initialState';
-
+import type { HomeSendHandler } from './useSend';
 import { useSend } from './useSend';
 
 const routerMock = vi.hoisted(() => ({
@@ -14,9 +13,16 @@ const routerMock = vi.hoisted(() => ({
 }));
 
 const sendMessageMock = vi.hoisted(() => vi.fn());
+const setChatStateMock = vi.hoisted(() => vi.fn());
 const clearContentMock = vi.hoisted(() => vi.fn());
 const clearChatUploadFileListMock = vi.hoisted(() => vi.fn());
 const clearChatContextSelectionsMock = vi.hoisted(() => vi.fn());
+
+const serverConfigState = vi.hoisted(() => ({
+  featureFlags: {
+    hideAgentManagement: false,
+  },
+}));
 
 const chatState = vi.hoisted(() => ({
   inputMessage: 'hello',
@@ -36,6 +42,7 @@ const fileState = vi.hoisted(() => ({
 
 const homeState = vi.hoisted(() => ({
   agentGroups: [],
+  homeChatMode: 'welcome' as 'welcome' | 'chat',
   homeInputLoading: false,
   inputActiveMode: null,
   isAgentListInit: true,
@@ -44,6 +51,9 @@ const homeState = vi.hoisted(() => ({
   sendAsGroup: vi.fn(),
   sendAsResearch: vi.fn(),
   sendAsWrite: vi.fn(),
+  setHomeChatMode: vi.fn((mode: 'welcome' | 'chat') => {
+    homeState.homeChatMode = mode;
+  }),
   ungroupedAgents: [],
 }));
 
@@ -105,6 +115,7 @@ vi.mock('@/store/global/selectors', () => ({
 vi.mock('@/store/chat', () => {
   const useChatStore = (selector: (state: typeof chatState) => unknown) => selector(chatState);
   useChatStore.getState = () => chatState;
+  useChatStore.setState = setChatStateMock;
 
   return { useChatStore };
 });
@@ -129,24 +140,37 @@ vi.mock('@/store/home', () => {
   return { useHomeStore };
 });
 
+vi.mock('@/store/serverConfig', () => ({
+  useServerConfigStore: (selector: (state: typeof serverConfigState) => unknown) =>
+    selector(serverConfigState),
+}));
+
+vi.mock('@/store/serverConfig/selectors', () => ({
+  featureFlagsSelectors: (state: typeof serverConfigState) => state.featureFlags,
+}));
+
 describe('Home InputArea useSend', () => {
   beforeEach(() => {
     routerMock.push.mockReset();
     routerMock.replace.mockReset();
     sendMessageMock.mockReset();
     clearContentMock.mockReset();
+    setChatStateMock.mockReset();
     clearChatUploadFileListMock.mockReset();
     clearChatContextSelectionsMock.mockReset();
     homeDailyBriefState.advance.mockReset();
     homeDailyBriefState.currentPair = undefined;
     chatState.inputMessage = 'hello';
+    serverConfigState.featureFlags.hideAgentManagement = false;
+    homeState.homeChatMode = 'welcome';
+    homeState.setHomeChatMode.mockClear();
   });
 
   it('routes cold homepage sends to the created topic instead of relying on ChatHydration timing', async () => {
     const { result } = renderHook(() => useSend());
-    const params: Parameters<SendButtonHandler>[0] = {
+    const params: Parameters<HomeSendHandler>[0] = {
       clearContent: vi.fn(),
-      editor: {} as Parameters<SendButtonHandler>[0]['editor'],
+      editor: {},
       getEditorData: () => undefined,
       getMarkdownContent: () => 'hello',
     };
@@ -162,7 +186,7 @@ describe('Home InputArea useSend', () => {
         onTopicCreated: expect.any(Function),
       }),
     );
-    expect(routerMock.push).toHaveBeenCalledWith('/agent/agt_inbox');
+    expect(routerMock.push).toHaveBeenCalledWith('/home/agent/agt_inbox');
 
     const sentPayload = sendMessageMock.mock.calls[0][0];
 
@@ -170,7 +194,41 @@ describe('Home InputArea useSend', () => {
       await sentPayload.onTopicCreated('tpc_created');
     });
 
-    expect(routerMock.replace).toHaveBeenCalledWith('/agent/agt_inbox/tpc_created');
+    expect(routerMock.replace).toHaveBeenCalledWith('/home/agent/agt_inbox/tpc_created');
+  });
+
+  it('keeps hidden agent-management sends on /home and writes topic to query params', async () => {
+    serverConfigState.featureFlags.hideAgentManagement = true;
+
+    const { result } = renderHook(() => useSend());
+    const params: Parameters<HomeSendHandler>[0] = {
+      clearContent: vi.fn(),
+      editor: {},
+      getEditorData: () => undefined,
+      getMarkdownContent: () => 'hello',
+    };
+
+    await act(async () => {
+      await result.current.send(params);
+    });
+
+    expect(homeState.setHomeChatMode).toHaveBeenCalledWith('chat');
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: { agentId: 'agt_inbox', isolatedTopic: true },
+        message: 'hello',
+        onTopicCreated: expect.any(Function),
+      }),
+    );
+    expect(routerMock.push).not.toHaveBeenCalled();
+
+    const sentPayload = sendMessageMock.mock.calls[0][0];
+
+    await act(async () => {
+      await sentPayload.onTopicCreated('tpc_created');
+    });
+
+    expect(routerMock.replace).toHaveBeenCalledWith('/home?topic=tpc_created');
   });
 
   it('drops editorData when sending the placeholder hint so the user message renders the markdown content', async () => {
@@ -181,9 +239,9 @@ describe('Home InputArea useSend', () => {
     chatState.inputMessage = '';
 
     const { result } = renderHook(() => useSend());
-    const params: Parameters<SendButtonHandler>[0] = {
+    const params: Parameters<HomeSendHandler>[0] = {
       clearContent: vi.fn(),
-      editor: {} as Parameters<SendButtonHandler>[0]['editor'],
+      editor: {},
       // Empty editor still returns a non-null JSON state; this would
       // previously be forwarded as editorData and blank the rendered
       // user bubble.

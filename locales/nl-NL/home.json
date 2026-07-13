@@ -8,13 +8,9 @@
   "starter.createAgent": "Agent aanmaken",
   "starter.createGroup": "Groep aanmaken",
   "starter.deepResearch": "Diepgaand onderzoek",
-  "starter.deepseekV4Pro": "DeepSeek V4 Pro",
-  "starter.deepseekV4ProAlready": "Gebruikt al DeepSeek V4 Pro",
-  "starter.deepseekV4ProSwitched": "Overgeschakeld naar DeepSeek V4 Pro",
   "starter.developing": "Binnenkort beschikbaar",
+  "starter.generateImage": "Afbeelding genereren",
+  "starter.generateVideo": "Video genereren",
   "starter.image": "Afbeelding",
-  "starter.imageGeneration": "Afbeelding Generatie",
-  "starter.newLabel": "Nieuw",
-  "starter.videoGeneration": "Seedance 2.0",
   "starter.write": "Schrijven"
 }

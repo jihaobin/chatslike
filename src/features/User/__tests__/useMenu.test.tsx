@@ -40,10 +40,6 @@ vi.mock('@/services/config', () => ({
   },
 }));
 
-vi.mock('./useNewVersion', () => ({
-  useNewVersion: vi.fn(() => false),
-}));
-
 describe('useMenu', () => {
   it('should provide correct menu items when user is logged in with auth', () => {
     act(() => {
@@ -54,9 +50,9 @@ describe('useMenu', () => {
 
     act(() => {
       const { mainItems, logoutItems } = result.current;
-      // 'setting' and 'memory' are shown when logged in
-      expect(mainItems?.some((item) => item?.key === 'setting')).toBe(true);
-      expect(mainItems?.some((item) => item?.key === 'memory')).toBe(true);
+      // 'setting' and memory are not shown in the user popover
+      expect(mainItems?.some((item) => item?.key === 'setting')).toBe(false);
+      expect(mainItems?.some((item) => item?.key === 'memory')).toBe(false);
       // 'logout' is shown when isLoginWithAuth is true
       expect(logoutItems.some((item) => item?.key === 'logout')).toBe(true);
     });

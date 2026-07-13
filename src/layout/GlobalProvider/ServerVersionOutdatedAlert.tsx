@@ -1,6 +1,8 @@
 'use client';
 
-import { Button, Flexbox, Icon } from '@lobehub/ui';
+import Button from '@lobehub/ui/es/Button/index';
+import { Flexbox } from '@lobehub/ui/es/Flex/index';
+import Icon from '@lobehub/ui/es/Icon/index';
 import { createStaticStyles, useTheme } from 'antd-style';
 import { TriangleAlert, X } from 'lucide-react';
 import { useMemo, useState } from 'react';

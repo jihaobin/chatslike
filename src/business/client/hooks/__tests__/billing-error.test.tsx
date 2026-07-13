@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   renderInsufficientCreditsContent,
   renderPhoneVerificationRequiredContent,
-} from '../useBusinessErrorContent';
+} from '../BusinessErrorContent';
 
 const navigateMock = vi.fn();
 
@@ -41,17 +41,33 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
 }));
 
-vi.mock('@lobehub/ui', () => ({
+vi.mock('@lobehub/ui/es/Button/index', () => ({
   Button: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>
       {children}
     </button>
   ),
+  default: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => (
+    <button type="button" onClick={onClick}>
+      {children}
+    </button>
+  ),
+}));
+
+vi.mock('@lobehub/ui/es/Flex/index', () => ({
   Center: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   Flexbox: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => (
     <div onClick={onClick}>{children}</div>
   ),
+}));
+
+vi.mock('@lobehub/ui/es/FluentEmoji/index', () => ({
+  default: ({ emoji }: { emoji: string }) => <span>{emoji}</span>,
   FluentEmoji: ({ emoji }: { emoji: string }) => <span>{emoji}</span>,
+}));
+
+vi.mock('@lobehub/ui/es/Text/index', () => ({
+  default: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
   Text: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
 }));
 

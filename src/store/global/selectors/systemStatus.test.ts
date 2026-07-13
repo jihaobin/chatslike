@@ -153,11 +153,9 @@ describe('systemStatusSelectors', () => {
         'pages',
         'tasks',
         SIDEBAR_SPACER_ID,
-        'image',
         'community',
         'resource',
         'memory',
-        'settings',
       ]);
     });
 
@@ -167,7 +165,6 @@ describe('systemStatusSelectors', () => {
         'recents',
         'agent',
         SIDEBAR_SPACER_ID,
-        'image',
         'tasks',
         'community',
         'resource',
@@ -176,7 +173,52 @@ describe('systemStatusSelectors', () => {
       const s: GlobalState = merge(initialState, {
         status: { sidebarItems: stored },
       });
-      expect(systemStatusSelectors.sidebarItems(s)).toEqual([...stored, 'settings']);
+      expect(systemStatusSelectors.sidebarItems(s)).toEqual(stored);
+    });
+
+    it('should drop the deprecated settings entry from stored sidebar items', () => {
+      const stored = [
+        'pages',
+        'recents',
+        'agent',
+        SIDEBAR_SPACER_ID,
+        'image',
+        'settings',
+        'resource',
+        'memory',
+      ];
+      const s: GlobalState = merge(initialState, {
+        status: { sidebarItems: stored },
+      });
+
+      expect(systemStatusSelectors.sidebarItems(s)).toEqual([
+        'pages',
+        'recents',
+        'agent',
+        SIDEBAR_SPACER_ID,
+        'resource',
+        'memory',
+        'community',
+      ]);
+    });
+
+    it('should migrate the old default order so resource appears below home', () => {
+      const s: GlobalState = merge(initialState, {
+        status: {
+          sidebarItems: [
+            'pages',
+            'recents',
+            'agent',
+            SIDEBAR_SPACER_ID,
+            'image',
+            'community',
+            'resource',
+            'memory',
+          ],
+        },
+      });
+
+      expect(systemStatusSelectors.sidebarItems(s)).toEqual(DEFAULT_SIDEBAR_ITEMS);
     });
 
     it('should append missing known keys to the end and keep the spacer anchored', () => {
@@ -193,7 +235,7 @@ describe('systemStatusSelectors', () => {
       expect(items).toContain('memory');
       // spacer sits directly before the first bottom-class item
       const firstBottomIdx = items.findIndex((k) =>
-        ['image', 'community', 'resource', 'memory'].includes(k),
+        ['community', 'memory'].includes(k),
       );
       expect(items[firstBottomIdx - 1]).toBe(SIDEBAR_SPACER_ID);
     });
@@ -205,14 +247,12 @@ describe('systemStatusSelectors', () => {
       const items = systemStatusSelectors.sidebarItems(s);
       // accordion slot in the default list now uses the user's legacy order
       expect(items).toEqual([
+        'resource',
         'pages',
         'agent',
         'recents',
         SIDEBAR_SPACER_ID,
-        'image',
         'community',
-        'resource',
-        'settings',
         'memory',
       ]);
     });

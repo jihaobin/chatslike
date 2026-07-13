@@ -8,13 +8,9 @@
   "starter.createAgent": "Agent erstellen",
   "starter.createGroup": "Gruppe erstellen",
   "starter.deepResearch": "Tiefgehende Recherche",
-  "starter.deepseekV4Pro": "DeepSeek V4 Pro",
-  "starter.deepseekV4ProAlready": "DeepSeek V4 Pro wird bereits verwendet",
-  "starter.deepseekV4ProSwitched": "Zu DeepSeek V4 Pro gewechselt",
   "starter.developing": "Demnächst verfügbar",
+  "starter.generateImage": "Bild generieren",
+  "starter.generateVideo": "Video generieren",
   "starter.image": "Bild",
-  "starter.imageGeneration": "Bildgenerierung",
-  "starter.newLabel": "Neu",
-  "starter.videoGeneration": "Seedance 2.0",
   "starter.write": "Schreiben"
 }

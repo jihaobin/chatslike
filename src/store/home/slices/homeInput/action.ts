@@ -13,7 +13,7 @@ import { type StoreSetter } from '@/store/types';
 import { getStableNavigate } from '@/utils/stableNavigate';
 import { setNamespace } from '@/utils/storeDebug';
 
-import { type StarterMode } from './initialState';
+import { type HomeChatMode, type StarterMode } from './initialState';
 
 const n = setNamespace('homeInput');
 
@@ -260,6 +260,10 @@ export class HomeInputActionImpl {
 
   setInputActiveMode = (mode: StarterMode): void => {
     this.#set({ inputActiveMode: mode }, false, n('setInputActiveMode', mode));
+  };
+
+  setHomeChatMode = (mode: HomeChatMode): void => {
+    this.#set({ homeChatMode: mode }, false, n('setHomeChatMode', mode));
   };
 }
 

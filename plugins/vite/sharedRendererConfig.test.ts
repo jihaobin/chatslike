@@ -58,6 +58,29 @@ describe('sharedModulePreload', () => {
       }),
     ).toEqual(deps);
   });
+
+  it('keeps deferred renderer vendors out of html and dynamic import preloads', () => {
+    const resolveDependencies = sharedModulePreload.resolveDependencies!;
+    const deps = [
+      'vendor/vendor-react.js',
+      'vendor/vendor-shiki.js',
+      'vendor/vendor-katex.js',
+      'vendor/vendor-emoji.js',
+      'assets/mermaid.js',
+      'assets/tsx-highlight.js',
+      'assets/explore.js',
+    ];
+
+    expect(
+      resolveDependencies('assets/index.js', deps, { hostId: 'index.html', hostType: 'html' }),
+    ).toEqual(['vendor/vendor-react.js', 'assets/explore.js']);
+    expect(
+      resolveDependencies('assets/explore.js', deps, {
+        hostId: 'assets/explore.js',
+        hostType: 'js',
+      }),
+    ).toEqual(['vendor/vendor-react.js', 'assets/explore.js']);
+  });
 });
 
 describe('sharedManualChunks', () => {

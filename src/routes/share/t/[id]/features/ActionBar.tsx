@@ -1,4 +1,5 @@
-import { Avatar, Block, Button, Center, Flexbox, Text } from '@lobehub/ui';
+import { Avatar, Block, Center, Flexbox, Text } from '@lobehub/ui';
+import { Button } from '@lobehub/ui/base-ui';
 import { HandIcon } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +16,7 @@ interface ActionBarProps {
 const ActionBar = memo<ActionBarProps>(({ data }) => {
   const { t } = useTranslation('chat');
   const isGroup = !!data?.groupId;
+
   const isInboxAgent = !isGroup && data?.agentMeta?.slug === 'inbox';
   const agentOrGroupTitle =
     data?.groupMeta?.title || (isInboxAgent ? 'Lobe AI' : data?.agentMeta?.title);
@@ -89,13 +91,13 @@ const ActionBar = memo<ActionBarProps>(({ data }) => {
         </Flexbox>
         <Flexbox horizontal align="center" gap={8}>
           <Link to={`/community/agent`}>
-            <Button shape={'round'} variant={'filled'}>
+            <Button shape={'round'}>
               {t('sharePage.actions.findMord')}
             </Button>
           </Link>
           {showActions && (
             <Link to={`/community/agent/${agentMarketIdentifier}`}>
-              <Button icon={HandIcon} shape={'round'} type={'primary'}>
+              <Button icon={<HandIcon />} shape={'round'} type={'primary'}>
                 {t('sharePage.actions.tryItYourself')}
               </Button>
             </Link>

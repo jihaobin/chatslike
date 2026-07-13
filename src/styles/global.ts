@@ -1,4 +1,4 @@
-import { CLASSNAMES } from '@lobehub/ui';
+import { CLASSNAMES } from '@lobehub/ui/es/styles/classNames';
 import type { Theme } from 'antd-style';
 import { css } from 'antd-style';
 

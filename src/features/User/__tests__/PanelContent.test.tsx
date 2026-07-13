@@ -65,7 +65,8 @@ vi.mock('@/const/version', () => ({
 
 vi.mock('@/store/serverConfig', () => ({
   serverConfigSelectors: {
-    enableBusinessFeatures: () => false,
+    commercialEnabled: () => false,
+    nativeBillingEnabled: () => false,
   },
   useServerConfigStore: (selector: (s: unknown) => unknown) => selector({}),
 }));
@@ -87,7 +88,7 @@ describe('PanelContent', () => {
       renderWithRouter(<PanelContent closePopover={closePopover} />);
 
       expect(screen.getByText('Mocked UserInfo')).toBeInTheDocument();
-      expect(screen.getByText('Mocked DataStatistics')).toBeInTheDocument();
+      expect(screen.queryByText('Mocked DataStatistics')).not.toBeInTheDocument();
       expect(screen.queryByText('Mocked SignInBlock')).not.toBeInTheDocument();
     });
 

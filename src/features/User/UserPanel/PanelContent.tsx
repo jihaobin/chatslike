@@ -1,6 +1,5 @@
 import { Flexbox } from '@lobehub/ui';
 import { type FC } from 'react';
-import { Link } from 'react-router-dom';
 
 import BusinessPanelContent from '@/business/client/features/User/BusinessPanelContent';
 import Menu from '@/components/Menu';
@@ -12,7 +11,6 @@ import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfi
 import { useUserStore } from '@/store/user';
 import { authSelectors } from '@/store/user/selectors';
 
-import DataStatistics from '../DataStatistics';
 import UserLoginOrSignup from '../UserLoginOrSignup';
 import LangButton from './LangButton';
 import { useMenu } from './useMenu';
@@ -55,9 +53,6 @@ const PanelContent: FC<{ closePopover: () => void }> = ({ closePopover }) => {
       {isDesktop || isLoginWithAuth ? (
         <>
           <UserInfo avatarProps={{ clickable: false }} />
-          <Link style={{ color: 'inherit' }} to={'/settings/stats'}>
-            <DataStatistics />
-          </Link>
           {showBusinessPanelContent && <BusinessPanelContent />}
         </>
       ) : (

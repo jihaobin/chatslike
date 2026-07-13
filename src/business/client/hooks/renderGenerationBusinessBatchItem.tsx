@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { type GenerationBatch } from '@/types/generation';
 
 import {
+  renderInsufficientCreditsContent,
+  renderPhoneVerificationRequiredContent,
+} from './BusinessErrorContent';
+import {
   type InsufficientCreditsParams,
   isInsufficientCreditsError,
   isPhoneVerificationRequiredError,
-  renderInsufficientCreditsContent,
-  renderPhoneVerificationRequiredContent,
 } from './useBusinessErrorContent';
 
 const toNumber = (value: unknown) =>

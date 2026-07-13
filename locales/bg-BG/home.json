@@ -8,13 +8,9 @@
   "starter.createAgent": "Създай агент",
   "starter.createGroup": "Създай група",
   "starter.deepResearch": "Задълбочено проучване",
-  "starter.deepseekV4Pro": "DeepSeek V4 Pro",
-  "starter.deepseekV4ProAlready": "Вече използвате DeepSeek V4 Pro",
-  "starter.deepseekV4ProSwitched": "Превключихте към DeepSeek V4 Pro",
   "starter.developing": "Очаквайте скоро",
+  "starter.generateImage": "Генериране на изображение",
+  "starter.generateVideo": "Генериране на видео",
   "starter.image": "Изображение",
-  "starter.imageGeneration": "Генериране на изображения",
-  "starter.newLabel": "Ново",
-  "starter.videoGeneration": "Seedance 2.0",
   "starter.write": "Писане"
 }

@@ -55,6 +55,16 @@ const sidebarExpandedKeys = (s: GlobalState): string[] =>
 export const SIDEBAR_SPACER_ID = '__spacer__';
 
 export const DEFAULT_SIDEBAR_ITEMS: string[] = [
+  'resource',
+  'pages',
+  'recents',
+  'agent',
+  SIDEBAR_SPACER_ID,
+  'community',
+  'memory',
+];
+
+const LEGACY_DEFAULT_SIDEBAR_ITEMS: string[] = [
   'pages',
   'recents',
   'agent',
@@ -62,7 +72,6 @@ export const DEFAULT_SIDEBAR_ITEMS: string[] = [
   'image',
   'community',
   'resource',
-  'settings',
   'memory',
 ];
 
@@ -72,9 +81,16 @@ export const SIDEBAR_ACCORDION_KEYS = new Set(['recents', 'agent']);
 const DEFAULT_BOTTOM_KEYS = new Set(
   DEFAULT_SIDEBAR_ITEMS.slice(DEFAULT_SIDEBAR_ITEMS.indexOf(SIDEBAR_SPACER_ID) + 1),
 );
+const DEPRECATED_SIDEBAR_ITEMS = new Set(['image', 'settings']);
+
+const isSameOrder = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every((item, index) => item === b[index]);
+
+const migrateLegacyDefaultOrder = (order: string[]): string[] =>
+  isSameOrder(order, LEGACY_DEFAULT_SIDEBAR_ITEMS) ? DEFAULT_SIDEBAR_ITEMS : order;
 
 /** Insert the spacer sentinel into `order` if missing — anchored before the first
- * default "bottom" item (image/community/...), falling back to the end. */
+ * default "bottom" item (community/memory), falling back to the end. */
 const ensureSpacer = (order: string[]): string[] => {
   if (order.includes(SIDEBAR_SPACER_ID)) return order;
   const insertAt = order.findIndex((k) => DEFAULT_BOTTOM_KEYS.has(k));
@@ -84,9 +100,12 @@ const ensureSpacer = (order: string[]): string[] => {
 
 /** Append any known keys missing from `order` so new items don't disappear on upgrade. */
 const withAllKnownKeys = (order: string[]): string[] => {
-  const present = new Set(order);
+  const nextOrder = migrateLegacyDefaultOrder(order).filter(
+    (key) => !DEPRECATED_SIDEBAR_ITEMS.has(key),
+  );
+  const present = new Set(nextOrder);
   const missing = DEFAULT_SIDEBAR_ITEMS.filter((k) => k !== SIDEBAR_SPACER_ID && !present.has(k));
-  const withMissing = missing.length === 0 ? order : [...order, ...missing];
+  const withMissing = missing.length === 0 ? nextOrder : [...nextOrder, ...missing];
   return ensureSpacer(withMissing);
 };
 

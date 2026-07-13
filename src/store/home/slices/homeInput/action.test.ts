@@ -104,6 +104,7 @@ vi.mock('@/utils/stableNavigate', () => ({
 
 const createAction = () => {
   const homeState: Partial<HomeStore> = {
+    homeChatMode: 'welcome',
     refreshAgentList: refreshAgentListMock,
   };
 
@@ -115,7 +116,11 @@ const createAction = () => {
     Object.assign(homeState, partial);
   }) as StoreSetter<HomeStore>;
 
-  return new HomeInputActionImpl(setState, () => homeState as HomeStore);
+  const action = new HomeInputActionImpl(setState, () => homeState as HomeStore);
+
+  return Object.assign(action, {
+    __getState: () => homeState,
+  });
 };
 
 describe('HomeInputActionImpl', () => {
@@ -161,6 +166,22 @@ describe('HomeInputActionImpl', () => {
           message: 'build a research group',
         }),
       );
+    });
+  });
+
+  describe('setHomeChatMode', () => {
+    it('updates the home chat mode explicitly', () => {
+      const action = createAction();
+      const homeState = (action as unknown as { __getState?: () => Partial<HomeStore> })
+        .__getState?.();
+
+      action.setHomeChatMode('chat');
+
+      expect(homeState?.homeChatMode).toBe('chat');
+
+      action.setHomeChatMode('welcome');
+
+      expect(homeState?.homeChatMode).toBe('welcome');
     });
   });
 });

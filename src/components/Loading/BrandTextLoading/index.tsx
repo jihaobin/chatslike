@@ -1,4 +1,5 @@
-import { BrandLoading, LobeHubText } from '@lobehub/ui/brand';
+import BrandLoading from '@lobehub/ui/es/brand/BrandLoading/index';
+import LobeHubText from '@lobehub/ui/es/brand/LobeHubText/index';
 
 import { isCustomBranding } from '@/const/version';
 

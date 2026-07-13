@@ -32,16 +32,21 @@ export enum GroupKey {
   Resource = 'resource',
 }
 
-const ACCORDION_KEYS = new Set<string>([GroupKey.Recents, GroupKey.Agent]);
+const ACCORDION_KEYS = new Set<string>([GroupKey.Agent]);
 
 /** Keys rendered in the header — must be excluded from the body to avoid duplicates
  * when migrating users whose persisted sidebarItems still include them. */
-const HEADER_KEYS = new Set<string>(['home', 'search']);
+const HEADER_KEYS = new Set<string>(['home', 'pages', 'resource', 'search']);
 
 const accordionComponents: Record<string, (key: string) => ReactElement> = {
   [GroupKey.Agent]: (key) => <Agent itemKey={key} key={key} />,
+};
+
+const plainSectionComponents: Record<string, (key: string) => ReactElement> = {
   [GroupKey.Recents]: (key) => <Recents itemKey={key} key={key} />,
 };
+
+const PLAIN_SECTION_KEYS = new Set<string>(Object.keys(plainSectionComponents));
 
 const mergeSidebarExpandedKeys = (
   currentKeys: string[],
@@ -200,6 +205,10 @@ const Body = memo(() => {
             style={{ flex: '1 1 0', minHeight: 0 }}
           />,
         );
+      } else if (PLAIN_SECTION_KEYS.has(key)) {
+        flushAccordion();
+        const comp = plainSectionComponents[key]?.(key);
+        if (comp) elements.push(comp);
       } else if (ACCORDION_KEYS.has(key)) {
         const comp = accordionComponents[key]?.(key);
         if (comp) accGroup.push({ element: comp, key });

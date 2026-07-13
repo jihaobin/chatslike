@@ -1,6 +1,6 @@
 import { isDesktop } from '@lobechat/const';
 import { Avatar } from '@lobehub/ui';
-import { SkillsIcon } from '@lobehub/ui/icons';
+import SkillsIcon from '@lobehub/ui/es/icons/lucideExtra/SkillsIcon';
 import {
   BarChart3,
   BellIcon,

@@ -1,6 +1,6 @@
 import { type UIChatMessage } from '@lobechat/types';
 import { TraceEventType } from '@lobechat/types';
-import * as lobeUIModules from '@lobehub/ui';
+import * as copyToClipboardModule from '@lobehub/ui/es/utils/copyToClipboard';
 import { act, renderHook } from '@testing-library/react';
 import { type Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -412,7 +412,7 @@ describe('chatMessage actions', () => {
       const messageId = 'message-id';
       const content = 'Test content';
       const { result } = renderHook(() => useChatStore());
-      const copyToClipboardSpy = vi.spyOn(lobeUIModules, 'copyToClipboard');
+      const copyToClipboardSpy = vi.spyOn(copyToClipboardModule, 'copyToClipboard');
 
       await act(async () => {
         await result.current.copyMessage(messageId, content);

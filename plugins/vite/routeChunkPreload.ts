@@ -261,15 +261,18 @@ const syntaxHighlightModulePatterns = [
 
 const deferredRendererModulePatterns = [
   ...syntaxHighlightModulePatterns,
+  '/node_modules/@emoji-mart/',
   '/node_modules/@mermaid-js/',
   '/node_modules/cytoscape/',
   '/node_modules/dagre/',
   '/node_modules/graphlib/',
+  '/node_modules/katex/',
   '/node_modules/mermaid/',
   '/node_modules/roughjs/',
 ];
 
 const deferredRendererFileNamePatterns = [
+  /(^|\/)vendor-(?:emoji|katex|shiki)(?:-|\.|$)/i,
   /(^|\/)(?:github-dark|catppuccin|pierre-dark|pierre-light)-[^/]+\.js$/i,
   /(^|\/)(?:javascript|typescript|tsx|jsx|wasm)-[^/]+\.js$/i,
   /(^|\/)mermaid(?:\.|-)[^/]+\.js$/i,
