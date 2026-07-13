@@ -1,0 +1,295 @@
+---
+title: 项目接手与维护指南
+description: 面向后续维护者的项目定位、架构、启动方式、验证流程和当前问题说明。
+tags:
+  - LobeHub
+  - 项目交接
+  - 项目架构
+  - 本地开发
+  - 已知问题
+---
+
+# 项目接手与维护指南
+
+<Callout type={'warning'}>
+  本仓库以中文开发文档为当前维护基线。英文文档没有随本项目的定制开发同步更新，可能包含过期的目录、路由、命令和产品行为；接手时不要把英文文档当作当前代码的权威说明。
+</Callout>
+
+本文面向第一次接手本仓库的开发者。它描述的是当前代码的实际边界，不是上游 LobeHub 的通用产品介绍。
+
+## 1. 项目定位
+
+本仓库是基于 LobeHub 演进的定制项目：
+
+- Git 远程仓库：`https://github.com/jihaobin/chatslike.git`
+- 当前长期维护分支：`self-host/prod`
+- 基础技术栈：Next.js 16、React 19、TypeScript、Vite SPA、React Router DOM、tRPC、Drizzle ORM、PostgreSQL、Redis 和 S3 兼容对象存储
+- 运行形态：Web 桌面端、Web 移动端、Electron 桌面端、CLI 和 Device Gateway
+
+与上游相比，本项目的重要定制包括：
+
+- `/` 与 `/explore` 都渲染桌面端门户，聊天工作台位于 `/home`。
+- 普通用户界面可通过 feature flag 隐藏助理管理，但聊天数据层仍依赖内置 `inbox` 助理。
+- 管理后台集成在现有 SPA 的 `/home/settings/admin` 路由中，并使用 RBAC 控制权限。
+- 本地环境包含商业能力、平台托管模型、原生计费和支付联调开关。
+- 中文文档是本项目的维护基线，不能默认套用上游英文文档中的路径和行为。
+
+相关业务决策记录在根目录的 `CONTEXT.md` 和 `docs/adr/`。修改首页、助理、管理后台、积分或计费逻辑前，应先阅读对应 ADR。
+
+## 2. 接手后的第一轮检查
+
+不要直接清理、重置或覆盖工作区。先执行：
+
+```bash
+git status --short --branch
+git remote -v
+git log -5 --oneline
+```
+
+然后依次确认：
+
+1. 当前分支是否为预期的 `self-host/prod` 或任务指定分支。
+2. 工作区中哪些改动已暂存、未暂存或未跟踪，避免把前任工作误删。
+3. `.env` 与 `docker-compose/dev/.env` 是否存在，以及配置是否适合本地环境。
+4. Docker Desktop、Node.js、pnpm 和 Bun 是否可用。
+5. 本次修改涉及的领域是否已有 `CONTEXT.md` 术语或 `docs/adr/` 决策。
+
+## 3. 仓库架构
+
+### 3.1 顶层结构
+
+```plaintext
+lobehub/
+├── apps/
+│   ├── cli/                  # @lobehub/cli
+│   ├── desktop/              # Electron 桌面端
+│   └── device-gateway/       # Cloudflare Worker 设备网关
+├── packages/                 # @lobechat/* 共享包
+├── src/                      # Web 主应用、服务端和业务代码
+├── locales/                  # 各语言构建产物
+├── e2e/                      # Cucumber + Playwright E2E
+├── docker-compose/           # 开发和部署编排
+├── scripts/                  # 启动、构建、迁移和维护脚本
+├── CONTEXT.md                # 项目领域术语
+└── docs/adr/                 # 关键架构决策
+```
+
+### 3.2 Web 应用边界
+
+Web 应用不是纯 Next.js 页面，也不是独立 Vite 应用，而是两者组合：
+
+| 层                  | 位置                    | 职责                                                  |
+| ------------------ | --------------------- | --------------------------------------------------- |
+| Next.js App Router | `src/app/`            | 认证页面、SPA HTML 模板、API Route Handler、tRPC 和 WebAPI 入口 |
+| SPA 入口             | `src/spa/entry.*.tsx` | Web、移动端、Electron 和弹窗渲染入口                            |
+| React Router 配置    | `src/spa/router/`     | 桌面端、移动端和弹窗路由树                                       |
+| 页面根节点              | `src/routes/`         | 路由 segment、layout 和 page 组合                         |
+| 领域 UI              | `src/features/`       | 可复用的业务组件、hooks 和页面主体                                |
+| 全局布局               | `src/layout/`         | Provider、主题、认证和全局初始化                                |
+
+新 SPA 页面应遵守 roots 与 features 分离：`src/routes/` 只保留薄路由节点，业务 UI 放在 `src/features/<Domain>/`。当前仓库仍有不少历史 `src/routes/**/features` 目录，属于尚未收敛完的迁移债务，不应继续照此新增。
+
+桌面端路由存在两份配置：
+
+- `src/spa/router/desktopRouter.config.tsx`
+- `src/spa/router/desktopRouter.config.desktop.tsx`
+
+修改桌面路由时必须同步两份文件，并运行 `src/spa/router/desktopRouter.sync.test.tsx`。只改一份可能让某个构建目标出现空白页面。
+
+### 3.3 客户端到数据库的数据流
+
+典型业务写入链路如下：
+
+```plaintext
+React UI
+  -> Zustand Store Action
+  -> src/services 客户端服务
+  -> src/server/routers tRPC Router
+  -> src/server/services 服务端业务
+  -> packages/database Model / Repository
+  -> PostgreSQL
+```
+
+读取通常由 Store 中的 SWR hook 发起，经 tRPC 获取数据，再由 selector 提供给 UI。不要让页面直接跨层访问数据库，也不要在 `src/server/modules/` 中引入数据库访问；可访问数据库的服务应位于 `src/server/services/`。
+
+### 3.4 Runtime 与工具体系
+
+- `packages/model-runtime/`：统一不同模型 Provider 的调用方式。
+- `packages/agent-runtime/`：Agent 循环、工具调用、上下文和人工介入。
+- `packages/builtin-tool-*/`：单个内置工具包。
+- `packages/builtin-tools/`：工具注册、渲染、检查器和介入能力的集中组合。
+- `packages/database/`：Drizzle schemas、models 和 repositories。
+- `src/store/chat/`：会话状态和客户端执行控制。
+- `src/server/services/agentRuntime/`：服务端 Agent Runtime 接入。
+
+## 4. 本地启动
+
+### 4.1 安装与环境文件
+
+```bash
+pnpm install
+
+# PowerShell
+Copy-Item docker-compose/dev/.env.example docker-compose/dev/.env
+Copy-Item .env.example.development .env
+```
+
+`.env.example.development` 包含本项目的本地商业能力配置和模拟支付开关，只能用于本地开发。不要原样用于生产环境，也不要把真实密钥提交到仓库。
+
+### 4.2 完整本地开发
+
+```bash
+bun run dev:docker
+pnpm db:migrate
+bun run dev
+```
+
+`bun run dev` 由 `scripts/devStartupSequence.mts` 启动两个进程：
+
+- Next.js 服务：默认 `http://localhost:3010`
+- Vite SPA：默认 `http://localhost:9876`
+
+脚本会等待 Next.js 端口就绪并预热根页面。任一子进程异常退出时，启动器会结束另一进程。
+
+### 4.3 只开发 SPA
+
+```bash
+bun run dev:spa
+```
+
+Vite 启动后会输出并尝试打开 Debug Proxy：
+
+```plaintext
+https://app.lobehub.com/_dangerous_local_dev_proxy?debug-host=http%3A%2F%2Flocalhost%3A9876
+```
+
+该模式把本地 SPA 放入线上 `app.lobehub.com` 环境，适合使用线上后端配置和真实账号调试。它不是纯离线本地环境；涉及账号、数据和权限时，要先确认自己操作的是哪个环境。
+
+### 4.4 其他运行目标
+
+```bash
+# 移动端 Web SPA，默认 http://localhost:3012
+bun run dev:spa:mobile
+
+# Electron 桌面端
+bun run dev:desktop
+
+# CLI
+cd apps/cli
+pnpm run dev
+
+# Device Gateway
+cd apps/device-gateway
+pnpm run dev
+```
+
+CLI 和 Device Gateway 是独立运行目标，不会随根目录 `bun run dev` 自动启动。
+
+## 5. 开发基础服务
+
+`bun run dev:docker` 当前启动以下服务：
+
+| 服务             | 默认地址或端口          | 用途                           |
+| -------------- | ---------------- | ---------------------------- |
+| PostgreSQL     | `localhost:5432` | 主数据库，开发镜像包含 ParadeDB/PG17 能力 |
+| Redis          | `localhost:6379` | 缓存和运行时状态                     |
+| RustFS         | `localhost:9000` | S3 兼容对象存储 API                |
+| RustFS Console | `localhost:9001` | 对象存储控制台                      |
+| SearXNG        | `localhost:8180` | 搜索服务                         |
+
+检查状态：
+
+```bash
+docker compose -f docker-compose/dev/docker-compose.yml ps
+```
+
+完全重置会删除本地容器卷和开发数据，只能在确认数据可丢弃后执行：
+
+```bash
+bun run dev:docker:reset
+```
+
+## 6. 构建与验证
+
+### 6.1 构建链路
+
+完整构建：
+
+```bash
+bun run build
+```
+
+完整构建依次执行：
+
+1. `build:spa`：Vite 生成 `dist/desktop` 等 SPA 产物。
+2. `build:spa:copy`：复制静态资源到 `public/_spa`，并生成 Next.js 使用的 SPA HTML 模板。
+3. `build:next`：构建 Next.js 服务。
+
+只运行 `bun run build:spa` 不能证明 Next.js 能提供最新 SPA。需要可运行的本地成品时，必须继续运行：
+
+```bash
+bun run build:spa:copy
+```
+
+### 6.2 测试原则
+
+不要运行耗时很长的全量 `bun run test`。优先运行与改动对应的测试文件：
+
+```bash
+bunx vitest run --silent='passed-only' 'src/path/to/file.test.ts'
+```
+
+数据库包测试应在包目录执行：
+
+```bash
+cd packages/database
+bunx vitest run --silent='passed-only' 'src/path/to/file.test.ts'
+```
+
+涉及 TypeScript 代码时还需运行：
+
+```bash
+bun run type-check
+```
+
+文档修改至少执行 Prettier、失效链接、脚本名和 `git diff --check` 检查。
+
+## 7. 当前问题与风险
+
+以下内容分为结构性问题和状态快照。结构性问题需要后续维护者持续注意；带日期的快照应在完成相关工作后更新，而不是永久保留为结论。
+
+### 7.1 结构性问题
+
+1. **中文与英文文档已分叉。** 当前只维护中文文档，英文说明可能继续落后。引用文档时应优先使用中文版本，并回到代码验证关键路径。
+2. **SPA 分层迁移尚未完成。** 规范要求路由根节点保持轻薄，但仓库仍存在大量 `src/routes/**/features` 和路由内重型组件。新增代码应放入 `src/features/`，旧目录按实际修改范围逐步迁移，避免一次性大重构。
+3. **桌面路由配置存在双份同步成本。** Web 和 Electron 使用两份桌面路由配置；同步测试只能降低风险，不能替代修改时的人工核对。
+4. **SPA 构建是两阶段流程。** `build:spa` 只生成 Vite 产物，`build:spa:copy` 才把资源和模板接入 Next.js。漏掉第二步会造成源代码与实际服务产物不一致。
+5. **开发基础设施使用浮动镜像。** PostgreSQL、RustFS、SearXNG 和初始化工具中存在 `latest` 或未固定版本的镜像，重新拉取后可能产生兼容性或数据格式变化。升级前应先核对镜像版本、持久化数据和回滚方案。
+6. **本地环境同时包含上游能力与本项目商业开关。** `.env.example.development` 默认面向本项目联调，包含 mock payment 与平台托管模型配置。排查问题时要先区分上游通用逻辑、商业定制逻辑和仅本地启用的模拟行为。
+
+### 7.2 2026-07 状态快照
+
+- 2026-07-09 的线上审计曾观测到首屏请求和 JS 体积过大、过度 `modulepreload`、Cloudflare 大陆链路不稳定以及 favicon 404。代码侧已持续调整 Vite 分块和预加载策略，但仍需用最新生产构建重新建立基线；旧报告数据不能直接当作当前结果。详见 `docs/impl/chatslike-performance-audit-2026-07-09.md`。
+- `/explore` 门户目前只完成桌面端设计，移动端仍使用原有首页。
+- `/explore` 顶部多数导航项、“联系我们” 按钮和应用场景卡目前只有展示样式，尚未接入实际跳转或业务动作；核心产品卡可以进入聊天、图像和视频功能。
+- 助理管理隐藏是前端 feature flag 行为，后端 Agent、Session 和 Message 数据关系没有被移除。排查 “界面看不到助理但数据库仍有关联” 时，这是预期设计。
+
+## 8. 修改代码时的关键规则
+
+- 路由文件保持薄，只负责导入和组合 `src/features/` 中的页面或布局。
+- 修改桌面路由时同步两份配置，并运行路由同步测试。
+- 新增用户可见文本时更新 `src/locales/default/`，开发预览同步 `locales/zh-CN/` 和 `locales/en-US/`。
+- 样式优先使用 `createStaticStyles` 与 `cssVar.*`；只有必须运行时计算时才使用 `createStyles` 与 token。
+- Zustand、tRPC、Drizzle、数据库迁移、Modal 和桌面 IPC 各有独立仓库技能或约定，修改前先阅读对应指南。
+- 不要把未确认的工作区改动回退、覆盖或顺手提交。
+
+## 9. 文档维护规则
+
+每次修改启动脚本、路由位置、基础服务或构建链路时，至少同步检查：
+
+- `docs/development/basic/handoff.zh-CN.mdx`
+- `docs/development/basic/setup-development.zh-CN.mdx`
+- `docs/development/basic/folder-structure.zh-CN.mdx`
+- `docs/development/basic/architecture.zh-CN.mdx`
+
+英文文档当前不作为同步目标，但中文入口必须保留 “英文文档可能滞后” 的声明。任何命令、端口和路径都应以当前 `package.json`、Compose 文件和源码为准。

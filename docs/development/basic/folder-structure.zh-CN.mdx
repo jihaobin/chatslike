@@ -1,220 +1,190 @@
 ---
 title: 目录架构
-description: 深入了解 LobeHub 的文件夹目录架构及其功能模块。
+description: 说明本项目当前 Monorepo、SPA、服务端和共享包的目录边界。
 tags:
   - LobeHub
   - 目录架构
-  - Next.js
-  - API路由
-  - 前端开发
+  - Monorepo
+  - SPA
+  - 服务端
 ---
 
 # 目录架构
 
-LobeHub 采用 Monorepo 架构（`@lobechat/` 命名空间），
-顶层目录结构如下：
+<Callout type={'warning'}>
+  本页已按当前中文代码结构更新。英文目录文档可能仍描述旧的 `src/app/[variants]` SPA
+  布局，不应作为当前路径依据。
+</Callout>
 
-```bash
-lobehub/
-├── apps/
-│   └── desktop/               # Electron 桌面应用
-├── packages/                  # 共享包（@lobechat/*）
-│   ├── agent-runtime/         # Agent 运行时
-│   ├── database/              # 数据库 schemas、models、repositories
-│   ├── model-runtime/         # 模型运行时（各 AI 提供商适配）
-│   ├── builtin-tool-*/        # 内置工具包
-│   ├── business/              # Cloud 业务插槽 packages
-│   ├── context-engine/        # 上下文引擎
-│   ├── conversation-flow/     # 会话流程
-│   ├── editor-runtime/        # 编辑器运行时
-│   ├── file-loaders/          # 文件加载器
-│   ├── prompts/               # Prompt 模板
-│   └── ...                    # 更多共享包
-├── src/                       # 主应用源码（见下方详细说明）
-├── locales/                   # i18n 翻译文件（zh-CN、en-US 等）
-├── e2e/                       # E2E 测试（Cucumber + Playwright）
-└── docs/                      # 文档
-```
-
-## src 目录
-
-```bash
-src/
-├── app/               # Next.js App Router（路由组和 API 路由）
-├── business/          # Cloud 版专用业务逻辑（客户端/服务端）
-├── components/        # 可复用的 UI 组件
-├── config/            # 应用配置（客户端与服务端环境变量）
-├── const/             # 应用常量和枚举
-├── envs/              # 环境变量定义和校验
-├── features/          # 业务功能模块（Agent 设置、插件开发弹窗等）
-├── helpers/           # 工具辅助函数
-├── hooks/             # 全应用复用的自定义 Hooks
-├── layout/            # 全局布局组件（AuthProvider、GlobalProvider）
-├── libs/              # 第三方集成（better-auth、OIDC、tRPC、MCP 等）
-├── locales/           # 国际化默认语言文件（英文）
-├── server/            # 服务端模块
-│   ├── featureFlags/  # Feature Flags
-│   ├── globalConfig/  # 全局配置
-│   ├── modules/       # 服务端模块（不访问数据库）
-│   ├── routers/       # tRPC 路由（async、lambda、mobile、tools）
-│   └── services/      # 服务端服务（可访问数据库）
-├── services/          # 客户端服务接口
-├── store/             # zustand 状态管理
-├── styles/            # 全局样式和 CSS-in-JS 配置
-├── tools/             # 内置工具（artifacts、inspectors 等）
-├── types/             # TypeScript 类型定义
-├── utils/             # 通用工具函数
-├── auth.ts            # 认证配置（Better Auth）
-├── instrumentation.ts # 应用监控和遥测设置
-└── proxy.ts           # Next.js 中间件代理配置
-```
-
-## app 目录
-
-`app` 目录遵循 Next.js App Router 约定，
-使用[路由组](https://nextjs.org/docs/app/building-your-application/routing/route-groups)
-来组织后端服务、平台变体和应用路由：
-
-```bash
-app/
-├── (backend)/                 # 后端 API 路由和服务
-│   ├── api/                   # REST API 端点（auth、webhooks）
-│   ├── f/                     # 文件服务
-│   ├── market/                # 市场服务
-│   ├── middleware/            # 请求中间件
-│   ├── oidc/                  # OpenID Connect 路由
-│   ├── trpc/                  # tRPC API 端点
-│   │   ├── async/             # 异步 tRPC 路由
-│   │   ├── desktop/           # 桌面端 tRPC 路由
-│   │   ├── lambda/            # Lambda tRPC 路由
-│   │   └── tools/             # 工具 tRPC 路由
-│   └── webapi/                # Web API 端点（chat、models、tts 等）
-├── [variants]/                # 平台和设备变体
-│   ├── (auth)/                # 身份验证页面（login、signup）
-│   ├── (desktop)/             # 桌面端专用路由
-│   ├── (main)/                # 主应用路由（SPA）
-│   │   ├── _layout/           # 布局组件
-│   │   ├── agent/             # Agent 页面
-│   │   ├── home/              # 首页
-│   │   ├── image/             # 图像生成
-│   │   ├── memory/            # 记忆管理
-│   │   ├── resource/          # 资源管理
-│   │   └── settings/          # 应用设置
-│   ├── (mobile)/              # 移动端专用路由
-│   ├── onboarding/            # 新用户引导
-│   ├── router/                # SPA 路由配置
-│   └── share/                 # 分享页面
-├── manifest.ts                # PWA 清单
-├── robots.tsx                 # Robots.txt 生成
-├── sitemap.tsx                # 站点地图生成
-└── sw.ts                      # Service Worker
-```
-
-### 架构说明
-
-**路由组：**
-
-- `(backend)` — 所有服务端 API 路由、中间件和后端服务
-- `[variants]` — 处理不同平台变体的动态路由组
-- `(main)` — 主应用 SPA，使用 React Router DOM
-
-**平台组织：**
-
-- 通过路由组织支持多平台（Web、桌面端、移动端）
-- 桌面端专用路由在 `(desktop)/` 下
-- 移动端专用路由在 `(mobile)/` 下
-- 共享布局组件在 `_layout/` 目录中
-
-**API 架构：**
-
-- REST API：`(backend)/api/` 和 `(backend)/webapi/`
-- tRPC 端点（`src/server/routers/`）：按运行时分组
-  - `lambda/` — 主要业务路由（agent、session、message、
-    topic、file、knowledge、settings 等）
-  - `async/` — 耗时异步操作（文件处理、图像生成、RAG 评估）
-  - `tools/` — 工具调用（search、MCP、market、klavis）
-  - `mobile/` — 移动端专用路由
-
-**数据流：**
-
-以一个典型的用户操作（如更新 Agent 配置）为例，数据在各层之间的流转：
+## 顶层目录
 
 ```plaintext
-React UI (src/features/, src/app/)
-  │  用户交互触发事件
-  ▼
-Store Actions (src/store/)
-  │  zustand action 更新本地状态，调用 service
-  ▼
-Client Service (src/services/)
-  │  封装 tRPC 客户端调用，处理请求参数
-  ▼
-tRPC Router (src/server/routers/lambda/)
-  │  校验输入（zod），路由到对应 service
-  ▼
-Server Service (src/server/services/)
-  │  执行业务逻辑，调用 DB model
-  ▼
-DB Model (packages/database/src/models/)
-  │  封装 Drizzle ORM 查询
-  ▼
-PostgreSQL
+lobehub/
+├── apps/
+│   ├── cli/                  # @lobehub/cli
+│   ├── desktop/              # Electron 桌面应用
+│   └── device-gateway/       # Cloudflare Worker 设备网关
+├── packages/                 # @lobechat/* 共享包
+├── src/                      # Web 主应用与服务端
+├── locales/                  # 多语言 JSON 构建产物
+├── e2e/                      # Cucumber + Playwright E2E
+├── docker-compose/           # 开发、生产和自托管编排
+├── scripts/                  # 启动、构建、迁移与维护脚本
+├── docs/                     # 产品、开发、自托管和 ADR 文档
+├── CONTEXT.md                # 项目领域术语
+├── package.json              # 根脚本与工作区依赖
+└── pnpm-workspace.yaml       # pnpm workspace 定义
 ```
 
-读取数据的流程方向相反：UI 通过 store selector 消费数据，store 通过 SWR + tRPC query 从后端拉取。
+## apps
 
-### 路由架构
+| 目录                     | 说明                        | 独立启动方式                    |
+| ---------------------- | ------------------------- | ------------------------- |
+| `apps/desktop/`        | Electron 桌面端、IPC、主进程和桌面构建 | 根目录 `bun run dev:desktop` |
+| `apps/cli/`            | LobeHub 命令行工具             | 目录内 `pnpm run dev`        |
+| `apps/device-gateway/` | 基于 Hono/Wrangler 的设备网关    | 目录内 `pnpm run dev`        |
 
-项目采用混合路由：
-Next.js App Router 处理静态页面（如认证页），
-React Router DOM 承载主应用 SPA。
+根目录 `bun run dev` 只启动 Web 所需的 Next.js 和 Vite，不会自动启动 CLI 或 Device Gateway。
 
-**入口**：`src/app/[variants]/page.tsx`
-根据设备类型分发到桌面端或移动端路由。
+## packages
 
-**关键配置文件：**
+`packages/` 是共享能力层，实际目录会持续变化。关键包包括：
 
-- 桌面端路由：`src/app/[variants]/router/desktopRouter.config.tsx`
-- 移动端路由：`src/app/[variants]/(mobile)/router/mobileRouter.config.tsx`
-- 路由工具：`src/utils/router.tsx`
-
-**桌面端 SPA 路由（React Router DOM）：**
-
-```bash
-/                          # 首页
-/agent/:aid                # Agent 会话
-/agent/:aid/profile        # Agent 详情
-/agent/:aid/cron/:cronId   # 定时任务详情
-/group/:gid                # 群组会话
-/group/:gid/profile        # 群组详情
-/community                 # 社区发现（agent、model、provider、mcp）
-/community/agent/:slug     # Agent 详情页
-/community/model/:slug     # 模型详情页
-/community/provider/:slug  # 提供商详情页
-/community/mcp/:slug       # MCP 详情页
-/resource                  # 资源管理
-/resource/library/:id      # 知识库详情
-/settings/:tab             # 设置（profile、provider 等）
-/settings/provider/:id     # 模型提供商配置
-/memory                    # 记忆管理
-/image                     # 图像生成
-/page/:id                  # 页面详情
-/share/t/:id               # 分享话题
-/onboarding                # 新用户引导
+```plaintext
+packages/
+├── agent-runtime/            # Agent 执行循环与编排
+├── agent-signal/             # Agent Signal 管道
+├── agent-tracing/            # Agent 执行追踪
+├── builtin-agents/           # 内置 Agent
+├── builtin-skills/           # 内置 Skill
+├── builtin-tool-*/           # 单个内置工具包
+├── builtin-tools/            # 工具集中注册和 UI 协议组合
+├── context-engine/           # 上下文引擎
+├── database/                 # schemas、models、repositories、migrations
+├── model-bank/               # 模型与 Provider 元数据
+├── model-runtime/            # 模型 Provider 适配层
+├── types/                    # 跨层共享类型
+└── utils/                    # 跨包工具函数
 ```
 
-**移动端 SPA 路由（React Router DOM）：**
+不要依赖文档中的包数量；定位能力时应直接查看当前 `packages/` 和对应 `package.json`。
 
-```bash
-/                          # 首页
-/agent/:aid                # Agent 会话
-/community                 # 社区发现
-/settings                  # 设置首页
-/settings/:tab             # 设置详情
-/settings/provider/:id     # 模型提供商配置
-/me                        # 个人中心
-/me/profile                # 个人资料
-/me/settings               # 个人设置
-/share/t/:id               # 分享话题
-/onboarding                # 新用户引导
+## src
+
+```plaintext
+src/
+├── app/                      # Next.js App Router 与服务端 HTTP 入口
+├── routes/                   # SPA 路由根节点
+├── spa/                      # Vite SPA 入口与 React Router 配置
+├── features/                 # 领域 UI、页面主体和业务 hooks
+├── components/               # 跨领域可复用组件
+├── layout/                   # 全局 Provider 和布局
+├── store/                    # Zustand Store
+├── services/                 # 客户端服务
+├── server/                   # Router、Service、Module、Workflow
+├── business/                 # 本项目业务扩展接入层
+├── config/                   # 功能与应用配置
+├── envs/                     # 环境变量解析和校验
+├── libs/                     # Better Auth、tRPC、OIDC 等第三方接入
+├── locales/                  # react-i18next 默认文案源
+├── hooks/                    # 跨领域 React hooks
+├── styles/                   # 全局样式
+├── tools/                    # 工具 UI 与运行时接入
+├── types/                    # 主应用类型
+└── utils/                    # 主应用工具函数
 ```
+
+## src/app：Next.js 边界
+
+`src/app/` 不再承载主应用 SPA 页面树。当前主要职责是：
+
+```plaintext
+src/app/
+├── (backend)/
+│   ├── api/                  # Auth、Webhook 等 Route Handler
+│   ├── f/                    # 文件访问
+│   ├── market/               # 市场服务入口
+│   ├── middleware/           # 后端请求中间件
+│   ├── oidc/                 # OIDC 路由
+│   ├── trpc/                 # tRPC HTTP 入口
+│   └── webapi/               # Chat、模型、语音等 WebAPI
+├── spa/[variants]/           # SPA HTML 模板服务
+└── [variants]/(auth)/        # 必须 SSR 的认证页面
+```
+
+主 SPA 页面位于 `src/routes/`，路由注册位于 `src/spa/router/`。旧文档中 `src/app/[variants]/(main)`、`src/app/[variants]/router` 等路径已经不代表当前结构。
+
+## src/spa：入口与路由配置
+
+```plaintext
+src/spa/
+├── entry.web.tsx             # Web 桌面 SPA
+├── entry.mobile.tsx          # 移动端 SPA
+├── entry.desktop.tsx         # Electron SPA
+├── entry.popup.tsx           # 弹窗 SPA
+└── router/
+    ├── desktopRouter.config.tsx
+    ├── desktopRouter.config.desktop.tsx
+    ├── mobileRouter.config.tsx
+    ├── popupRouter.config.tsx
+    └── desktopRouter.sync.test.tsx
+```
+
+`desktopRouter.config.tsx` 与 `desktopRouter.config.desktop.tsx` 必须保持路径和嵌套同步。
+
+## src/routes 与 src/features
+
+推荐结构：
+
+```plaintext
+src/routes/(main)/example/
+├── _layout/index.tsx         # 薄 layout root
+└── index.tsx                 # 薄 page root
+
+src/features/Example/
+├── components/
+├── hooks/
+└── index.tsx                 # 领域页面或公开导出
+```
+
+路由文件只应导入和组合 `@/features/*`。业务状态、复杂 UI、数据获取和领域 hooks 应放在 `src/features/<Domain>/`。
+
+当前仓库仍有不少 `src/routes/**/features`，它们是历史结构和迁移债务。维护旧页面时可以按范围逐步迁移，但不要为了目录整洁进行一次性全仓库搬迁，也不要在新页面中继续复制旧模式。
+
+## src/server
+
+```plaintext
+src/server/
+├── featureFlags/             # 服务端功能开关
+├── globalConfig/             # 注入客户端的全局配置
+├── routers/
+│   ├── async/                # 异步任务
+│   ├── lambda/               # 主要业务 tRPC
+│   ├── mobile/               # 移动端专用 tRPC
+│   └── tools/                # 工具 tRPC
+├── services/                 # 可访问数据库的服务端业务
+├── modules/                  # 不访问数据库的纯模块
+└── workflows/                # 后台工作流
+```
+
+## 数据库目录
+
+```plaintext
+packages/database/
+├── migrations/               # 数据库迁移
+└── src/
+    ├── schemas/              # Drizzle 表、枚举、索引和关系
+    ├── models/               # 数据模型
+    └── repositories/         # 跨模型或复杂查询
+```
+
+数据库变更必须同时考虑 schema、migration 和相关 model/repository 测试。
+
+## 文档与决策
+
+- `CONTEXT.md`：项目领域术语，尤其是管理后台、门户、任务和最近列表等容易混淆的概念。
+- `docs/adr/`：已经接受的架构决策。
+- `docs/impl/`：阶段性实施或审计记录，可能是带日期的快照。
+- `docs/development/basic/handoff.zh-CN.mdx`：后续维护者的统一入口。
+
+详细的数据流和运行时说明见 [架构设计](/zh/docs/development/basic/architecture)。

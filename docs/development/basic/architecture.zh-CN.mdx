@@ -1,146 +1,163 @@
 ---
 title: 架构设计
-description: 深入了解 LobeHub 的架构设计，包括前端、后端、运行时和数据存储。
+description: 介绍本项目当前的 Web、SPA、服务端、Runtime 和数据存储架构。
 tags:
   - LobeHub
   - 架构设计
   - Agent 平台
   - Next.js
+  - React Router
 ---
 
 # 架构设计
 
-LobeHub 是一个基于 Next.js 构建的开源 AI Agent 平台，使用户能够与 AI 进行自然语言交互、使用工具、管理知识库等。以下是 LobeHub 的架构设计概览。
+<Callout type={'warning'}>
+  本页以当前中文文档和代码为准。对应英文文档未同步本项目的定制行为，可能已经落后。
+</Callout>
 
-## 应用架构概览
+本项目采用 Next.js 服务端与 Vite SPA 组合的 Monorepo 架构。Next.js 负责服务端、认证和 SPA HTML 输出，React Router DOM 负责主应用的客户端路由，核心 Runtime 与数据访问能力沉淀在共享包中。
 
-LobeHub 的整体架构由以下核心层组成：
+## 总体分层
 
 ```plaintext
-+---------------------+--------------------------------------------------+
-| Layer               | Description                                      |
-+---------------------+--------------------------------------------------+
-| Frontend            | Next.js RSC + React Router DOM 混合路由 SPA      |
-| Backend API         | RESTful WebAPI + tRPC Routers                    |
-| Runtime             | Model Runtime + Agent Runtime                    |
-| Auth                | Better Auth（邮箱密码 + SSO）                     |
-| Data Storage        | PostgreSQL + Redis + S3                          |
-| Marketplace         | Agent 市场 + MCP 工具市场                         |
-+---------------------+--------------------------------------------------+
+Browser / Electron / CLI
+          |
+          v
+React UI + React Router DOM
+          |
+          v
+Zustand Store + SWR
+          |
+          v
+Client Service + tRPC Client
+          |
+          v
+Next.js Route Handler / tRPC Router / WebAPI
+          |
+          v
+Server Service + Agent Runtime
+          |
+          v
+Database Model / Repository
+          |
+          v
+PostgreSQL + Redis + S3
 ```
 
-## 前端架构
+## Web 与路由架构
 
-前端采用 Next.js 框架，使用 **Next.js RSC + React Router DOM 混合路由**方案：Next.js App Router 处理服务端渲染页面（如认证页），React Router DOM 承载主应用 SPA。
+| 边界                 | 位置                    | 当前职责                                  |
+| ------------------ | --------------------- | ------------------------------------- |
+| Next.js App Router | `src/app/`            | 认证页、API、tRPC、WebAPI、文件服务和 SPA HTML 模板 |
+| SPA 入口             | `src/spa/entry.*.tsx` | Web、移动端、Electron、弹窗入口                 |
+| SPA 路由树            | `src/spa/router/`     | React Router 路由配置                     |
+| 页面根节点              | `src/routes/`         | layout、page 和动态 segment               |
+| 领域功能               | `src/features/`       | 页面主体、业务组件和领域 hooks                    |
+| 全局 Provider        | `src/layout/`         | 认证、主题、状态初始化和全局上下文                     |
 
-| 路由方式                   | 使用场景             | 位置                         |
-| ---------------------- | ---------------- | -------------------------- |
-| **Next.js App Router** | 认证页、SSR、静态路由     | `src/app/(backend)/`       |
-| **React Router DOM**   | 主聊天 SPA、Agent 界面 | `src/spa/` + `src/routes/` |
+认证和需要服务端渲染的页面由 Next.js 处理；聊天、设置、资源、社区、生成和管理后台等高交互页面由 SPA 承载。
 
-**为什么使用混合路由？** SSR 为认证页提供安全性、SEO 和静态页性能；SPA 为交互式聊天和 Agent 界面提供即时导航和响应式状态管理 —— 两者各取所长。
+当前桌面端的关键路由语义：
 
-主要技术栈：
+- `/`、`/explore`：都渲染独立全屏门户，不使用聊天工作台布局
+- `/home`：聊天工作台
+- `/home/agent/*`、`/home/group/*`、`/home/resource/*`、`/home/settings/*`：工作台内功能
+- `/home/settings/admin`：集成在现有 SPA 中的管理后台，由 RBAC 守卫控制
 
-- **UI 组件**：`@lobehub/ui`、antd
-- **CSS-in-JS**：antd-style
-- **状态管理**：zustand（slice 模式）
-- **数据请求**：SWR + tRPC
-- **国际化**：react-i18next
+移动端没有完全复用桌面端门户语义，不能仅依据桌面路由推断移动端行为。
 
-**组件使用优先级**：项目组件（`src/components/`）→ `@lobehub/ui` → Ant Design（`antd`）。始终优先使用项目级组件以保持一致性。
+## roots 与 features
 
-前端代码按职责分层在 `src/` 目录下，详见 [目录架构](/zh/docs/development/basic/folder-structure)。
+新路由必须遵守以下边界：
 
-## 后端 API
+```plaintext
+src/spa/router/       注册路径和嵌套关系
+        |
+        v
+src/routes/           薄 route root，只组合页面和 layout
+        |
+        v
+src/features/         领域 UI、hooks 和业务组件
+```
 
-后端提供两种 API 形式：
+仓库仍保留大量历史 `src/routes/**/features` 目录，这是迁移债务而不是推荐模式。新功能不要继续在路由目录中创建业务 feature。
 
-- **RESTful WebAPI**（`src/app/(backend)/webapi/`）：处理 chat 流式响应、TTS、文件服务等需要特殊处理的端点
-- **tRPC Routers**（`src/server/routers/`）：类型安全的主要业务路由，按运行时分组：
-  - `lambda/` — 主业务（agent、session、message、topic、file、knowledge、settings 等）
-  - `async/` — 耗时异步操作（文件处理、图像生成、RAG 评估）
-  - `tools/` — 工具调用（search、MCP、market）
-  - `mobile/` — 移动端专用
+桌面端 Web 和 Electron 路由分别来自：
 
-## Runtime
+- `src/spa/router/desktopRouter.config.tsx`
+- `src/spa/router/desktopRouter.config.desktop.tsx`
 
-### Model Runtime
+两份配置必须保持路径和嵌套同步，`desktopRouter.sync.test.tsx` 用于守护这一约束。
 
-`@lobechat/model-runtime`（`packages/model-runtime/`）是 LLM API 适配层，抹平了 30+ 不同 AI Provider 之间的 API 差异（OpenAI、Anthropic、Google、Bedrock、Ollama 等），提供统一的调用接口。每个 Provider 有独立的适配器实现。它是无状态的，每次调用独立。
+## 客户端状态与数据获取
 
-### Agent Runtime
+- `src/store/` 使用 Zustand 管理客户端状态和 action。
+- `src/services/` 封装客户端 tRPC/API 调用。
+- SWR hook 负责请求去重、缓存和重新验证。
+- 组件通过 selector 消费状态，避免订阅整个 Store。
 
-`@lobechat/agent-runtime`（`packages/agent-runtime/`）是 Agent 编排引擎，位于 Model Runtime 之上，负责驱动多步 AI Agent 行为的完整生命周期：
+典型写入链路：
 
-- **Plan-Execute 循环**：核心状态机，循环执行 LLM 调用 → 工具执行 → 结果处理
-- **工具调用与批量执行**：支持单工具和批量工具调用
-- **Human-in-the-Loop**：安全检查、人工审批流程
-- **上下文压缩**：管理上下文窗口
-- **用量与成本追踪**：累计 token 用量和费用
-- **多 Agent 协作**：`GroupOrchestrationRuntime` 支持 Supervisor + Executor 模式的多 Agent 编排
+```plaintext
+UI -> Store Action -> Client Service -> tRPC Router
+   -> Server Service -> DB Model / Repository -> PostgreSQL
+```
 
-简言之：Model Runtime 解决 "如何与 LLM Provider 通信"，Agent Runtime 解决 "如何运行一个使用 LLM、工具、人工审批的完整 Agent"。
+## 服务端架构
 
-**Agent 执行流程：**
+| 层                    | 位置                                 | 约束                                                    |
+| -------------------- | ---------------------------------- | ----------------------------------------------------- |
+| REST / Route Handler | `src/app/(backend)/api/`、`webapi/` | Webhook、流式响应和特殊 HTTP 接口                               |
+| tRPC 入口              | `src/app/(backend)/trpc/`          | 将 HTTP 请求接入 Router                                    |
+| tRPC Router          | `src/server/routers/`              | 校验输入、鉴权并调度服务                                          |
+| Server Service       | `src/server/services/`             | 可访问数据库的服务端业务                                          |
+| Server Module        | `src/server/modules/`              | 不访问数据库的纯模块                                            |
+| 数据层                  | `packages/database/`               | `src/` 下的 schemas、models、repositories，以及根级 migrations |
 
-1. 解析用户输入
-2. LLM 决策：直接回复还是调用工具
-3. 执行工具（单工具或批量）
-4. Human-in-the-Loop 人工审批（如需要）
-5. 将执行结果反馈给 LLM
-6. 循环直至生成最终回复
+tRPC Router 按运行形态分为 `lambda`、`async`、`mobile` 和 `tools`。新增接口前应先找到同领域 Router，而不是另建平行 API 风格。
 
-## 认证鉴权
+## Agent 与模型 Runtime
 
-LobeHub 使用 [Better Auth](https://www.better-auth.com/) 作为认证框架，支持：
+`packages/model-runtime/` 统一各模型 Provider 的协议差异。`packages/agent-runtime/` 位于其上，负责 Agent 循环、工具调用、上下文处理、人机介入和多 Agent 编排。
 
-- 邮箱 + 密码注册登录
-- SSO 单点登录（GitHub、Google 等多种 OAuth Provider）
+工具体系分为：
 
-认证配置位于 `src/auth.ts`，相关路由在 `src/app/(backend)/api/` 下。
+- `packages/builtin-tool-*/`：单个工具的 manifest、executor、状态和 UI 协议。
+- `packages/builtin-tools/`：集中注册工具、渲染器、检查器和介入逻辑。
+- `src/store/tool/`：客户端工具状态与执行接入。
+- `src/server/services/agentRuntime/`：服务端 Agent Runtime 接入。
+
+## 认证、权限与商业定制
+
+- Better Auth 提供认证能力，入口集中在 `src/auth.ts` 和 `src/app/(backend)/api/`。
+- 管理后台使用现有 RBAC 权限体系，不是独立部署的应用。
+- 商业开关和平台托管模型配置由 `src/envs/app.ts`、`src/server/globalConfig/` 与相关 business 模块接入。
+- 助理管理隐藏只发生在 UI 和路由守卫层，Agent 数据关系与聊天 Runtime 不会因此消失。
+
+修改这些区域前必须阅读 `CONTEXT.md` 与 `docs/adr/`，避免破坏已确定的业务语义。
 
 ## 数据存储
 
+| 存储         | 用途                     | 本地实现                      |
+| ---------- | ---------------------- | ------------------------- |
+| PostgreSQL | 用户、会话、消息、Agent、计费等持久数据 | ParadeDB PostgreSQL 17 镜像 |
+| Redis      | 缓存和运行时状态               | Redis 7 Alpine            |
+| S3         | 文件、图片和知识库对象            | RustFS                    |
+
+Drizzle schema 位于 `packages/database/src/schemas/`。数据库变更必须使用仓库的 Drizzle 与 migration 约定，不能手写一份未纳入迁移序列的临时 SQL。
+
+## 构建架构
+
+Web 构建不是单一步骤：
+
 ```plaintext
-+---------------+----------------------------------------------+
-| Storage       | Usage                                        |
-+---------------+----------------------------------------------+
-| PostgreSQL    | 主数据库，存储用户、会话、消息、Agent 配置等  |
-| Redis         | 缓存、会话状态、速率限制                      |
-| S3            | 文件存储（用户上传、图片、知识库文件等）      |
-+---------------+----------------------------------------------+
+Vite build
+  -> dist/desktop 或 dist/mobile
+  -> build:spa:copy
+  -> public/_spa + spaHtmlTemplates.ts
+  -> Next.js build
 ```
 
-数据库使用 Drizzle ORM 操作，schema 定义在 `packages/database/src/schemas/`。
+因此 `bun run build:spa` 只验证 SPA 产物；要验证 Next.js 能提供最新 SPA，还必须执行 `bun run build:spa:copy`，完整流程使用 `bun run build`。
 
-## 市场
-
-- **Agent 市场**：提供各种场景的 AI Agent，用户可以发现、使用和分享 Agent
-- **MCP 工具市场**：发现和集成 MCP 工具，扩展 Agent 的能力
-
-## 性能优化
-
-- **代码拆分**：基于路由的按需分块，保持初始包体积小
-- **懒加载**：重型组件和路由按需加载
-- **SWR 缓存**：客户端数据缓存并在后台自动重新验证
-- **边缘缓存**：静态和可缓存响应分发至 CDN 边缘节点
-- **流式响应**：聊天回复通过 SSE 增量流式传输，提升感知速度
-- **虚拟滚动**：长消息列表和 Agent 列表使用虚拟滚动优化渲染
-
-## 安全措施
-
-- **CSRF 防护**：SameSite Cookie 和 Token 验证
-- **XSS 防护**：Content Security Policy 请求头和输出内容净化
-- **速率限制**：API 请求限流在边缘层执行
-- **SSRF 防护**：插件和 MCP 调用的出站请求白名单
-- **SQL 注入防护**：通过 Drizzle ORM 使用参数化查询
-- **密钥管理**：API Key 和凭据以环境变量方式存储，绝不写入代码或客户端包
-
-## 开发和部署
-
-- **版本控制**：Git + GitHub，gitmoji commit 规范
-- **代码质量**：ESLint、Stylelint、TypeScript 类型检查、循环依赖检测 (dpdm)、死代码检测 (knip)
-- **测试**：Vitest 单元测试 + Cucumber/Playwright E2E 测试
-- **CI/CD**：GitHub Actions 自动化测试、构建和发布
-- **部署**：支持 Vercel、Docker、各大云平台自托管
+更多接手注意事项和当前风险见 [项目接手与维护指南](/zh/docs/development/basic/handoff)。

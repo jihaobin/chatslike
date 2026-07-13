@@ -25,26 +25,26 @@ _Avoid_: 与 `creditLedgerEntries`（积分流水）混为一谈
 _Avoid_: 与订阅赠送积分、充值积分混用
 
 **总览看板 (Admin Dashboard)**:
-管理后台首页（`/admin`），展示系统级关键指标卡片（总用户数、本月新增、本月营收、本月积分消耗、异常订单数）及趋势图表。管理员进入后台的默认落地页。
+管理后台首页（`/home/settings/admin`），展示系统级关键指标卡片（总用户数、本月新增、本月营收、本月积分消耗、异常订单数）及趋势图表。管理员进入后台的默认落地页。
 _Avoid_: 与用户端的 /settings/usage 混淆
 
 ## 介绍页 (Explore Portal)
 
 **介绍页 (Explore Portal)**:
-登录后的默认落地页，路由 `/explore`，使用**独立全屏布局**（横向顶部导航，无左侧 NavPanel 竖栏），不在 main layout 之内。作用有二：展示项目能力 / 精选模型；作为各功能的**中转入口**（点击跳转到对话、图像、视频、社区）。访问 `/` 时重定向到 `/explore`。
+登录后的默认落地页，路由 `/` 与 `/explore` 都渲染该页面，使用**独立全屏布局**（横向顶部导航，无左侧 NavPanel 竖栏），不在 main layout 之内。作用有二：展示核心产品、应用场景与定制服务；作为对话、图像和视频功能的**中转入口**。
 _Avoid_: 与「聊天工作台」混用 —— 介绍页是门户，不含聊天侧边栏 / 输入框
 
 **聊天工作台 (Chat Workspace)**:
 原 `/` 首页（左侧 NavPanel 竖栏 + agent 列表侧边栏 + 输入框 + Recents），是 main layout 的持久化常驻层。介绍页上线后从 `/` 迁移到 `/home`。「开始对话」按钮跳转到它。
 _Avoid_: 与「介绍页」混用
 
-**精选模型卡 (Featured Model Card)**:
-介绍页中部一排手工维护的模型展示卡（名称 + 厂商 + 一句话卖点 + 分类标签）。数据为**静态精选清单**（非 discover 目录、非用户已启用模型），后续需做成管理员可配置（TODO）。点击 → 跳对话页并预选该模型（复用 StarterList 的 `updateAgentConfigById({model,provider})` 模式；生成类则走 `/image?model=`、`/video?model=` 查询参数）。
-_Avoid_: 与 discover 社区模型目录（`/community/model`）混用
+**核心产品卡 (Core Product Card)**:
+介绍页中部的五类静态产品卡（文生图、AI 对话、图生图、视频生成和更多能力），数据定义在 `src/features/Explore/const.ts`。点击后按类别进入 `/home` 下的聊天、图像或视频功能；当前卡片不绑定具体模型。
+_Avoid_: 精选模型卡、模型目录（当前介绍页不展示具体模型清单）
 
-**价格页 (Pricing Page)**:
-路由 `/explore/pricing`，与介绍页同一套门户全屏布局。直接嵌入现有订阅组件 `Plans.tsx`（`src/business/client/BusinessSettingPages/Plans.tsx`）。顶导航「价格」与促销 banner「立即查看」均指向它。
-_Avoid_: 与 `/settings` 下的订阅 tab 混用 —— 价格页是门户风格的独立呈现
+**订阅方案页 (Plans Page)**:
+路由 `/home/settings/plans`，位于聊天工作台的设置区域，使用 `src/business/client/BusinessSettingPages/Plans.tsx` 展示可用订阅方案。旧入口 `/settings/plans` 会由 SPA 兼容路由转到 `/home/settings/plans`。
+_Avoid_: `/explore/pricing`、价格门户页（当前代码没有该路由）
 
 ## Language
 

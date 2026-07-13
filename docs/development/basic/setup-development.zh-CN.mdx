@@ -1,197 +1,260 @@
 ---
 title: 环境设置指南
-description: 详细介绍 LobeHub 的开发环境设置，包括软件安装和项目配置。
+description: 说明本项目当前的本地环境、基础服务和各类启动模式。
 tags:
   - LobeHub
   - 开发环境
-  - Node.js
   - PNPM
-  - Git
+  - Bun
   - Docker
   - PostgreSQL
 ---
 
 # 环境设置指南
 
-欢迎阅读 LobeHub 的开发环境设置指南。
+<Callout type={'warning'}>
+  本页只维护中文版本。英文环境文档可能包含过期命令或缺少本项目的商业配置说明，请以当前
+  `package.json`、环境模板和本页为准。
+</Callout>
 
-## 在线开发
+## 环境要求
 
-如果你有 GitHub Codespaces 的使用权限，可以点击下方按钮一键进入在线开发环境：
+本地开发需要：
 
-[![][codespaces-shield]][codespaces-link]
+- Git
+- Node.js
+- pnpm，版本以根 `package.json` 的 `packageManager` 字段为准
+- Bun，用于运行根目录 npm scripts
+- Docker Desktop 或兼容的 Docker Engine + Compose
+- 可用的 PostgreSQL、Redis、S3 和搜索服务；推荐直接使用仓库提供的 Compose
 
-## 本地开发
-
-在开始开发 LobeHub 之前，你需要在本地环境中安装和配置一些必要的软件和工具。本文档将指导你完成这些步骤。
-
-### 开发环境需求
-
-首先，你需要安装以下软件：
-
-- Node.js：LobeHub 是基于 Node.js 构建的，因此你需要安装 Node.js。我们建议安装最新的稳定版。
-- PNPM：我们使用 PNPM 作为管理器。你可以从 [pnpm 的官方网站](https://pnpm.io/installation) 上下载并安装。
-- Bun：我们使用 Bun 作为 npm scripts runner，你可以从 [Bun 的官方网站](https://bun.com/docs/installation) 上下载并安装。
-- Git：我们使用 Git 进行版本控制。你可以从 Git 的官方网站上下载并安装。
-- Docker：用于运行 PostgreSQL、RustFS 等服务。你可以从 [Docker 官方网站](https://www.docker.com/get-started) 下载并安装。
-- IDE：你可以选择你喜欢的集成开发环境（IDE），我们推荐使用 WebStorm/VSCode。
-
-### VSCode 用户
-
-推荐安装 [.vscode/extensions.json](https://github.com/lobehub/lobehub/blob/main/.vscode/extensions.json) 中推荐安装的扩展获得最佳开发体验。
-
-### 项目设置
-
-完成上述软件的安装后，你可以开始设置 LobeHub 项目了。
-
-#### 1. 获取代码
-
-首先，你需要从 GitHub 上克隆 LobeHub 的代码库。在终端中运行以下命令：
+## 1. 安装依赖
 
 ```bash
-git clone https://github.com/lobehub/lobehub.git
-cd lobehub
+git clone https://github.com/jihaobin/chatslike.git
+cd chatslike
+pnpm install
 ```
 
-#### 2. 安装依赖
+不要混用 npm、Yarn 和 pnpm 安装依赖。根脚本内部可能调用 npm script runner，但 workspace 依赖仍由 pnpm 管理。
 
-使用 PNPM 安装项目的依赖包：
+## 2. 创建环境文件
 
-```bash
-pnpm i
+PowerShell：
+
+```powershell
+Copy-Item docker-compose/dev/.env.example docker-compose/dev/.env
+Copy-Item .env.example.development .env
 ```
 
-#### 3. 配置环境
-
-复制示例环境文件：
+Bash：
 
 ```bash
-# Docker 服务配置
 cp docker-compose/dev/.env.example docker-compose/dev/.env
-
-# Next.js 开发服务器配置
 cp .env.example.development .env
 ```
 
-根据需要编辑这些文件：
+两个文件职责不同：
 
-- `docker-compose/dev/.env` - Docker 服务配置（PostgreSQL、Redis、RustFS、SearXNG）
-- `.env` - Next.js 开发服务器配置（数据库连接、S3 存储、认证等）
+| 文件                        | 用途                                  |
+| ------------------------- | ----------------------------------- |
+| `docker-compose/dev/.env` | Compose 端口、PostgreSQL 密码和 RustFS 凭据 |
+| `.env`                    | Next.js、数据库连接、Redis、S3、搜索、模型和商业功能配置 |
 
-#### 4. 启动 Docker 服务
+`.env.example.development` 中的固定密钥、模拟支付和本地开关仅供开发使用，不能复制到生产环境。接入真实模型时应设置对应 Provider API Key；接入本项目的 New API 网关时应检查 `NEWAPI_API_KEY` 和 `NEWAPI_PROXY_URL`。
 
-使用 Docker Compose 启动所有必需的服务：
+## 3. 启动开发基础服务
 
 ```bash
 bun run dev:docker
 ```
 
-这将启动以下服务：
+该命令只启动 Web 开发需要的服务：`postgresql`、`redis`、`rustfs` 和 `searxng`。Compose 中的 `network-service` 和 `rustfs-init` 会作为 RustFS 网络与初始化依赖参与运行。
 
-- PostgreSQL 数据库（端口 5432）
-- Redis 缓存（端口 6379）
-- RustFS 存储（API 端口 9000，控制台端口 9001）
-- SearXNG 搜索（端口 8180）
-
-可以通过运行以下命令检查所有 Docker 服务运行状态：
+检查状态：
 
 ```bash
 docker compose -f docker-compose/dev/docker-compose.yml ps
 ```
 
-#### 5. 运行数据库迁移
+默认地址：
 
-执行数据库迁移脚本以创建所有必要的表：
+| 服务             | 默认地址                                                                               |
+| -------------- | ---------------------------------------------------------------------------------- |
+| PostgreSQL     | `postgresql://postgres:change_this_password_on_production@localhost:5432/lobechat` |
+| Redis          | `redis://localhost:6379`                                                           |
+| RustFS API     | `http://localhost:9000`                                                            |
+| RustFS Console | `http://localhost:9001`                                                            |
+| SearXNG        | `http://localhost:8180`                                                            |
+
+## 4. 运行数据库迁移
 
 ```bash
 pnpm db:migrate
 ```
 
-预期输出：`✅ database migration pass.`
+需要查看数据库时可使用：
 
-#### 6. 启动开发服务器
+```bash
+pnpm db:studio
+```
 
-启动 LobeHub 开发服务器：
+只有修改 Drizzle schema 时才应运行 `pnpm db:generate`，并按仓库迁移规范审查生成 SQL。
+
+## 5. 选择启动模式
+
+### 完整本地 Web 开发
 
 ```bash
 bun run dev
 ```
 
-现在，你可以在浏览器中打开 `http://localhost:3010`，你应该能看到 LobeHub 的欢迎页面。这表明你已经成功地设置了开发环境。
+根脚本实际执行 `scripts/devStartupSequence.mts`：
 
-![Chat Page](https://hub-apac-1.lobeobjects.space/docs/fc7b157a3bc016bc97719065f80c555c.png)
+1. 启动 Next.js，默认端口 `3010`。
+2. 启动 Vite SPA，默认端口 `9876`。
+3. 等待 Next.js 端口就绪并请求根页面完成预热。
+4. 任一子进程异常退出时结束整个开发会话。
 
-## 服务地址
+访问 `http://localhost:3010` 使用 Next.js 提供的完整本地应用；直接访问 Vite 的 `http://localhost:9876` 时，API、tRPC、OIDC 和 WebAPI 请求会被代理到 Next.js 端口。
 
-运行 Docker Compose 开发环境时：
+可以通过 `PORT` 环境变量或 `bun run dev -- -p <port>` 调整 Next.js 端口；Vite 代理会读取相同的 `PORT`。
 
-- **PostgreSQL**：`postgres://postgres@localhost:5432/lobechat`
-- **Redis**：`redis://localhost:6379`
-- **RustFS API**：`http://localhost:9000`
-- **RustFS 控制台**：`http://localhost:9001`
-- **SearXNG**：`http://localhost:8180`
-- **应用程序**：`http://localhost:3010`
-
-## 其他开发模式
-
-**桌面端开发** — 开发 Electron 桌面应用：
+### 只开发桌面 Web SPA
 
 ```bash
-cd apps/desktop
-pnpm run dev
+bun run dev:spa
 ```
 
-**移动端 SPA 开发** — 开发移动端 Web 应用：
+Vite 默认监听 `9876`，并在终端输出 Debug Proxy URL：
+
+```plaintext
+https://app.lobehub.com/_dangerous_local_dev_proxy?debug-host=http%3A%2F%2Flocalhost%3A9876
+```
+
+该 URL 使用线上 LobeHub 环境承载本地 SPA，适合前端开发和真实账号联调。它依赖网络与线上后端，不等同于完整本地环境。涉及数据写入时先确认当前账号和环境。
+
+### 移动端 SPA
 
 ```bash
 bun run dev:spa:mobile
 ```
 
-访问地址：[http://localhost:3012](http://localhost:3012)
+默认访问 `http://localhost:3012`。
 
-## 故障排除
-
-### 重置服务
-
-如遇到问题，可以重置整个服务堆栈：
+### Electron 桌面端
 
 ```bash
-# 完全重置 Docker 环境（删除所有数据并重新启动）
+bun run dev:desktop
+```
+
+该命令进入 `apps/desktop` 并使用桌面应用自己的开发脚本。桌面端还涉及主进程、preload、IPC 和平台依赖，修改前应阅读桌面开发约定。
+
+### CLI
+
+```bash
+cd apps/cli
+pnpm run dev
+```
+
+开发模式默认使用仓库内的 `.lobehub-dev` 作为 CLI Home。
+
+### Device Gateway
+
+```bash
+cd apps/device-gateway
+pnpm run dev
+```
+
+该服务由 Wrangler 启动，是独立运行目标。
+
+## 6. 验证启动结果
+
+完整本地模式至少检查：
+
+```powershell
+Invoke-WebRequest http://localhost:3010 -UseBasicParsing
+Invoke-WebRequest http://localhost:9876 -UseBasicParsing
+docker compose -f docker-compose/dev/docker-compose.yml ps
+```
+
+预期结果：
+
+- Next.js 根页面返回 HTTP 200 或符合当前认证 / 重定向设计的有效响应。
+- Vite 返回 SPA HTML。
+- PostgreSQL、Redis、RustFS 和 SearXNG 容器正常运行。
+- 终端没有某个子进程 “exited unexpectedly” 的错误。
+
+## 7. 构建
+
+完整 Web 构建：
+
+```bash
+bun run build
+```
+
+只构建 SPA：
+
+```bash
+bun run build:spa
+```
+
+`build:spa` 只生成 Vite 产物。若要让 Next.js 使用最新 SPA，还必须执行：
+
+```bash
+bun run build:spa:copy
+```
+
+该步骤会把 `dist/desktop`、`dist/mobile` 中的公共资源复制到 `public/_spa`，并更新 `src/app/spa/[variants]/[[...path]]/spaHtmlTemplates.ts`。
+
+## 8. 常见问题
+
+### 端口被占用
+
+PowerShell：
+
+```powershell
+Get-NetTCPConnection -LocalPort 3010,9876,5432,6379,9000,9001,8180 -ErrorAction SilentlyContinue
+```
+
+先识别占用进程，不要直接结束不属于本项目的服务。
+
+### 数据库迁移失败
+
+依次检查：
+
+1. `docker compose ... ps` 中 PostgreSQL 是否健康。
+2. `.env` 的 `DATABASE_URL` 是否与 Compose 密码、端口一致。
+3. 当前数据库数据版本是否与正在使用的镜像兼容。
+4. 失败发生在连接、权限、SQL 还是已有迁移冲突。
+
+不要在没有备份和版本核对时删除数据库数据。
+
+### RustFS 或上传失败
+
+检查 `.env` 与 `docker-compose/dev/.env` 中的 access key、secret、endpoint 和 bucket 是否一致，并确认 `rustfs-init` 已创建 `lobe` bucket。
+
+### 依赖异常
+
+先重新运行：
+
+```bash
+pnpm install
+```
+
+只有确认需要彻底清理时才使用：
+
+```bash
+bun run clean:node_modules
+pnpm install
+```
+
+### 完全重置开发服务
+
+```bash
 bun run dev:docker:reset
 ```
 
-### 端口冲突
+该命令会删除 Compose volume 和 `docker-compose/dev/data`，造成本地数据库与对象数据丢失。执行前必须确认数据可丢弃。
 
-如果端口已被占用：
-
-```bash
-# 检查端口使用情况
-lsof -i :5432  # PostgreSQL
-lsof -i :6379  # Redis
-lsof -i :9000  # RustFS API
-lsof -i :9001  # RustFS 控制台
-lsof -i :8180  # SearXNG
-```
-
-### 数据库迁移
-
-如需手动运行迁移：
-
-```bash
-pnpm db:migrate
-```
-
-### 清洁安装
-
-如遇到依赖问题，删除所有 `node_modules` 并重新安装：
-
-```bash
-bun run clean:node_modules && pnpm install
-```
-
----
-
-在开发过程中，如果你在环境设置上遇到任何问题，或者有任何关于 LobeHub 开发的问题，欢迎随时向我们提问。我们期待看到你的贡献！
-
-[codespaces-link]: https://codespaces.new/lobehub/lobehub
-[codespaces-shield]: https://github.com/codespaces/badge.svg
+更多架构、接手顺序和当前风险见 [项目接手与维护指南](/zh/docs/development/basic/handoff)。
